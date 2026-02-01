@@ -1,0 +1,28 @@
+{
+  "name": "@caw/tui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "caw-tui": "dist/bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@caw/core": "workspace:*",
+    "ink": "^5.1.0",
+    "react": "^18.3.0",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@caw/tsconfig": "workspace:*",
+    "@types/react": "^18.3.0",
+    "vitest": "^2.1.0"
+  }
+}

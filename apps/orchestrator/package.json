@@ -1,0 +1,25 @@
+{
+  "name": "@caw/orchestrator",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "caw": "dist/bin/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@caw/core": "workspace:*",
+    "@anthropic-ai/sdk": "^0.37.0"
+  },
+  "devDependencies": {
+    "@caw/tsconfig": "workspace:*",
+    "vitest": "^2.1.0"
+  }
+}
