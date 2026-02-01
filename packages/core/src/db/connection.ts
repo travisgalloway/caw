@@ -1,7 +1,7 @@
-import Database from 'better-sqlite3';
-import { mkdirSync, existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
+import { dirname, join } from 'node:path';
+import Database from 'better-sqlite3';
 
 export type DatabaseType = Database.Database;
 

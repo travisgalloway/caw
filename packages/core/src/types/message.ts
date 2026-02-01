@@ -1,9 +1,4 @@
-export type MessageType =
-  | 'task_assignment'
-  | 'status_update'
-  | 'query'
-  | 'response'
-  | 'broadcast';
+export type MessageType = 'task_assignment' | 'status_update' | 'query' | 'response' | 'broadcast';
 
 export type MessagePriority = 'low' | 'normal' | 'high' | 'urgent';
 

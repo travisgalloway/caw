@@ -1,17 +1,21 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { createConnection } from '../connection';
-import { runMigrations, getAppliedVersions } from './index';
+import { getAppliedVersions, runMigrations } from './index';
 
 function getTables(db: ReturnType<typeof createConnection>): string[] {
   const rows = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
     .all() as { name: string }[];
   return rows.map((r) => r.name);
 }
 
 function getIndexes(db: ReturnType<typeof createConnection>): string[] {
   const rows = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY name")
+    .prepare(
+      "SELECT name FROM sqlite_master WHERE type='index' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+    )
     .all() as { name: string }[];
   return rows.map((r) => r.name);
 }

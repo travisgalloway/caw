@@ -11,6 +11,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
+    "lint": "biome check ./src",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },

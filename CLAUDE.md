@@ -30,9 +30,26 @@ pnpm --filter @caw/core test:watch
 # Watch mode for TypeScript compilation
 pnpm --filter @caw/core dev
 
+# Lint all packages (via Turbo)
+pnpm lint
+
+# Lint a single package
+pnpm --filter @caw/core lint
+
+# Auto-fix lint + formatting issues across the repo
+pnpm format
+
 # Clean all build artifacts
 pnpm clean
 ```
+
+## Linting & Formatting
+
+**Biome** handles both linting and formatting. Config lives in `biome.json` (root).
+
+- `pnpm lint` — check all packages (read-only, used in CI)
+- `pnpm format` — auto-fix lint and formatting issues (`biome check --write .`)
+- Pre-commit hook (Husky + lint-staged) auto-fixes staged `*.{ts,tsx}` files on commit
 
 ## Monorepo Structure
 

@@ -7,9 +7,7 @@ export interface Migration {
   sql: string;
 }
 
-const migrations: Migration[] = [
-  { version: 1, name: '001_initial', sql: initialSql },
-];
+const migrations: Migration[] = [{ version: 1, name: '001_initial', sql: initialSql }];
 
 export function ensureMigrationsTable(db: DatabaseType): void {
   db.exec(`
@@ -22,7 +20,9 @@ export function ensureMigrationsTable(db: DatabaseType): void {
 
 export function getAppliedVersions(db: DatabaseType): number[] {
   ensureMigrationsTable(db);
-  const rows = db.prepare('SELECT version FROM schema_migrations ORDER BY version').all() as { version: number }[];
+  const rows = db.prepare('SELECT version FROM schema_migrations ORDER BY version').all() as {
+    version: number;
+  }[];
   return rows.map((r) => r.version);
 }
 
