@@ -1,3 +1,35 @@
-// @caw/core - Database, services, and types for workflow orchestration
-// Exports will be added as features are implemented
-export {};
+export type { DatabaseType } from './db/index';
+export { createConnection, getAppliedVersions, getDbPath, runMigrations } from './db/index';
+export type {
+  Agent,
+  AgentRole,
+  AgentStatus,
+  Checkpoint,
+  CheckpointType,
+  Message,
+  MessagePriority,
+  MessageStatus,
+  MessageType,
+  Repository,
+  Task,
+  TaskDependency,
+  TaskDependencyType,
+  TaskStatus,
+  Workflow,
+  WorkflowStatus,
+  WorkflowSummary,
+  WorkflowTemplate,
+  Workspace,
+  WorkspaceStatus,
+} from './types/index';
+export {
+  agentId,
+  checkpointId,
+  generateId,
+  messageId,
+  repositoryId,
+  taskId,
+  templateId,
+  workflowId,
+  workspaceId,
+} from './utils/id';

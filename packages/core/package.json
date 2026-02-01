@@ -12,9 +12,11 @@
     }
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "test": "vitest run",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check ./src",
+    "test": "vitest run --passWithNoTests",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",
     "@types/better-sqlite3": "^7.6.12",
+    "tsup": "^8.5.1",
     "vitest": "^2.1.0"
   }
 }

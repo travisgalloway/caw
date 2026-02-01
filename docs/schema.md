@@ -2,16 +2,10 @@
 
 ## Migration Strategy
 
-Use a `schema_migrations` table to track applied migrations. Each migration is a numbered SQL file that runs in sequence.
+Use a `schema_migrations` table to track applied migrations. Each migration is a numbered TypeScript file (`src/db/migrations/NNN_name.ts`) that exports SQL as a string constant. The `schema_migrations` table is created and managed by the migration runner (`ensureMigrationsTable`), not by individual migration files.
 
 ```sql
--- migrations/001_initial.sql
-
--- Schema version tracking
-CREATE TABLE schema_migrations (
-  version INTEGER PRIMARY KEY,
-  applied_at INTEGER NOT NULL
-);
+-- migrations/001_initial.ts (exported as `sql` string constant)
 
 -- Repository registry (for global mode)
 CREATE TABLE repositories (
