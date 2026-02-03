@@ -67,12 +67,16 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       );
 
       for (const taskId of params.taskIds) {
-        const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId) as
-          | Pick<Task, 'id'>
+        const task = db.prepare('SELECT id, workflow_id FROM tasks WHERE id = ?').get(taskId) as
+          | Pick<Task, 'id' | 'workflow_id'>
           | undefined;
 
         if (!task) {
           throw new Error(`Task not found: ${taskId}`);
+        }
+
+        if (task.workflow_id !== params.workflowId) {
+          throw new Error(`Task ${taskId} does not belong to workflow ${params.workflowId}`);
         }
 
         updateTask.run(workspace.id, now, taskId);
@@ -139,8 +143,8 @@ export function list(
 }
 
 export function assignTask(db: DatabaseType, taskId: string, wsId: string): void {
-  const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId) as
-    | Pick<Task, 'id'>
+  const task = db.prepare('SELECT id, workflow_id FROM tasks WHERE id = ?').get(taskId) as
+    | Pick<Task, 'id' | 'workflow_id'>
     | undefined;
 
   if (!task) {
@@ -157,6 +161,12 @@ export function assignTask(db: DatabaseType, taskId: string, wsId: string): void
 
   if (workspace.status !== 'active') {
     throw new Error(`Cannot assign task to workspace with status '${workspace.status}'`);
+  }
+
+  if (task.workflow_id !== workspace.workflow_id) {
+    throw new Error(
+      `Task ${taskId} does not belong to workspace's workflow ${workspace.workflow_id}`,
+    );
   }
 
   const now = Date.now();

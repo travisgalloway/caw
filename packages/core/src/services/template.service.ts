@@ -182,6 +182,13 @@ export function apply(db: DatabaseType, templateIdValue: string, params: ApplyPa
           discoveredVars.add(match[1]);
         }
       }
+      if (task.depends_on) {
+        for (const dep of task.depends_on) {
+          for (const match of dep.matchAll(variablePattern)) {
+            discoveredVars.add(match[1]);
+          }
+        }
+      }
     }
 
     // Validate all required variables are provided

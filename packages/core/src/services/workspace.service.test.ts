@@ -124,6 +124,20 @@ describe('workspaceService', () => {
       ).toThrow('Task not found');
     });
 
+    it('throws when taskIds contains a task from a different workflow', () => {
+      const { workflow } = createWorkflowWithTasks(db);
+      const other = createWorkflowWithTasks(db);
+
+      expect(() =>
+        workspaceService.create(db, {
+          workflowId: workflow.id,
+          path: '/tmp/worktree-1',
+          branch: 'feature/task-a',
+          taskIds: [other.tasks[0].id],
+        }),
+      ).toThrow(`Task ${other.tasks[0].id} does not belong to workflow ${workflow.id}`);
+    });
+
     it('is atomic — rolls back on task not found', () => {
       const { workflow, tasks } = createWorkflowWithTasks(db);
       try {
@@ -426,6 +440,21 @@ describe('workspaceService', () => {
 
       expect(() => workspaceService.assignTask(db, tasks[0].id, ws.id)).toThrow(
         "Cannot assign task to workspace with status 'abandoned'",
+      );
+    });
+
+    it('throws when task belongs to a different workflow', () => {
+      const { workflow } = createWorkflowWithTasks(db);
+      const other = createWorkflowWithTasks(db);
+
+      const ws = workspaceService.create(db, {
+        workflowId: workflow.id,
+        path: '/tmp/worktree-1',
+        branch: 'feature/task-a',
+      });
+
+      expect(() => workspaceService.assignTask(db, other.tasks[0].id, ws.id)).toThrow(
+        `Task ${other.tasks[0].id} does not belong to workspace's workflow ${workflow.id}`,
       );
     });
 

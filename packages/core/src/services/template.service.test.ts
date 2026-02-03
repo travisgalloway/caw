@@ -290,6 +290,24 @@ describe('templateService', () => {
       ).toThrow('Missing required variables: service');
     });
 
+    it('discovers variables from depends_on entries', () => {
+      const tmpl = templateService.create(db, {
+        name: 'Dep Vars',
+        template: {
+          tasks: [
+            { name: 'Setup {{component}}' },
+            { name: 'Test', depends_on: ['Setup {{component}}'] },
+          ],
+        },
+      });
+
+      expect(() =>
+        templateService.apply(db, tmpl.id, {
+          workflowName: 'Workflow',
+        }),
+      ).toThrow('Missing required variables: component');
+    });
+
     it('sets source_type to template and source_ref to template id', () => {
       const tmpl = createBasicTemplate(db);
       const result = templateService.apply(db, tmpl.id, {
