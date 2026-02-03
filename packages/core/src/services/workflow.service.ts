@@ -187,6 +187,15 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
       'UPDATE workflows SET initial_plan = ?, plan_summary = ?, status = ?, updated_at = ? WHERE id = ?',
     ).run(planJson, plan.summary, 'ready', now, id);
 
+    // Validate: no duplicate task names
+    const seenNames = new Set<string>();
+    for (const t of plan.tasks) {
+      if (seenNames.has(t.name)) {
+        throw new Error(`Duplicate task name '${t.name}' in plan`);
+      }
+      seenNames.add(t.name);
+    }
+
     // First pass: insert all tasks, build name→id map
     const nameToIdMap = new Map<string, string>();
     const parallelGroups = new Set<string>();
@@ -235,6 +244,9 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
 
       const tId = nameToIdMap.get(t.name) as string;
       for (const depName of t.depends_on) {
+        if (depName === t.name) {
+          throw new Error(`Task '${t.name}' cannot depend on itself`);
+        }
         const depId = nameToIdMap.get(depName);
         if (!depId) {
           throw new Error(`Unknown dependency '${depName}' in task '${t.name}'`);
