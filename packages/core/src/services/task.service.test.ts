@@ -529,6 +529,11 @@ describe('taskService', () => {
       const aid = createAgent(db);
       expect(() => taskService.claim(db, 'tk_nonexistent', aid)).toThrow('Task not found');
     });
+
+    it('throws when agent not found', () => {
+      const { tasks } = setupChainedTasks(db);
+      expect(() => taskService.claim(db, tasks[0].id, 'ag_nonexistent')).toThrow('Agent not found');
+    });
   });
 
   // --- release ---
@@ -583,6 +588,20 @@ describe('taskService', () => {
     it('throws when task not found', () => {
       const aid = createAgent(db);
       expect(() => taskService.release(db, 'tk_nonexistent', aid)).toThrow('Task not found');
+    });
+
+    it('throws when agent not found', () => {
+      const { tasks } = setupChainedTasks(db);
+      const aid = createAgent(db);
+
+      taskService.claim(db, tasks[0].id, aid);
+
+      // Delete the agent row to simulate inconsistent data
+      db.prepare('PRAGMA foreign_keys = OFF').run();
+      db.prepare('DELETE FROM agents WHERE id = ?').run(aid);
+      db.prepare('PRAGMA foreign_keys = ON').run();
+
+      expect(() => taskService.release(db, tasks[0].id, aid)).toThrow('Agent not found');
     });
   });
 

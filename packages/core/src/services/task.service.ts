@@ -231,6 +231,11 @@ export function claim(db: DatabaseType, taskId: string, agentId: string): ClaimR
       return { success: false, already_claimed_by: task.assigned_agent_id };
     }
 
+    const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(agentId);
+    if (!agent) {
+      throw new Error(`Agent not found: ${agentId}`);
+    }
+
     const now = Date.now();
 
     db.prepare(
@@ -261,6 +266,11 @@ export function release(db: DatabaseType, taskId: string, agentId: string, _reas
 
     if (task.assigned_agent_id !== agentId) {
       throw new Error(`Task is claimed by agent '${task.assigned_agent_id}', not '${agentId}'`);
+    }
+
+    const agent = db.prepare('SELECT id FROM agents WHERE id = ?').get(agentId);
+    if (!agent) {
+      throw new Error(`Agent not found: ${agentId}`);
     }
 
     const now = Date.now();
