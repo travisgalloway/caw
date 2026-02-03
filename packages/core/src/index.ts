@@ -1,20 +1,37 @@
 export type { DatabaseType } from './db/index';
 export { createConnection, getAppliedVersions, getDbPath, runMigrations } from './db/index';
 export type {
+  ListFilters as AgentListFilters,
+  RegisterParams,
+  UnregisterResult,
+  UpdateParams as AgentUpdateParams,
+} from './services/agent.service';
+export type {
   AddParams as CheckpointAddParams,
   AddResult as CheckpointAddResult,
   ListFilters as CheckpointListFilters,
 } from './services/checkpoint.service';
 export {
+  agentService,
   checkpointService,
   isValidTaskTransition,
   isValidWorkflowTransition,
+  messageService,
   repositoryService,
   TASK_TRANSITIONS,
   taskService,
   WORKFLOW_TRANSITIONS,
   workflowService,
 } from './services/index';
+export type {
+  BroadcastFilter,
+  BroadcastParams,
+  BroadcastResult,
+  CountUnreadResult,
+  ListFilters as MessageListFilters,
+  SendParams,
+  SendResult,
+} from './services/message.service';
 export type {
   ClaimResult,
   Dependencies,

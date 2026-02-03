@@ -1,4 +1,6 @@
+export * as agentService from './agent.service';
 export * as checkpointService from './checkpoint.service';
+export * as messageService from './message.service';
 export * as repositoryService from './repository.service';
 export * as taskService from './task.service';
 export {
