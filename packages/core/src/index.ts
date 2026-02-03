@@ -1,5 +1,20 @@
 export type { DatabaseType } from './db/index';
 export { createConnection, getAppliedVersions, getDbPath, runMigrations } from './db/index';
+export {
+  isValidWorkflowTransition,
+  repositoryService,
+  WORKFLOW_TRANSITIONS,
+  workflowService,
+} from './services/index';
+export type {
+  CreateParams,
+  GetOptions,
+  ListFilters,
+  PlanTask,
+  SetPlanParams,
+  SetPlanResult,
+  WorkflowWithTasks,
+} from './services/workflow.service';
 export type {
   Agent,
   AgentRole,
