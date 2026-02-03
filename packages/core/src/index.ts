@@ -17,11 +17,14 @@ export {
   isValidTaskTransition,
   isValidWorkflowTransition,
   messageService,
+  orchestrationService,
   repositoryService,
   TASK_TRANSITIONS,
   taskService,
+  templateService,
   WORKFLOW_TRANSITIONS,
   workflowService,
+  workspaceService,
 } from './services/index';
 export type {
   BroadcastFilter,
@@ -33,6 +36,15 @@ export type {
   SendResult,
 } from './services/message.service';
 export type {
+  BlockedTaskInfo,
+  DependencyCheckResult,
+  DependencyInfo,
+  EnrichedTask,
+  NextTasksResult,
+  ParallelGroupStats,
+  ProgressResult,
+} from './services/orchestration.service';
+export type {
   ClaimResult,
   Dependencies,
   GetAvailableFilters,
@@ -43,6 +55,13 @@ export type {
   UpdateStatusParams,
 } from './services/task.service';
 export type {
+  ApplyParams as TemplateApplyParams,
+  ApplyResult as TemplateApplyResult,
+  CreateParams as TemplateCreateParams,
+  TemplateDefinition,
+  TemplateTaskDefinition,
+} from './services/template.service';
+export type {
   CreateParams,
   GetOptions,
   ListFilters,
@@ -51,6 +70,10 @@ export type {
   SetPlanResult,
   WorkflowWithTasks,
 } from './services/workflow.service';
+export type {
+  CreateParams as WorkspaceCreateParams,
+  UpdateParams as WorkspaceUpdateParams,
+} from './services/workspace.service';
 export type {
   Agent,
   AgentRole,
