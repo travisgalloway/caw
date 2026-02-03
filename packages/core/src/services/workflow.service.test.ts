@@ -385,6 +385,26 @@ describe('workflowService', () => {
       }).toThrow("Unknown dependency 'Nonexistent' in task 'Build'");
     });
 
+    it('throws on duplicate task names', () => {
+      const wf = createBasicWorkflow(db);
+      expect(() => {
+        workflowService.setPlan(db, wf.id, {
+          summary: 'Plan',
+          tasks: [{ name: 'Setup' }, { name: 'Setup' }],
+        });
+      }).toThrow("Duplicate task name 'Setup' in plan");
+    });
+
+    it('throws on self-dependency', () => {
+      const wf = createBasicWorkflow(db);
+      expect(() => {
+        workflowService.setPlan(db, wf.id, {
+          summary: 'Plan',
+          tasks: [{ name: 'Setup', depends_on: ['Setup'] }],
+        });
+      }).toThrow("Task 'Setup' cannot depend on itself");
+    });
+
     it('is atomic — rolls back on dependency error', () => {
       const wf = createBasicWorkflow(db);
       try {
