@@ -300,6 +300,32 @@ describe('messageService', () => {
 
       expect(result.sent_count).toBe(2);
     });
+
+    it('returns empty when status filter is empty array', () => {
+      const sender = registerAgent(db, 'sender');
+      registerAgent(db, 'worker-1');
+
+      const result = messageService.broadcast(db, {
+        sender_id: sender.id,
+        recipient_filter: { status: [] },
+        message_type: 'broadcast',
+        body: 'Hello',
+      });
+
+      expect(result.sent_count).toBe(0);
+      expect(result.message_ids).toEqual([]);
+    });
+
+    it('throws when sender not found', () => {
+      expect(() =>
+        messageService.broadcast(db, {
+          sender_id: 'ag_nonexistent',
+          recipient_filter: { status: 'online' },
+          message_type: 'broadcast',
+          body: 'Hello',
+        }),
+      ).toThrow('Sender agent not found');
+    });
   });
 
   // --- list ---
@@ -522,6 +548,51 @@ describe('messageService', () => {
       const messages = messageService.list(db, recipient.id);
       expect(messages[0].body).toBe('Second');
       expect(messages[1].body).toBe('First');
+    });
+
+    it('returns empty array when status filter is empty array', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Hello',
+      });
+
+      const result = messageService.list(db, recipient.id, { status: [] });
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when message_type filter is empty array', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Hello',
+      });
+
+      const result = messageService.list(db, recipient.id, { message_type: [] });
+      expect(result).toEqual([]);
+    });
+
+    it('returns empty array when priority filter is empty array', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Hello',
+      });
+
+      const result = messageService.list(db, recipient.id, { priority: [] });
+      expect(result).toEqual([]);
     });
 
     it('supports array filters for status', () => {

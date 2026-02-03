@@ -179,6 +179,9 @@ export function list(db: DatabaseType, filters?: ListFilters): Agent[] {
 
   if (filters?.status !== undefined) {
     if (Array.isArray(filters.status)) {
+      if (filters.status.length === 0) {
+        return [];
+      }
       const placeholders = filters.status.map(() => '?').join(', ');
       conditions.push(`status IN (${placeholders})`);
       params.push(...filters.status);

@@ -342,6 +342,13 @@ describe('agentService', () => {
       expect(codex[0].name).toBe('b');
     });
 
+    it('returns empty array when status filter is empty array', () => {
+      agentService.register(db, { name: 'a', runtime: 'claude_code' });
+
+      const result = agentService.list(db, { status: [] });
+      expect(result).toEqual([]);
+    });
+
     it('combines filters', () => {
       agentService.register(db, { name: 'a', runtime: 'claude_code', role: 'worker' });
       agentService.register(db, { name: 'b', runtime: 'claude_code', role: 'coordinator' });

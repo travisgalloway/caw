@@ -119,6 +119,12 @@ export function send(db: DatabaseType, params: SendParams): SendResult {
 
 export function broadcast(db: DatabaseType, params: BroadcastParams): BroadcastResult {
   const run = db.transaction(() => {
+    // Validate sender exists
+    const sender = db.prepare('SELECT id FROM agents WHERE id = ?').get(params.sender_id);
+    if (!sender) {
+      throw new Error(`Sender agent not found: ${params.sender_id}`);
+    }
+
     // Build agent query with filters
     const conditions: string[] = ['id != ?'];
     const queryParams: unknown[] = [params.sender_id];
@@ -130,6 +136,9 @@ export function broadcast(db: DatabaseType, params: BroadcastParams): BroadcastR
 
     if (params.recipient_filter.status !== undefined) {
       if (Array.isArray(params.recipient_filter.status)) {
+        if (params.recipient_filter.status.length === 0) {
+          return { sent_count: 0, message_ids: [] };
+        }
         const placeholders = params.recipient_filter.status.map(() => '?').join(', ');
         conditions.push(`status IN (${placeholders})`);
         queryParams.push(...params.recipient_filter.status);
@@ -192,6 +201,9 @@ export function list(db: DatabaseType, agentId: string, filters?: ListFilters): 
 
   if (filters?.status !== undefined) {
     if (Array.isArray(filters.status)) {
+      if (filters.status.length === 0) {
+        return [];
+      }
       const placeholders = filters.status.map(() => '?').join(', ');
       conditions.push(`status IN (${placeholders})`);
       params.push(...filters.status);
@@ -203,6 +215,9 @@ export function list(db: DatabaseType, agentId: string, filters?: ListFilters): 
 
   if (filters?.message_type !== undefined) {
     if (Array.isArray(filters.message_type)) {
+      if (filters.message_type.length === 0) {
+        return [];
+      }
       const placeholders = filters.message_type.map(() => '?').join(', ');
       conditions.push(`message_type IN (${placeholders})`);
       params.push(...filters.message_type);
@@ -214,6 +229,9 @@ export function list(db: DatabaseType, agentId: string, filters?: ListFilters): 
 
   if (filters?.priority !== undefined) {
     if (Array.isArray(filters.priority)) {
+      if (filters.priority.length === 0) {
+        return [];
+      }
       const placeholders = filters.priority.map(() => '?').join(', ');
       conditions.push(`priority IN (${placeholders})`);
       params.push(...filters.priority);
