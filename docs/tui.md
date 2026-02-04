@@ -7,14 +7,16 @@ The TUI (Terminal User Interface) provides real-time visibility into workflow ex
 ## Launch
 
 ```bash
-# Start the TUI
-npx @caw/tui
+# Start the TUI (default mode)
+caw
+caw --db ~/.caw/workflows.db
+caw --workflow wf_abc123
 
-# Or with specific database
-npx @caw/tui --db ~/.caw/workflows.db
-
-# Watch a specific workflow
-npx @caw/tui --workflow wf_abc123
+# Start as headless MCP server (for Claude Code / other MCP clients)
+caw --server
+caw --server --transport stdio     # default, for MCP client integration
+caw --server --transport http      # HTTP mode on port 3100
+caw --server --port 8080           # custom port
 ```
 
 ## Layout

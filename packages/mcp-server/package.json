@@ -7,16 +7,16 @@
   "exports": {
     ".": "./src/index.ts"
   },
-  "bin": {
-    "caw-mcp-server": "src/bin/cli.ts"
-  },
   "scripts": {
     "build": "tsc --noEmit",
-    "lint": "biome check ./src"
+    "lint": "biome check ./src",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "zod": "^3.25"
   },
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",

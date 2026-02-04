@@ -1,3 +1,3 @@
-// @caw/mcp-server - MCP protocol for worker agents
-// Exports will be added as features are implemented
-export {};
+export type { DbMode, ServerConfig, TransportType } from './config';
+export { DEFAULT_PORT, resolveConfig } from './config';
+export { createMcpServer, startServer } from './server';
