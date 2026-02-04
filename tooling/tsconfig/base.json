@@ -11,9 +11,7 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "declaration": true,
-    "declarationMap": true,
-    "sourceMap": true
+    "noEmit": true
   },
   "exclude": ["node_modules", "dist"]
 }

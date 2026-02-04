@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';
@@ -218,14 +218,16 @@ describe('templateService', () => {
       const wf = workflowService.get(db, result.workflow_id, { includeTasks: true });
       const tasks = wf?.tasks ?? [];
       const buildTask = tasks.find((t) => t.name === 'Build');
+      if (!buildTask) throw new Error('expected Build task');
 
       const deps = db
         .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
-        .all(buildTask?.id) as { depends_on_id: string }[];
+        .all(buildTask.id) as { depends_on_id: string }[];
       expect(deps).toHaveLength(1);
 
       const setupTask = tasks.find((t) => t.name === 'Setup');
-      expect(deps[0].depends_on_id).toBe(setupTask?.id);
+      if (!setupTask) throw new Error('expected Setup task');
+      expect(deps[0].depends_on_id).toBe(setupTask.id);
     });
 
     it('performs variable interpolation', () => {

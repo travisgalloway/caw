@@ -1,4 +1,4 @@
-export type { DatabaseType } from './db/index';
+export type { DatabaseType, SQLParam } from './db/index';
 export { createConnection, getAppliedVersions, getDbPath, runMigrations } from './db/index';
 export type {
   ListFilters as AgentListFilters,

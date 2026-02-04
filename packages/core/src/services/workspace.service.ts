@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Task } from '../types/task';
 import type { Workflow } from '../types/workflow';
 import type { Workspace, WorkspaceStatus } from '../types/workspace';
@@ -23,9 +23,9 @@ export interface UpdateParams {
 
 export function create(db: DatabaseType, params: CreateParams): Workspace {
   const run = db.transaction(() => {
-    const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(params.workflowId) as
-      | Pick<Workflow, 'id'>
-      | undefined;
+    const workflow = db
+      .prepare('SELECT id FROM workflows WHERE id = ?')
+      .get(params.workflowId) as Pick<Workflow, 'id'> | null;
 
     if (!workflow) {
       throw new Error(`Workflow not found: ${params.workflowId}`);
@@ -67,9 +67,9 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       );
 
       for (const taskId of params.taskIds) {
-        const task = db.prepare('SELECT id, workflow_id FROM tasks WHERE id = ?').get(taskId) as
-          | Pick<Task, 'id' | 'workflow_id'>
-          | undefined;
+        const task = db
+          .prepare('SELECT id, workflow_id FROM tasks WHERE id = ?')
+          .get(taskId) as Pick<Task, 'id' | 'workflow_id'> | null;
 
         if (!task) {
           throw new Error(`Task not found: ${taskId}`);
@@ -90,14 +90,12 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
 }
 
 export function get(db: DatabaseType, id: string): Workspace | null {
-  const row = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as Workspace | undefined;
+  const row = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as Workspace | null;
   return row ?? null;
 }
 
 export function update(db: DatabaseType, id: string, params: UpdateParams): Workspace {
-  const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as
-    | Workspace
-    | undefined;
+  const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(id) as Workspace | null;
 
   if (!workspace) {
     throw new Error(`Workspace not found: ${id}`);
@@ -127,7 +125,7 @@ export function list(
   statusFilter?: WorkspaceStatus | WorkspaceStatus[],
 ): Workspace[] {
   const conditions: string[] = ['workflow_id = ?'];
-  const params: unknown[] = [workflowId];
+  const params: SQLParam[] = [workflowId];
 
   if (statusFilter) {
     const statuses = Array.isArray(statusFilter) ? statusFilter : [statusFilter];
@@ -143,17 +141,18 @@ export function list(
 }
 
 export function assignTask(db: DatabaseType, taskId: string, wsId: string): void {
-  const task = db.prepare('SELECT id, workflow_id FROM tasks WHERE id = ?').get(taskId) as
-    | Pick<Task, 'id' | 'workflow_id'>
-    | undefined;
+  const task = db.prepare('SELECT id, workflow_id FROM tasks WHERE id = ?').get(taskId) as Pick<
+    Task,
+    'id' | 'workflow_id'
+  > | null;
 
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
 
-  const workspace = db.prepare('SELECT * FROM workspaces WHERE id = ?').get(wsId) as
-    | Workspace
-    | undefined;
+  const workspace = db
+    .prepare('SELECT * FROM workspaces WHERE id = ?')
+    .get(wsId) as Workspace | null;
 
   if (!workspace) {
     throw new Error(`Workspace not found: ${wsId}`);

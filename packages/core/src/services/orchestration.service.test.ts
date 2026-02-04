@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';

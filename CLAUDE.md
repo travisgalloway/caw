@@ -9,51 +9,48 @@ A durable execution system for coding agent workflows. It persists tasks, plans,
 ## Build & Test Commands
 
 ```bash
-# Full monorepo build (respects dependency order via Turbo)
-pnpm build
+# Full monorepo typecheck (respects dependency order via Turbo)
+bun run build
 
-# Build a single package
-pnpm --filter @caw/core build
+# Typecheck a single package
+bun run --filter @caw/core build
 
-# Run all tests (requires build first — Turbo handles this)
-pnpm test
+# Run all tests
+bun run test
 
 # Run tests for a single package
-pnpm --filter @caw/core test
+bun run --filter @caw/core test
 
 # Run a single test file
-pnpm --filter @caw/core exec vitest run src/utils/id.test.ts
+bun test packages/core/src/utils/id.test.ts
 
 # Watch mode for tests
-pnpm --filter @caw/core test:watch
-
-# Watch mode for TypeScript compilation
-pnpm --filter @caw/core dev
+bun run --filter @caw/core test:watch
 
 # Lint all packages (via Turbo)
-pnpm lint
+bun run lint
 
 # Lint a single package
-pnpm --filter @caw/core lint
+bun run --filter @caw/core lint
 
 # Auto-fix lint + formatting issues across the repo
-pnpm format
+bun run format
 
 # Clean all build artifacts
-pnpm clean
+bun run clean
 ```
 
 ## Linting & Formatting
 
 **Biome** handles both linting and formatting. Config lives in `biome.json` (root).
 
-- `pnpm lint` — check all packages (read-only, used in CI)
-- `pnpm format` — auto-fix lint and formatting issues (`biome check --write .`)
+- `bun run lint` — check all packages (read-only, used in CI)
+- `bun run format` — auto-fix lint and formatting issues (`biome check --write .`)
 - Pre-commit hook (Husky + lint-staged) auto-fixes staged `*.{ts,tsx}` files on commit
 
 ## Monorepo Structure
 
-Four workspace packages managed by pnpm + Turbo:
+Four workspace packages managed by Bun workspaces + Turbo:
 
 - **`packages/core`** (`@caw/core`) — Database layer, types, services, utilities. All other packages depend on this.
 - **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server exposing workflow tools. Depends on core.
@@ -64,14 +61,14 @@ Four workspace packages managed by pnpm + Turbo:
 ## TypeScript Conventions
 
 - **Module system**: ESM (`"type": "module"`) with bundler module resolution
-- **Build tool**: `tsup` (esbuild-based) for JS output + declaration files; `tsc --noEmit` for type checking only
-- **Relative imports use extensionless paths** (`'./foo'`, not `'./foo.js'`) — tsup resolves them at build time
+- **Build tool**: `tsc --noEmit` for typecheck only; Bun resolves `.ts` source directly at runtime (no build step)
+- **Relative imports use extensionless paths** (`'./foo'`, not `'./foo.js'`) — Bun resolves them at runtime
 - **Target**: ES2022, strict mode enabled
 - **Status/enum types**: Use string literal unions, not TypeScript enums
 - **Timestamps**: All stored as `number` (Unix milliseconds)
 - **JSON fields**: Typed as `string | null` (serialized JSON stored in SQLite TEXT columns)
-- **SQLite booleans**: Typed as `number` (0/1) to match better-sqlite3's integer representation
-- **Test files**: Co-located with source (`src/**/*.test.ts`), run by vitest
+- **SQLite booleans**: Typed as `number` (0/1) to match `bun:sqlite`'s integer representation
+- **Test files**: Co-located with source (`src/**/*.test.ts`), run by `bun test`
 
 ## Core Package Architecture
 
@@ -90,7 +87,7 @@ One file per entity, matching the SQLite schema exactly. Barrel-exported through
 
 ## Key Dependencies
 
-- **better-sqlite3** — Synchronous SQLite driver (CJS module, works via `esModuleInterop` default import)
+- **bun:sqlite** — Built-in synchronous SQLite driver (Bun runtime)
 - **nanoid** — ESM-native ID generation
 - **@modelcontextprotocol/sdk** — MCP protocol implementation (mcp-server package)
 - **@anthropic-ai/sdk** — Claude API client (orchestrator package)

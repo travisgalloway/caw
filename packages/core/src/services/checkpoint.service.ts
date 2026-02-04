@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Checkpoint, CheckpointType } from '../types/checkpoint';
 import { checkpointId } from '../utils/id';
 
@@ -54,7 +54,7 @@ export function add(db: DatabaseType, taskId: string, params: AddParams): AddRes
 
 export function list(db: DatabaseType, taskId: string, filters?: ListFilters): Checkpoint[] {
   const conditions: string[] = ['task_id = ?'];
-  const params: unknown[] = [taskId];
+  const params: SQLParam[] = [taskId];
 
   if (filters?.types && filters.types.length > 0) {
     conditions.push(`checkpoint_type IN (${filters.types.map(() => '?').join(', ')})`);

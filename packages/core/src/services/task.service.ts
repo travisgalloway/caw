@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Checkpoint } from '../types/checkpoint';
 import type { Task, TaskDependency, TaskStatus } from '../types/task';
 import * as checkpointService from './checkpoint.service';
@@ -52,7 +52,7 @@ export function get(
   id: string,
   options?: GetOptions,
 ): TaskWithCheckpoints | null {
-  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  const row = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | null;
 
   if (!row) {
     return null;
@@ -100,7 +100,7 @@ export function updateStatus(
   status: TaskStatus,
   params?: UpdateStatusParams,
 ): Task {
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | null;
 
   if (!task) {
     throw new Error(`Task not found: ${id}`);
@@ -136,7 +136,7 @@ export function updateStatus(
 }
 
 export function setPlan(db: DatabaseType, id: string, params: SetPlanParams): Task {
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | null;
 
   if (!task) {
     throw new Error(`Task not found: ${id}`);
@@ -172,7 +172,7 @@ export function replan(
   newPlan: Record<string, unknown>,
 ): ReplanResult {
   const run = db.transaction(() => {
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | undefined;
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(id) as Task | null;
 
     if (!task) {
       throw new Error(`Task not found: ${id}`);
@@ -213,7 +213,7 @@ export function replan(
 
 export function claim(db: DatabaseType, taskId: string, agentId: string): ClaimResult {
   const run = db.transaction(() => {
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | undefined;
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | null;
 
     if (!task) {
       throw new Error(`Task not found: ${taskId}`);
@@ -254,7 +254,7 @@ export function claim(db: DatabaseType, taskId: string, agentId: string): ClaimR
 
 export function release(db: DatabaseType, taskId: string, agentId: string, _reason?: string): void {
   const run = db.transaction(() => {
-    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | undefined;
+    const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | null;
 
     if (!task) {
       throw new Error(`Task not found: ${taskId}`);
@@ -299,7 +299,7 @@ export function getAvailable(db: DatabaseType, filters?: GetAvailableFilters): T
         AND dep.status NOT IN ('completed', 'skipped')
     )`,
   ];
-  const params: unknown[] = [];
+  const params: SQLParam[] = [];
 
   if (filters?.workflow_id) {
     conditions.push('t.workflow_id = ?');

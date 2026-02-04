@@ -34,7 +34,7 @@ A lightweight MCP server backed by SQLite that provides:
                                                    ▼
                                           ┌──────────────────┐
                                           │     SQLite       │
-                                          │  (better-sqlite3)│
+                                          │   (bun:sqlite)   │
                                           └──────────────────┘
 ```
 

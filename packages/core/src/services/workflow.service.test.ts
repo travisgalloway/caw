@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';
@@ -69,7 +69,8 @@ describe('workflowService', () => {
 
       const repo = repositoryService.getByPath(db, '/home/user/project');
       expect(repo).not.toBeNull();
-      expect(repo?.id).toBe(wf.repository_id);
+      if (!repo) throw new Error('expected repo');
+      expect(wf.repository_id).toBe(repo.id);
     });
 
     it('uses provided repository_id over repository_path', () => {
@@ -301,16 +302,19 @@ describe('workflowService', () => {
 
       const wfResult = workflowService.get(db, wf.id, { includeTasks: true });
       const tasks = wfResult?.tasks ?? [];
-      const buildId = tasks.find((t) => t.name === 'Build')?.id;
-      const setupId = tasks.find((t) => t.name === 'Setup')?.id;
+      const buildTask = tasks.find((t) => t.name === 'Build');
+      const setupTask = tasks.find((t) => t.name === 'Setup');
+      if (!buildTask || !setupTask) throw new Error('expected Build and Setup tasks');
 
-      const deps = db.prepare('SELECT * FROM task_dependencies WHERE task_id = ?').all(buildId) as {
+      const deps = db
+        .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
+        .all(buildTask.id) as {
         task_id: string;
         depends_on_id: string;
         dependency_type: string;
       }[];
       expect(deps).toHaveLength(1);
-      expect(deps[0].depends_on_id).toBe(setupId);
+      expect(deps[0].depends_on_id).toBe(setupTask.id);
       expect(deps[0].dependency_type).toBe('blocks');
     });
 

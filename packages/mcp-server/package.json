@@ -3,23 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "caw-mcp-server": "dist/bin/cli.js"
-  },
+  "main": "src/index.ts",
   "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "default": "./dist/index.js"
-    }
+    ".": "./src/index.ts"
+  },
+  "bin": {
+    "caw-mcp-server": "src/bin/cli.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "lint": "biome check ./src",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "build": "tsc --noEmit",
+    "lint": "biome check ./src"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
@@ -27,6 +20,6 @@
   },
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",
-    "vitest": "^2.1.0"
+    "@types/bun": "^1.2.0"
   }
 }

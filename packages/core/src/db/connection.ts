@@ -1,11 +1,14 @@
+import { Database } from 'bun:sqlite';
 import { existsSync, mkdirSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import Database from 'better-sqlite3';
 
-export type DatabaseType = Database.Database;
+export type DatabaseType = InstanceType<typeof Database>;
 
-export function createConnection(dbPath: string): Database.Database {
+/** Compatible parameter type for bun:sqlite query bindings. */
+export type SQLParam = null | string | number | bigint | boolean | Uint8Array;
+
+export function createConnection(dbPath: string): DatabaseType {
   if (dbPath !== ':memory:') {
     const dir = dirname(dbPath);
     if (!existsSync(dir)) {
@@ -14,9 +17,9 @@ export function createConnection(dbPath: string): Database.Database {
   }
 
   const db = new Database(dbPath);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
-  db.pragma('busy_timeout = 5000');
+  db.run('PRAGMA journal_mode = WAL');
+  db.run('PRAGMA foreign_keys = ON');
+  db.run('PRAGMA busy_timeout = 5000');
   return db;
 }
 

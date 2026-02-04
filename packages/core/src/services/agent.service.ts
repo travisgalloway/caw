@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Agent, AgentRole, AgentStatus } from '../types/agent';
 import { agentId } from '../utils/id';
 
@@ -80,7 +80,7 @@ export function heartbeat(
   currentTaskId?: string,
   status?: AgentStatus,
 ): Agent {
-  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | undefined;
+  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | null;
 
   if (!agent) {
     throw new Error(`Agent not found: ${id}`);
@@ -92,7 +92,7 @@ export function heartbeat(
 
   const now = Date.now();
   const sets: string[] = ['last_heartbeat = ?', 'updated_at = ?'];
-  const values: unknown[] = [now, now];
+  const values: SQLParam[] = [now, now];
 
   if (currentTaskId !== undefined) {
     sets.push('current_task_id = ?');
@@ -117,7 +117,7 @@ export function heartbeat(
 }
 
 export function update(db: DatabaseType, id: string, fields: UpdateParams): Agent {
-  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | undefined;
+  const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | null;
 
   if (!agent) {
     throw new Error(`Agent not found: ${id}`);
@@ -125,7 +125,7 @@ export function update(db: DatabaseType, id: string, fields: UpdateParams): Agen
 
   const now = Date.now();
   const sets: string[] = ['updated_at = ?'];
-  const values: unknown[] = [now];
+  const values: SQLParam[] = [now];
   const updated: Partial<Agent> = { updated_at: now };
 
   if (fields.status !== undefined) {
@@ -169,13 +169,13 @@ export function update(db: DatabaseType, id: string, fields: UpdateParams): Agen
 }
 
 export function get(db: DatabaseType, id: string): Agent | null {
-  const row = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | undefined;
+  const row = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | null;
   return row ?? null;
 }
 
 export function list(db: DatabaseType, filters?: ListFilters): Agent[] {
   const conditions: string[] = [];
-  const params: unknown[] = [];
+  const params: SQLParam[] = [];
 
   if (filters?.status !== undefined) {
     if (Array.isArray(filters.status)) {
@@ -212,7 +212,7 @@ export function list(db: DatabaseType, filters?: ListFilters): Agent[] {
 
 export function unregister(db: DatabaseType, id: string): UnregisterResult {
   const run = db.transaction(() => {
-    const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | undefined;
+    const agent = db.prepare('SELECT * FROM agents WHERE id = ?').get(id) as Agent | null;
 
     if (!agent) {
       throw new Error(`Agent not found: ${id}`);

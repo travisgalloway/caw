@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'bun:test';
 import { estimateObjectTokens, estimateTokens } from './tokens';
 
 describe('estimateTokens', () => {

@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Task } from '../types/task';
 import type { Workflow, WorkflowStatus, WorkflowSummary } from '../types/workflow';
 import { taskId, workflowId } from '../utils/id';
@@ -113,7 +113,7 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
 }
 
 export function get(db: DatabaseType, id: string, options?: GetOptions): WorkflowWithTasks | null {
-  const row = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | undefined;
+  const row = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
 
   if (!row) {
     return null;
@@ -133,7 +133,7 @@ export function list(
   filters?: ListFilters,
 ): { workflows: WorkflowSummary[]; total: number } {
   const conditions: string[] = [];
-  const params: unknown[] = [];
+  const params: SQLParam[] = [];
   const limit = filters?.limit ?? 20;
   const offset = filters?.offset ?? 0;
 
@@ -167,9 +167,7 @@ export function list(
 
 export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetPlanResult {
   const run = db.transaction(() => {
-    const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as
-      | Workflow
-      | undefined;
+    const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
 
     if (!workflow) {
       throw new Error(`Workflow not found: ${id}`);
@@ -273,9 +271,7 @@ export function updateStatus(
   status: WorkflowStatus,
   reason?: string,
 ): Workflow {
-  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as
-    | Workflow
-    | undefined;
+  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
 
   if (!workflow) {
     throw new Error(`Workflow not found: ${id}`);
@@ -310,9 +306,7 @@ export function setParallelism(
   maxParallel: number,
   autoCreateWorkspaces?: boolean,
 ): Workflow {
-  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as
-    | Workflow
-    | undefined;
+  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
 
   if (!workflow) {
     throw new Error(`Workflow not found: ${id}`);
@@ -320,7 +314,7 @@ export function setParallelism(
 
   const now = Date.now();
   const updates: string[] = ['max_parallel_tasks = ?', 'updated_at = ?'];
-  const params: unknown[] = [maxParallel, now];
+  const params: SQLParam[] = [maxParallel, now];
 
   if (autoCreateWorkspaces !== undefined) {
     updates.push('auto_create_workspaces = ?');
@@ -348,9 +342,7 @@ export function getSummary(
   id: string,
   format: 'json' | 'markdown',
 ): { summary: string; token_estimate: number } {
-  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as
-    | Workflow
-    | undefined;
+  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
 
   if (!workflow) {
     throw new Error(`Workflow not found: ${id}`);
