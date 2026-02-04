@@ -26,17 +26,23 @@ A lightweight MCP server backed by SQLite that provides:
 ### Architecture
 
 ```
-┌─────────────────┐     MCP Protocol      ┌──────────────────┐
-│   Claude Code   │◄────────────────────►│  Workflow Server │
-│   (or Codex,    │                       │   (TypeScript)   │
-│    OpenCode)    │                       └────────┬─────────┘
-└─────────────────┘                                │
-                                                   ▼
-                                          ┌──────────────────┐
-                                          │     SQLite       │
-                                          │   (bun:sqlite)   │
-                                          └──────────────────┘
+┌─────────────────┐     MCP Protocol      ┌──────────────────────────────┐
+│   Claude Code   │◄────────────────────►│          caw                  │
+│   (or Codex,    │    (stdio / http)     │  ┌────────────────────────┐  │
+│    OpenCode)    │                       │  │  @caw/mcp-server (lib) │  │
+└─────────────────┘                       │  └───────────┬────────────┘  │
+                                          │              │               │
+┌─────────────────┐                       │  ┌───────────▼────────────┐  │
+│   Terminal       │◄────────────────────►│  │  @caw/core (services)  │  │
+│   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
+└─────────────────┘                       │              │               │
+                                          │  ┌───────────▼────────────┐  │
+                                          │  │     SQLite (bun:sqlite)│  │
+                                          │  └────────────────────────┘  │
+                                          └──────────────────────────────┘
 ```
+
+`caw` is a single binary with two modes: TUI (default) and MCP server (`--server`). `@caw/mcp-server` is an embedded library, not a standalone server.
 
 ### Design Principles
 

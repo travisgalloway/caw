@@ -60,26 +60,28 @@ caw/
 │   │       ├── agent.test.ts
 │   │       └── message.test.ts
 │   │
-│   └── mcp-server/                 # @caw/mcp-server
+│   └── mcp-server/                 # @caw/mcp-server (library)
 │       ├── package.json
 │       ├── tsconfig.json
-│       ├── src/
-│       │   ├── index.ts            # Entry point
-│       │   ├── server.ts           # MCP server setup
-│       │   ├── tools/
-│       │   │   ├── index.ts
-│       │   │   ├── workflow.tools.ts
-│       │   │   ├── task.tools.ts
-│       │   │   ├── checkpoint.tools.ts
-│       │   │   ├── context.tools.ts
-│       │   │   ├── orchestration.tools.ts
-│       │   │   ├── workspace.tools.ts
-│       │   │   ├── template.tools.ts
-│       │   │   ├── agent.tools.ts
-│       │   │   └── message.tools.ts
-│       │   └── config.ts           # Server configuration
-│       └── bin/
-│           └── cli.ts              # npx entry point
+│       └── src/
+│           ├── index.ts            # Library exports
+│           ├── config.ts           # Server configuration
+│           ├── server.ts           # MCP server factory + transport
+│           ├── bin/
+│           │   └── cli.ts          # Dev-only entry (bun run)
+│           └── tools/
+│               ├── index.ts        # registerAllTools aggregator
+│               ├── types.ts        # ToolRegistrar, defineTool, result helpers
+│               ├── workflow.ts
+│               ├── task.ts
+│               ├── checkpoint.ts
+│               ├── context.ts
+│               ├── orchestration.ts
+│               ├── workspace.ts
+│               ├── repository.ts
+│               ├── template.ts
+│               ├── agent.ts
+│               └── messaging.ts
 │
 ├── apps/
 │   └── tui/                        # @caw/tui
@@ -113,7 +115,7 @@ caw/
 │       │       ├── format.ts       # Display formatting
 │       │       └── keybindings.ts
 │       └── bin/
-│           └── cli.ts              # npx workflow-tui
+│           └── cli.ts              # caw binary entry point
 │
 └── tooling/
     ├── tsconfig/                   # Shared TS configs
@@ -144,19 +146,17 @@ caw/
 }
 ```
 
-**@caw/mcp-server**
+**@caw/mcp-server** (library — no standalone binary, imported by the unified `caw` app)
 
 ```json
 {
   "name": "@caw/mcp-server",
   "version": "0.1.0",
   "type": "module",
-  "bin": {
-    "caw-mcp-server": "src/bin/cli.ts"
-  },
   "dependencies": {
     "@caw/core": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.0.0"
+    "@modelcontextprotocol/sdk": "^1.25.3",
+    "zod": "^3.25"
   },
   "devDependencies": {
     "typescript": "^5.4.0"
@@ -164,7 +164,7 @@ caw/
 }
 ```
 
-**@caw/tui**
+**@caw/tui** (unified `caw` binary — TUI default, or headless MCP server with `--server`)
 
 ```json
 {
@@ -172,10 +172,11 @@ caw/
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "workflow-tui": "src/bin/cli.ts"
+    "caw": "src/bin/cli.ts"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
+    "@caw/mcp-server": "workspace:*",
     "ink": "^5.0.0",
     "ink-spinner": "^5.0.0",
     "ink-table": "^3.1.0",

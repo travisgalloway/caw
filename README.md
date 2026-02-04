@@ -7,16 +7,20 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 ## Architecture
 
 ```
-┌─────────────────┐     MCP Protocol      ┌──────────────────┐
-│   Claude Code   │◄────────────────────►│  Workflow Server │
-│   (or Codex,    │                       │   (TypeScript)   │
-│    OpenCode)    │                       └────────┬─────────┘
-└─────────────────┘                                │
-                                                   ▼
-                                          ┌──────────────────┐
-                                          │     SQLite       │
-                                          │   (bun:sqlite)   │
-                                          └──────────────────┘
+┌─────────────────┐     MCP Protocol      ┌──────────────────────────────┐
+│   Claude Code   │◄────────────────────►│          caw                  │
+│   (or Codex,    │    (stdio / http)     │  ┌────────────────────────┐  │
+│    OpenCode)    │                       │  │  @caw/mcp-server (lib) │  │
+└─────────────────┘                       │  └───────────┬────────────┘  │
+                                          │              │               │
+┌─────────────────┐                       │  ┌───────────▼────────────┐  │
+│   Terminal       │◄────────────────────►│  │  @caw/core (services)  │  │
+│   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
+└─────────────────┘                       │              │               │
+                                          │  ┌───────────▼────────────┐  │
+                                          │  │     SQLite (bun:sqlite)│  │
+                                          │  └────────────────────────┘  │
+                                          └──────────────────────────────┘
 ```
 
 ## Key Features
@@ -34,7 +38,7 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 | Package | Path | Description |
 |---|---|---|
 | `@caw/core` | `packages/core` | Core library — DB, services, types |
-| `@caw/mcp-server` | `packages/mcp-server` | MCP server exposing workflow tools |
+| `@caw/mcp-server` | `packages/mcp-server` | MCP server library (tools, transport, config) |
 | `@caw/orchestrator` | `apps/orchestrator` | CLI orchestrator |
 | `@caw/tui` | `apps/tui` | Terminal UI (Ink-based) |
 
@@ -72,13 +76,14 @@ Add the caw MCP server to your Claude Code configuration (`.claude/settings.json
 }
 ```
 
-Or after a global install:
+Or after global install, use the unified binary in server mode:
 
 ```json
 {
   "mcpServers": {
     "caw": {
-      "command": "caw-mcp-server"
+      "command": "caw",
+      "args": ["--server"]
     }
   }
 }

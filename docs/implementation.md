@@ -31,13 +31,15 @@
 4. Agent status management
 5. Broadcast messaging
 
-## Phase 5: TUI Application
+## Phase 5: TUI Application (Unified `caw` Binary)
 
-1. Basic Ink setup with navigation
-2. Dashboard layout (workflows, agents, tasks, messages)
-3. Real-time polling and updates
-4. Keybinding system
-5. Detail views (workflow, agent, task)
+1. Single `caw` binary with `--server` flag for headless MCP mode
+2. TUI imports `@caw/mcp-server` to embed server functionality
+3. Basic Ink setup with navigation
+4. Dashboard layout (workflows, agents, tasks, messages)
+5. Real-time polling and updates
+6. Keybinding system
+7. Detail views (workflow, agent, task)
 
 ## Phase 6: Templates & Polish
 
