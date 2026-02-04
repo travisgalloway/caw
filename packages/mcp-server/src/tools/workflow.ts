@@ -1,7 +1,63 @@
 import { repositoryService, workflowService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Workflow not found')) {
+    throw new ToolCallError({
+      code: 'WORKFLOW_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the workflow ID and try again',
+    });
+  }
+  if (msg.includes('Invalid transition')) {
+    throw new ToolCallError({
+      code: 'INVALID_TRANSITION',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check valid transitions in workflow state machine',
+    });
+  }
+  if (msg.includes('Cannot set plan')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: "Workflow must be in 'planning' status",
+    });
+  }
+  if (msg.includes('Duplicate task name')) {
+    throw new ToolCallError({
+      code: 'DUPLICATE_TASK_NAME',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Remove duplicate task names from the plan',
+    });
+  }
+  if (msg.includes('cannot depend on itself')) {
+    throw new ToolCallError({
+      code: 'SELF_DEPENDENCY',
+      message: msg,
+      recoverable: true,
+      suggestion: 'A task cannot depend on itself',
+    });
+  }
+  if (msg.includes('Unknown dependency')) {
+    throw new ToolCallError({
+      code: 'UNKNOWN_DEPENDENCY',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Check that dependency names match task names in the plan',
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -59,7 +115,14 @@ export const register: ToolRegistrar = (server, db) => {
         const workflow = workflowService.get(db, args.id, {
           includeTasks: args.include_tasks,
         });
-        if (!workflow) throw new Error(`Workflow not found: ${args.id}`);
+        if (!workflow) {
+          throw new ToolCallError({
+            code: 'WORKFLOW_NOT_FOUND',
+            message: `Workflow not found: ${args.id}`,
+            recoverable: false,
+            suggestion: 'Check the workflow ID and try again',
+          });
+        }
         return workflow;
       }),
   );
@@ -116,17 +179,21 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        return workflowService.setPlan(db, args.id, {
-          summary: args.plan.summary,
-          tasks: args.plan.tasks.map((t: Record<string, unknown>) => ({
-            name: t.name as string,
-            description: t.description as string | undefined,
-            parallel_group: t.parallel_group as string | undefined,
-            estimated_complexity: t.estimated_complexity as string | undefined,
-            files_likely_affected: t.files_likely_affected as string[] | undefined,
-            depends_on: t.depends_on as string[] | undefined,
-          })),
-        });
+        try {
+          return workflowService.setPlan(db, args.id, {
+            summary: args.plan.summary,
+            tasks: args.plan.tasks.map((t: Record<string, unknown>) => ({
+              name: t.name as string,
+              description: t.description as string | undefined,
+              parallel_group: t.parallel_group as string | undefined,
+              estimated_complexity: t.estimated_complexity as string | undefined,
+              files_likely_affected: t.files_likely_affected as string[] | undefined,
+              depends_on: t.depends_on as string[] | undefined,
+            })),
+          });
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -143,8 +210,12 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        workflowService.updateStatus(db, args.id, args.status, args.reason);
-        return { success: true };
+        try {
+          workflowService.updateStatus(db, args.id, args.status, args.reason);
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -161,13 +232,37 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        workflowService.setParallelism(
-          db,
-          args.id,
-          args.max_parallel_tasks,
-          args.auto_create_workspaces,
-        );
-        return { success: true };
+        try {
+          workflowService.setParallelism(
+            db,
+            args.id,
+            args.max_parallel_tasks,
+            args.auto_create_workspaces,
+          );
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_get_summary',
+    {
+      description: 'Get compressed workflow summary for quick status checks',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+        format: z.enum(['json', 'markdown']).optional().describe('Output format, default json'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          return workflowService.getSummary(db, args.id, args.format ?? 'json');
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 };
