@@ -4,7 +4,7 @@
 caw/
 ├── package.json
 ├── turbo.json
-├── pnpm-workspace.yaml
+├── bun.lock
 ├── .gitignore
 ├── README.md
 ├── CLAUDE.md                       # Instructions for using this tool
@@ -133,16 +133,13 @@ caw/
   "version": "0.1.0",
   "type": "module",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./src/index.ts"
   },
   "dependencies": {
-    "better-sqlite3": "^11.0.0",
     "nanoid": "^5.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^7.6.0",
-    "typescript": "^5.4.0",
-    "vitest": "^2.0.0"
+    "typescript": "^5.4.0"
   }
 }
 ```
@@ -155,7 +152,7 @@ caw/
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "caw-mcp-server": "./dist/bin/cli.js"
+    "caw-mcp-server": "src/bin/cli.ts"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
@@ -175,7 +172,7 @@ caw/
   "version": "0.1.0",
   "type": "module",
   "bin": {
-    "workflow-tui": "./dist/bin/cli.js"
+    "workflow-tui": "src/bin/cli.ts"
   },
   "dependencies": {
     "@caw/core": "workspace:*",

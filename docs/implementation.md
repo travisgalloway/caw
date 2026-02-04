@@ -2,7 +2,7 @@
 
 ## Phase 1: Core Foundation
 
-1. Project scaffolding (turbo, pnpm workspace)
+1. Project scaffolding (turbo, bun workspace)
 2. Database setup with migrations
 3. Basic CRUD operations for all entities
 4. ID generation utilities (nanoid)

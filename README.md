@@ -15,7 +15,7 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
                                                    ▼
                                           ┌──────────────────┐
                                           │     SQLite       │
-                                          │  (better-sqlite3)│
+                                          │   (bun:sqlite)   │
                                           └──────────────────┘
 ```
 
@@ -42,26 +42,19 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 
 ### Prerequisites
 
-- Node.js >= 18
-- [pnpm](https://pnpm.io/) >= 9
+- [Bun](https://bun.sh/) >= 1.0
 
 ### Install & Build
 
 ```bash
-pnpm install
-pnpm build
-```
-
-### Development
-
-```bash
-pnpm dev
+bun install
+bun run build
 ```
 
 ### Tests
 
 ```bash
-pnpm test
+bun run test
 ```
 
 ## MCP Integration
@@ -72,8 +65,8 @@ Add the caw MCP server to your Claude Code configuration (`.claude/settings.json
 {
   "mcpServers": {
     "caw": {
-      "command": "node",
-      "args": ["./packages/mcp-server/dist/bin/cli.js"]
+      "command": "bun",
+      "args": ["./packages/mcp-server/src/bin/cli.ts"]
     }
   }
 }

@@ -55,7 +55,7 @@ export function create(db: DatabaseType, params: CreateParams): WorkflowTemplate
   if (params.fromWorkflowId) {
     const workflow = db
       .prepare('SELECT * FROM workflows WHERE id = ?')
-      .get(params.fromWorkflowId) as Workflow | undefined;
+      .get(params.fromWorkflowId) as Workflow | null;
 
     if (!workflow) {
       throw new Error(`Workflow not found: ${params.fromWorkflowId}`);
@@ -144,9 +144,9 @@ export function create(db: DatabaseType, params: CreateParams): WorkflowTemplate
 }
 
 export function get(db: DatabaseType, id: string): WorkflowTemplate | null {
-  const row = db.prepare('SELECT * FROM workflow_templates WHERE id = ?').get(id) as
-    | WorkflowTemplate
-    | undefined;
+  const row = db
+    .prepare('SELECT * FROM workflow_templates WHERE id = ?')
+    .get(id) as WorkflowTemplate | null;
   return row ?? null;
 }
 
@@ -247,9 +247,9 @@ export function updateVersion(
   id: string,
   template: TemplateDefinition,
 ): WorkflowTemplate {
-  const existing = db.prepare('SELECT * FROM workflow_templates WHERE id = ?').get(id) as
-    | WorkflowTemplate
-    | undefined;
+  const existing = db
+    .prepare('SELECT * FROM workflow_templates WHERE id = ?')
+    .get(id) as WorkflowTemplate | null;
 
   if (!existing) {
     throw new Error(`Template not found: ${id}`);

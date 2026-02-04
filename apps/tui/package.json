@@ -3,17 +3,16 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "bin": {
-    "caw-tui": "dist/bin/cli.js"
+    "caw-tui": "src/bin/cli.ts"
   },
   "scripts": {
-    "build": "tsc",
-    "dev": "tsc --watch",
-    "lint": "biome check ./src",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest"
+    "build": "tsc --noEmit",
+    "lint": "biome check ./src"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
@@ -23,7 +22,7 @@
   },
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",
-    "@types/react": "^18.3.0",
-    "vitest": "^2.1.0"
+    "@types/bun": "^1.2.0",
+    "@types/react": "^18.3.0"
   }
 }

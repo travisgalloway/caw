@@ -213,15 +213,15 @@ export function loadTaskContext(
   const maxTokens = options?.max_tokens ?? DEFAULT_MAX_TOKENS;
 
   // Fetch task
-  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | undefined;
+  const task = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as Task | null;
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);
   }
 
   // Fetch workflow
-  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(task.workflow_id) as
-    | Workflow
-    | undefined;
+  const workflow = db
+    .prepare('SELECT * FROM workflows WHERE id = ?')
+    .get(task.workflow_id) as Workflow | null;
   if (!workflow) {
     throw new Error(`Workflow not found: ${task.workflow_id}`);
   }

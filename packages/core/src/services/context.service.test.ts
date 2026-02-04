@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'bun:test';
 import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';
@@ -120,6 +120,7 @@ describe('contextService', () => {
       const result = contextService.loadTaskContext(db, taskIds[0]);
       const cps = result.current_task?.checkpoints;
 
+      if (!cps) throw new Error('expected checkpoints');
       expect(cps).toHaveLength(7);
       // Older checkpoints (first 2) should have detail stripped
       expect(cps[0].detail).toBeNull();
@@ -145,6 +146,7 @@ describe('contextService', () => {
       });
       const cps = result.current_task?.checkpoints;
 
+      if (!cps) throw new Error('expected checkpoints');
       expect(cps).toHaveLength(7);
       // All checkpoints should have detail preserved
       for (const cp of cps) {

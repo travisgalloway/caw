@@ -59,9 +59,9 @@ export function getNextTasks(
   workflowId: string,
   includeFailed = false,
 ): NextTasksResult {
-  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(workflowId) as
-    | Workflow
-    | undefined;
+  const workflow = db
+    .prepare('SELECT * FROM workflows WHERE id = ?')
+    .get(workflowId) as Workflow | null;
 
   if (!workflow) {
     throw new Error(`Workflow not found: ${workflowId}`);
@@ -139,9 +139,10 @@ export function getNextTasks(
 }
 
 export function getProgress(db: DatabaseType, workflowId: string): ProgressResult {
-  const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(workflowId) as
-    | Pick<Workflow, 'id'>
-    | undefined;
+  const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(workflowId) as Pick<
+    Workflow,
+    'id'
+  > | null;
 
   if (!workflow) {
     throw new Error(`Workflow not found: ${workflowId}`);
@@ -245,9 +246,10 @@ export function getProgress(db: DatabaseType, workflowId: string): ProgressResul
 }
 
 export function checkDependencies(db: DatabaseType, taskId: string): DependencyCheckResult {
-  const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId) as
-    | Pick<Task, 'id'>
-    | undefined;
+  const task = db.prepare('SELECT id FROM tasks WHERE id = ?').get(taskId) as Pick<
+    Task,
+    'id'
+  > | null;
 
   if (!task) {
     throw new Error(`Task not found: ${taskId}`);

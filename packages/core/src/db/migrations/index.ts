@@ -10,7 +10,7 @@ export interface Migration {
 const migrations: Migration[] = [{ version: 1, name: '001_initial', sql: initialSql }];
 
 export function ensureMigrationsTable(db: DatabaseType): void {
-  db.exec(`
+  db.run(`
     CREATE TABLE IF NOT EXISTS schema_migrations (
       version INTEGER PRIMARY KEY,
       applied_at INTEGER NOT NULL
@@ -36,7 +36,7 @@ export function runMigrations(db: DatabaseType): void {
     }
 
     const run = db.transaction(() => {
-      db.exec(migration.sql);
+      db.run(migration.sql);
       db.prepare('INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)').run(
         migration.version,
         Date.now(),

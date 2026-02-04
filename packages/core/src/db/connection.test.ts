@@ -1,6 +1,6 @@
+import { describe, expect, it } from 'bun:test';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
 import { createConnection, getDbPath } from './connection';
 
 describe('createConnection', () => {
@@ -14,8 +14,8 @@ describe('createConnection', () => {
 
   it('enables foreign keys', () => {
     const db = createConnection(':memory:');
-    const result = db.pragma('foreign_keys') as { foreign_keys: number }[];
-    expect(result[0].foreign_keys).toBe(1);
+    const result = db.prepare('PRAGMA foreign_keys').get() as { foreign_keys: number };
+    expect(result.foreign_keys).toBe(1);
     db.close();
   });
 });

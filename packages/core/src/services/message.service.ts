@@ -1,4 +1,4 @@
-import type { DatabaseType } from '../db/connection';
+import type { DatabaseType, SQLParam } from '../db/connection';
 import type { AgentRole, AgentStatus } from '../types/agent';
 import type { Message, MessagePriority, MessageStatus, MessageType } from '../types/message';
 import { generateId, messageId } from '../utils/id';
@@ -82,7 +82,7 @@ export function send(db: DatabaseType, params: SendParams): SendResult {
   if (params.reply_to_id) {
     const parent = db
       .prepare('SELECT thread_id FROM messages WHERE id = ?')
-      .get(params.reply_to_id) as { thread_id: string | null } | undefined;
+      .get(params.reply_to_id) as { thread_id: string | null } | null;
     if (!parent) {
       throw new Error(`Reply-to message not found: ${params.reply_to_id}`);
     }
@@ -127,7 +127,7 @@ export function broadcast(db: DatabaseType, params: BroadcastParams): BroadcastR
 
     // Build agent query with filters
     const conditions: string[] = ['id != ?'];
-    const queryParams: unknown[] = [params.sender_id];
+    const queryParams: SQLParam[] = [params.sender_id];
 
     if (params.recipient_filter.role !== undefined) {
       conditions.push('role = ?');
@@ -197,7 +197,7 @@ export function broadcast(db: DatabaseType, params: BroadcastParams): BroadcastR
 
 export function list(db: DatabaseType, agentId: string, filters?: ListFilters): Message[] {
   const conditions: string[] = ['recipient_id = ?'];
-  const params: unknown[] = [agentId];
+  const params: SQLParam[] = [agentId];
 
   if (filters?.status !== undefined) {
     if (Array.isArray(filters.status)) {
@@ -265,7 +265,7 @@ export function list(db: DatabaseType, agentId: string, filters?: ListFilters): 
 }
 
 export function get(db: DatabaseType, id: string, markRead = false): Message | null {
-  const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as Message | undefined;
+  const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id) as Message | null;
 
   if (!row) {
     return null;
@@ -317,7 +317,7 @@ export function countUnread(
   priorityFilter?: MessagePriority[],
 ): CountUnreadResult {
   const conditions: string[] = ['recipient_id = ?', "status = 'unread'"];
-  const params: unknown[] = [agentId];
+  const params: SQLParam[] = [agentId];
 
   if (priorityFilter && priorityFilter.length > 0) {
     const placeholders = priorityFilter.map(() => '?').join(', ');

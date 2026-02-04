@@ -3,9 +3,9 @@ import type { Repository } from '../types/repository';
 import { repositoryId } from '../utils/id';
 
 export function register(db: DatabaseType, params: { path: string; name?: string }): Repository {
-  const existing = db.prepare('SELECT * FROM repositories WHERE path = ?').get(params.path) as
-    | Repository
-    | undefined;
+  const existing = db
+    .prepare('SELECT * FROM repositories WHERE path = ?')
+    .get(params.path) as Repository | null;
 
   if (existing) {
     return existing;
@@ -46,8 +46,8 @@ export function list(
 }
 
 export function getByPath(db: DatabaseType, path: string): Repository | null {
-  const row = db.prepare('SELECT * FROM repositories WHERE path = ?').get(path) as
-    | Repository
-    | undefined;
+  const row = db
+    .prepare('SELECT * FROM repositories WHERE path = ?')
+    .get(path) as Repository | null;
   return row ?? null;
 }
