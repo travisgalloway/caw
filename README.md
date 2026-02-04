@@ -39,8 +39,7 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 |---|---|---|
 | `@caw/core` | `packages/core` | Core library — DB, services, types |
 | `@caw/mcp-server` | `packages/mcp-server` | MCP server library (tools, transport, config) |
-| `@caw/orchestrator` | `apps/orchestrator` | CLI orchestrator |
-| `@caw/tui` | `apps/tui` | Terminal UI (Ink-based) |
+| `@caw/tui` | `apps/tui` | Unified `caw` binary — TUI (default) or headless MCP server (`--server`) |
 
 ## Getting Started
 

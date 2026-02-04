@@ -1,6 +1,6 @@
 # Implementation Priorities
 
-## Phase 1: Core Foundation
+## Phase 1: Core Foundation (M1 — Complete)
 
 1. Project scaffolding (turbo, bun workspace)
 2. Database setup with migrations
@@ -8,43 +8,51 @@
 4. ID generation utilities (nanoid)
 5. Type definitions
 
-## Phase 2: MCP Server (Single Agent)
+## Phase 2: Core Services (M2 — Complete)
+
+1. Workflow, task, checkpoint, workspace services
+2. Agent, message, orchestration services
+3. Context loading service
+4. Repository and template services
+5. Dependency resolution (DAG traversal)
+
+## Phase 3: MCP Server (M3 — Complete)
 
 1. Server setup with MCP SDK
-2. Workflow lifecycle tools
-3. Task management tools
-4. Basic context loading
-5. Checkpoint recording
+2. All 43 tool registrations across 7 categories
+3. Structured ToolCallError for error responses
+4. Transport layer (stdio + HTTP)
 
-## Phase 3: Smart Features
+## Phase 4: TUI Foundation (M4)
 
-1. Token-aware context loading with budget allocation
-2. Dependency resolution (DAG traversal)
-3. Orchestration queries (next tasks, progress)
-4. Workspace management (worktree tracking)
+1. Unified `caw` binary entry point (`caw` for TUI, `caw --server` for headless MCP)
+2. Headless MCP server mode (stdio/HTTP transport)
+3. Ink app component with Zustand store
+4. Keybinding system and navigation
+5. Dashboard view with workflow and agent lists
+6. `usePolling` hook for data refresh
 
-## Phase 4: Multi-Agent Support
+## Phase 5: TUI Views (M5)
 
-1. Agent registration and heartbeat
-2. Task claiming with atomic operations
-3. Inter-agent messaging (inbox pattern)
-4. Agent status management
-5. Broadcast messaging
+1. Task tree (DAG visualization)
+2. Workflow detail view
+3. Agent detail and message views
 
-## Phase 5: TUI Application (Unified `caw` Binary)
+## Phase 6: Agent Protocol & Worktrees (M6)
 
-1. Single `caw` binary with `--server` flag for headless MCP mode
-2. TUI imports `@caw/mcp-server` to embed server functionality
-3. Basic Ink setup with navigation
-4. Dashboard layout (workflows, agents, tasks, messages)
-5. Real-time polling and updates
-6. Keybinding system
-7. Detail views (workflow, agent, task)
+1. Agent workflow protocol documentation
+2. Git worktree management utility
+3. Agent coordination protocol (multi-agent task selection)
 
-## Phase 6: Templates & Polish
+## Phase 7: Testing & Quality (M7)
 
-1. Workflow templates (create, apply)
-2. CLAUDE.md integration prompting
-3. Error handling and recovery
-4. Comprehensive tests
-5. Documentation
+1. Comprehensive test suite (core services, MCP tools, TUI components)
+2. Remove `apps/orchestrator` package
+3. Update CLAUDE.md for current architecture
+
+## Phase 8: Documentation & Polish (M8)
+
+1. README and package documentation
+2. CLAUDE.md integration guide
+3. Template CLI commands (`caw --template`, `caw --list-templates`)
+4. Error handling verification (ToolCallError across all 43 tools)
