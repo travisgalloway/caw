@@ -101,20 +101,16 @@ export const register: ToolRegistrar = (server, db) => {
         id: z.string().describe('Workflow ID'),
         plan: z.object({
           summary: z.string().describe('Brief description'),
-          approach: z.string().optional().describe('High-level approach'),
           tasks: z.array(
             z.object({
               name: z.string(),
               description: z.string().optional(),
-              sequence: z.number().int().optional(),
               parallel_group: z.string().optional(),
               depends_on: z.array(z.string()).optional(),
               estimated_complexity: z.enum(['low', 'medium', 'high']).optional(),
               files_likely_affected: z.array(z.string()).optional(),
             }),
           ),
-          risks: z.array(z.string()).optional(),
-          assumptions: z.array(z.string()).optional(),
         }),
       },
     },

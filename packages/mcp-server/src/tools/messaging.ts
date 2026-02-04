@@ -14,7 +14,7 @@ export const register: ToolRegistrar = (server, db) => {
         sender_id: z.string().describe('Sender agent ID'),
         recipient_id: z.string().describe('Recipient agent ID'),
         message_type: z
-          .enum(['task_assignment', 'status_update', 'query', 'response', 'notification'])
+          .enum(['task_assignment', 'status_update', 'query', 'response', 'broadcast'])
           .describe('Message type'),
         subject: z.string().optional().describe('Message subject'),
         body: z
@@ -61,7 +61,7 @@ export const register: ToolRegistrar = (server, db) => {
           })
           .optional()
           .describe('Filter recipients'),
-        message_type: z.enum(['notification', 'status_update']).describe('Message type'),
+        message_type: z.enum(['broadcast', 'status_update']).describe('Message type'),
         subject: z.string().optional().describe('Message subject'),
         body: z.union([z.string(), z.record(z.unknown())]).describe('Message body'),
         priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),

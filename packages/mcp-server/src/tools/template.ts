@@ -19,7 +19,6 @@ export const register: ToolRegistrar = (server, db) => {
               z.object({
                 name: z.string(),
                 description: z.string().optional(),
-                sequence: z.number().int().optional(),
                 parallel_group: z.string().optional(),
                 depends_on: z.array(z.string()).optional(),
               }),
