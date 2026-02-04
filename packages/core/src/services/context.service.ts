@@ -15,7 +15,6 @@ export interface LoadContextOptions {
     prior_tasks?: boolean;
     siblings?: boolean;
     dependencies?: boolean;
-    prior_task_full?: boolean;
     all_checkpoints?: boolean;
   };
   max_tokens?: number;
@@ -87,7 +86,6 @@ interface IncludeFlags {
   prior_tasks: boolean;
   siblings: boolean;
   dependencies: boolean;
-  prior_task_full: boolean;
   all_checkpoints: boolean;
 }
 
@@ -98,7 +96,6 @@ function resolveIncludeDefaults(include?: LoadContextOptions['include']): Includ
     prior_tasks: include?.prior_tasks ?? true,
     siblings: include?.siblings ?? true,
     dependencies: include?.dependencies ?? true,
-    prior_task_full: include?.prior_task_full ?? false,
     all_checkpoints: include?.all_checkpoints ?? false,
   };
 }
@@ -138,8 +135,10 @@ function buildCurrentTaskContext(
   // If checkpoints alone exceed budget, keep fewer
   let cpEstimate = estimateObjectTokens(checkpoints);
   const taskOverhead = 200; // rough estimate for task fields
-  while (cpEstimate + taskOverhead > budget && checkpoints.length > 1) {
-    checkpoints = compressCheckpoints(checkpoints, Math.max(1, checkpoints.length - 1));
+  let recentCount = checkpoints.length;
+  while (cpEstimate + taskOverhead > budget && recentCount > 1) {
+    recentCount = Math.max(1, recentCount - 1);
+    checkpoints = compressCheckpoints(checkpoints, recentCount);
     cpEstimate = estimateObjectTokens(checkpoints);
   }
 
@@ -242,15 +241,15 @@ export function loadTaskContext(
     ? buildCurrentTaskContext(db, task, include, currentTaskBudget)
     : undefined;
 
-  const priorTasksCtx = include.prior_tasks
+  let priorTasksCtx = include.prior_tasks
     ? buildPriorTasksContext(db, task, include, priorTasksBudget)
     : undefined;
 
-  const siblingTasksCtx = include.siblings
+  let siblingTasksCtx = include.siblings
     ? buildSiblingTasksContext(db, task, include, siblingDepsBudget)
     : undefined;
 
-  const depOutcomesCtx = include.dependencies
+  let depOutcomesCtx = include.dependencies
     ? buildDependencyOutcomesContext(db, task, siblingDepsBudget)
     : undefined;
 
@@ -298,18 +297,39 @@ export function loadTaskContext(
       const newCpBudget = Math.max(100, currentTaskBudget - excess);
       let cps = currentTaskCtx.checkpoints;
       let cpEst = estimateObjectTokens(cps);
-      while (cpEst > newCpBudget && cps.length > 1) {
-        cps = compressCheckpoints(cps, Math.max(1, cps.length - 1));
+      let rebalanceRecentCount = cps.length;
+      while (cpEst > newCpBudget && rebalanceRecentCount > 1) {
+        rebalanceRecentCount = Math.max(1, rebalanceRecentCount - 1);
+        cps = compressCheckpoints(cps, rebalanceRecentCount);
         cpEst = estimateObjectTokens(cps);
       }
       currentTaskCtx.checkpoints = cps;
+    } else if (largestKey === 'prior_tasks' && priorTasksCtx) {
+      const excess = totalEstimate - maxTokens;
+      const removeCount = Math.ceil(excess / Math.max(1, largestSize / priorTasksCtx.length));
+      priorTasksCtx = priorTasksCtx.slice(Math.min(removeCount, priorTasksCtx.length - 1));
+    } else if (largestKey === 'sibling_tasks' && siblingTasksCtx) {
+      const excess = totalEstimate - maxTokens;
+      const removeCount = Math.ceil(excess / Math.max(1, largestSize / siblingTasksCtx.length));
+      siblingTasksCtx = siblingTasksCtx.slice(Math.min(removeCount, siblingTasksCtx.length - 1));
+    } else if (largestKey === 'dependency_outcomes' && depOutcomesCtx) {
+      const excess = totalEstimate - maxTokens;
+      const removeCount = Math.ceil(excess / Math.max(1, largestSize / depOutcomesCtx.length));
+      depOutcomesCtx = depOutcomesCtx.slice(Math.min(removeCount, depOutcomesCtx.length - 1));
     }
 
-    // Recalculate total
+    // Recalculate total using current variable values (array sections may have been reassigned)
+    const updatedSections: (object | undefined)[] = [
+      workflowCtx,
+      currentTaskCtx,
+      priorTasksCtx,
+      siblingTasksCtx,
+      depOutcomesCtx,
+    ];
     totalEstimate = 0;
-    for (const section of sections) {
-      if (section.value) {
-        totalEstimate += estimateObjectTokens(section.value);
+    for (const section of updatedSections) {
+      if (section) {
+        totalEstimate += estimateObjectTokens(section);
       }
     }
   }
