@@ -1,4 +1,4 @@
-import { contextService, workflowService } from '@caw/core';
+import { contextService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall } from './types';
@@ -64,22 +64,6 @@ export const register: ToolRegistrar = (server, db) => {
             : undefined,
           max_tokens: args.max_tokens,
         });
-      }),
-  );
-
-  defineTool(
-    server,
-    'workflow_get_summary',
-    {
-      description: 'Get compressed workflow summary for quick status checks',
-      inputSchema: {
-        id: z.string().describe('Workflow ID'),
-        format: z.enum(['json', 'markdown']).optional().describe('Output format, default json'),
-      },
-    },
-    (args) =>
-      handleToolCall(() => {
-        return workflowService.getSummary(db, args.id, args.format ?? 'json');
       }),
   );
 };
