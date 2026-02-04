@@ -1,7 +1,63 @@
 import { templateService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Cannot provide both')) {
+    throw new ToolCallError({
+      code: 'INVALID_INPUT',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Provide either from_workflow_id or template, not both',
+    });
+  }
+  if (msg.includes('Must provide either')) {
+    throw new ToolCallError({
+      code: 'INVALID_INPUT',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Provide either from_workflow_id or template',
+    });
+  }
+  if (msg.includes('Workflow not found')) {
+    throw new ToolCallError({
+      code: 'WORKFLOW_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the workflow ID and try again',
+    });
+  }
+  if (msg.includes('Template name already exists')) {
+    throw new ToolCallError({
+      code: 'DUPLICATE_TEMPLATE',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Choose a different template name',
+    });
+  }
+  if (msg.includes('Template not found')) {
+    throw new ToolCallError({
+      code: 'TEMPLATE_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the template ID and try again',
+    });
+  }
+  if (msg.includes('Missing required variables')) {
+    throw new ToolCallError({
+      code: 'MISSING_VARIABLES',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Provide all required template variables',
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -31,13 +87,17 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const tmpl = templateService.create(db, {
-          name: args.name,
-          description: args.description,
-          fromWorkflowId: args.from_workflow_id,
-          template: args.template,
-        });
-        return { id: tmpl.id };
+        try {
+          const tmpl = templateService.create(db, {
+            name: args.name,
+            description: args.description,
+            fromWorkflowId: args.from_workflow_id,
+            template: args.template,
+          });
+          return { id: tmpl.id };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -69,12 +129,16 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        return templateService.apply(db, args.template_id, {
-          workflowName: args.workflow_name,
-          variables: args.variables,
-          repoPath: args.repository_path,
-          maxParallel: args.max_parallel_tasks,
-        });
+        try {
+          return templateService.apply(db, args.template_id, {
+            workflowName: args.workflow_name,
+            variables: args.variables,
+            repoPath: args.repository_path,
+            maxParallel: args.max_parallel_tasks,
+          });
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 };

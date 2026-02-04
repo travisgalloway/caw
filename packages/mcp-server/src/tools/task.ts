@@ -1,7 +1,71 @@
 import { taskService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Task not found')) {
+    throw new ToolCallError({
+      code: 'TASK_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the task ID and try again',
+    });
+  }
+  if (msg.includes('Invalid transition')) {
+    throw new ToolCallError({
+      code: 'INVALID_TRANSITION',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check valid transitions in task state machine',
+    });
+  }
+  if (msg.includes("Cannot transition to 'planning'")) {
+    throw new ToolCallError({
+      code: 'TASK_BLOCKED',
+      message: msg,
+      recoverable: true,
+      suggestion: 'Wait for blocking dependencies to complete',
+    });
+  }
+  if (msg.includes('Cannot set plan')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: "Task must be in 'planning' status to set plan",
+    });
+  }
+  if (msg.includes('Outcome is required')) {
+    throw new ToolCallError({
+      code: 'MISSING_OUTCOME',
+      message: msg,
+      recoverable: true,
+      suggestion: "Provide an outcome when setting status to 'completed'",
+    });
+  }
+  if (msg.includes('Error is required')) {
+    throw new ToolCallError({
+      code: 'MISSING_ERROR',
+      message: msg,
+      recoverable: true,
+      suggestion: "Provide an error when setting status to 'failed'",
+    });
+  }
+  if (msg.includes('Cannot replan')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: "Task must be 'failed' or 'in_progress' to replan",
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -21,7 +85,14 @@ export const register: ToolRegistrar = (server, db) => {
           includeCheckpoints: args.include_checkpoints,
           checkpointLimit: args.checkpoint_limit,
         });
-        if (!task) throw new Error(`Task not found: ${args.id}`);
+        if (!task) {
+          throw new ToolCallError({
+            code: 'TASK_NOT_FOUND',
+            message: `Task not found: ${args.id}`,
+            recoverable: false,
+            suggestion: 'Check the task ID and try again',
+          });
+        }
         return task;
       }),
   );
@@ -45,11 +116,15 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        taskService.setPlan(db, args.id, {
-          plan: args.plan,
-          context: args.context,
-        });
-        return { success: true };
+        try {
+          taskService.setPlan(db, args.id, {
+            plan: args.plan,
+            context: args.context,
+          });
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -68,11 +143,15 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        taskService.updateStatus(db, args.id, args.status, {
-          outcome: args.outcome,
-          error: args.error,
-        });
-        return { success: true };
+        try {
+          taskService.updateStatus(db, args.id, args.status, {
+            outcome: args.outcome,
+            error: args.error,
+          });
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -94,8 +173,12 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const result = taskService.replan(db, args.id, args.reason, args.new_plan);
-        return { success: true, checkpoint_id: result.checkpoint_id };
+        try {
+          const result = taskService.replan(db, args.id, args.reason, args.new_plan);
+          return { success: true, checkpoint_id: result.checkpoint_id };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 };

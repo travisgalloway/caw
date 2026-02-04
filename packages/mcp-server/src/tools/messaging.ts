@@ -2,7 +2,39 @@ import type { MessagePriority, MessageStatus, MessageType } from '@caw/core';
 import { messageService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Recipient agent not found')) {
+    throw new ToolCallError({
+      code: 'RECIPIENT_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the recipient agent ID and try again',
+    });
+  }
+  if (msg.includes('Sender agent not found')) {
+    throw new ToolCallError({
+      code: 'SENDER_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the sender agent ID and try again',
+    });
+  }
+  if (msg.includes('Reply-to message not found')) {
+    throw new ToolCallError({
+      code: 'MESSAGE_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the reply_to_id and try again',
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -31,18 +63,22 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const body = typeof args.body === 'object' ? JSON.stringify(args.body) : args.body;
-        return messageService.send(db, {
-          sender_id: args.sender_id,
-          recipient_id: args.recipient_id,
-          message_type: args.message_type as MessageType,
-          subject: args.subject,
-          body,
-          priority: args.priority as MessagePriority | undefined,
-          workflow_id: args.workflow_id,
-          task_id: args.task_id,
-          reply_to_id: args.reply_to_id,
-        });
+        try {
+          const body = typeof args.body === 'object' ? JSON.stringify(args.body) : args.body;
+          return messageService.send(db, {
+            sender_id: args.sender_id,
+            recipient_id: args.recipient_id,
+            message_type: args.message_type as MessageType,
+            subject: args.subject,
+            body,
+            priority: args.priority as MessagePriority | undefined,
+            workflow_id: args.workflow_id,
+            task_id: args.task_id,
+            reply_to_id: args.reply_to_id,
+          });
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -70,16 +106,20 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const body = typeof args.body === 'object' ? JSON.stringify(args.body) : args.body;
-        return messageService.broadcast(db, {
-          sender_id: args.sender_id,
-          recipient_filter: args.recipient_filter ?? {},
-          message_type: args.message_type as MessageType,
-          subject: args.subject,
-          body,
-          priority: args.priority as MessagePriority | undefined,
-          workflow_id: args.workflow_id,
-        });
+        try {
+          const body = typeof args.body === 'object' ? JSON.stringify(args.body) : args.body;
+          return messageService.broadcast(db, {
+            sender_id: args.sender_id,
+            recipient_filter: args.recipient_filter ?? {},
+            message_type: args.message_type as MessageType,
+            subject: args.subject,
+            body,
+            priority: args.priority as MessagePriority | undefined,
+            workflow_id: args.workflow_id,
+          });
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -131,7 +171,14 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         const message = messageService.get(db, args.id, args.mark_read ?? true);
-        if (!message) throw new Error(`Message not found: ${args.id}`);
+        if (!message) {
+          throw new ToolCallError({
+            code: 'MESSAGE_NOT_FOUND',
+            message: `Message not found: ${args.id}`,
+            recoverable: false,
+            suggestion: 'Check the message ID and try again',
+          });
+        }
         return message;
       }),
   );

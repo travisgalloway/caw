@@ -2,7 +2,63 @@ import type { WorkspaceStatus } from '@caw/core';
 import { workspaceService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Workflow not found')) {
+    throw new ToolCallError({
+      code: 'WORKFLOW_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the workflow ID and try again',
+    });
+  }
+  if (msg.includes('Task not found')) {
+    throw new ToolCallError({
+      code: 'TASK_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the task ID and try again',
+    });
+  }
+  if (msg.includes('does not belong to workflow')) {
+    throw new ToolCallError({
+      code: 'WORKFLOW_MISMATCH',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Task must belong to the same workflow as the workspace',
+    });
+  }
+  if (msg.includes('Workspace not found')) {
+    throw new ToolCallError({
+      code: 'WORKSPACE_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the workspace ID and try again',
+    });
+  }
+  if (msg.includes('mergeCommit is required')) {
+    throw new ToolCallError({
+      code: 'MISSING_MERGE_COMMIT',
+      message: msg,
+      recoverable: true,
+      suggestion: "Provide merge_commit when setting status to 'merged'",
+    });
+  }
+  if (msg.includes('Cannot assign task to workspace')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: "Workspace must be 'active' to assign tasks",
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -20,14 +76,18 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const workspace = workspaceService.create(db, {
-          workflowId: args.workflow_id,
-          path: args.path,
-          branch: args.branch,
-          baseBranch: args.base_branch,
-          taskIds: args.task_ids,
-        });
-        return { id: workspace.id };
+        try {
+          const workspace = workspaceService.create(db, {
+            workflowId: args.workflow_id,
+            path: args.path,
+            branch: args.branch,
+            baseBranch: args.base_branch,
+            taskIds: args.task_ids,
+          });
+          return { id: workspace.id };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -44,11 +104,15 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        workspaceService.update(db, args.id, {
-          status: args.status as WorkspaceStatus | undefined,
-          mergeCommit: args.merge_commit,
-        });
-        return { success: true };
+        try {
+          workspaceService.update(db, args.id, {
+            status: args.status as WorkspaceStatus | undefined,
+            mergeCommit: args.merge_commit,
+          });
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -85,8 +149,12 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        workspaceService.assignTask(db, args.task_id, args.workspace_id);
-        return { success: true };
+        try {
+          workspaceService.assignTask(db, args.task_id, args.workspace_id);
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 };

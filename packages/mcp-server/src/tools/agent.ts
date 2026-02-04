@@ -2,7 +2,63 @@ import type { AgentRole, AgentStatus } from '@caw/core';
 import { agentService, taskService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Agent not found')) {
+    throw new ToolCallError({
+      code: 'AGENT_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the agent ID and try again',
+    });
+  }
+  if (msg.includes('Cannot heartbeat offline agent')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Re-register the agent before sending heartbeats',
+    });
+  }
+  if (msg.includes('Task not found')) {
+    throw new ToolCallError({
+      code: 'TASK_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the task ID and try again',
+    });
+  }
+  if (msg.includes('Cannot claim task in')) {
+    throw new ToolCallError({
+      code: 'INVALID_STATE',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Task is in a terminal status and cannot be claimed',
+    });
+  }
+  if (msg.includes('Task is not claimed')) {
+    throw new ToolCallError({
+      code: 'NOT_CLAIMED',
+      message: msg,
+      recoverable: false,
+      suggestion: 'The task has no active claim to release',
+    });
+  }
+  if (msg.includes('Task is claimed by agent')) {
+    throw new ToolCallError({
+      code: 'NOT_ASSIGNED',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Task is claimed by a different agent',
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -46,13 +102,17 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        agentService.heartbeat(
-          db,
-          args.agent_id,
-          args.current_task_id,
-          args.status as AgentStatus | undefined,
-        );
-        return { success: true, next_heartbeat_ms: 30000 };
+        try {
+          agentService.heartbeat(
+            db,
+            args.agent_id,
+            args.current_task_id,
+            args.status as AgentStatus | undefined,
+          );
+          return { success: true, next_heartbeat_ms: 30000 };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -71,13 +131,17 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        agentService.update(db, args.id, {
-          status: args.status as AgentStatus | undefined,
-          current_task_id: args.current_task_id,
-          workspace_path: args.workspace_path,
-          metadata: args.metadata,
-        });
-        return { success: true };
+        try {
+          agentService.update(db, args.id, {
+            status: args.status as AgentStatus | undefined,
+            current_task_id: args.current_task_id,
+            workspace_path: args.workspace_path,
+            metadata: args.metadata,
+          });
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -93,7 +157,14 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         const agent = agentService.get(db, args.id);
-        if (!agent) throw new Error(`Agent not found: ${args.id}`);
+        if (!agent) {
+          throw new ToolCallError({
+            code: 'AGENT_NOT_FOUND',
+            message: `Agent not found: ${args.id}`,
+            recoverable: false,
+            suggestion: 'Check the agent ID and try again',
+          });
+        }
         return agent;
       }),
   );
@@ -134,7 +205,11 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        return agentService.unregister(db, args.id);
+        try {
+          return agentService.unregister(db, args.id);
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -150,7 +225,11 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        return taskService.claim(db, args.task_id, args.agent_id);
+        try {
+          return taskService.claim(db, args.task_id, args.agent_id);
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
@@ -167,8 +246,12 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        taskService.release(db, args.task_id, args.agent_id, args.reason);
-        return { success: true };
+        try {
+          taskService.release(db, args.task_id, args.agent_id, args.reason);
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
