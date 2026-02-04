@@ -11,9 +11,19 @@ export type {
   AddResult as CheckpointAddResult,
   ListFilters as CheckpointListFilters,
 } from './services/checkpoint.service';
+export type {
+  CurrentTaskContext,
+  DependencyOutcomeContext,
+  LoadContextOptions,
+  LoadContextResult,
+  PriorTaskContext,
+  SiblingTaskContext,
+  WorkflowContext,
+} from './services/context.service';
 export {
   agentService,
   checkpointService,
+  contextService,
   isValidTaskTransition,
   isValidWorkflowTransition,
   messageService,
@@ -107,3 +117,4 @@ export {
   workflowId,
   workspaceId,
 } from './utils/id';
+export { estimateObjectTokens, estimateTokens } from './utils/tokens';
