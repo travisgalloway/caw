@@ -2,6 +2,7 @@ import type { DatabaseType } from '../db/connection';
 import type { Task } from '../types/task';
 import type { Workflow, WorkflowStatus, WorkflowSummary } from '../types/workflow';
 import { taskId, workflowId } from '../utils/id';
+import { estimateTokens } from '../utils/tokens';
 import * as repositoryService from './repository.service';
 import { isValidWorkflowTransition } from './transitions';
 
@@ -402,6 +403,6 @@ export function getSummary(
 
   return {
     summary,
-    token_estimate: Math.ceil(summary.length / 4),
+    token_estimate: estimateTokens(summary),
   };
 }
