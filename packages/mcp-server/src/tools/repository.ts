@@ -1,7 +1,7 @@
 import { repositoryService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -55,7 +55,14 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         const repo = repositoryService.getByPath(db, args.path);
-        if (!repo) throw new Error(`Repository not found at path: ${args.path}`);
+        if (!repo) {
+          throw new ToolCallError({
+            code: 'REPOSITORY_NOT_FOUND',
+            message: `Repository not found at path: ${args.path}`,
+            recoverable: false,
+            suggestion: 'Check the repository path and try again',
+          });
+        }
         return repo;
       }),
   );

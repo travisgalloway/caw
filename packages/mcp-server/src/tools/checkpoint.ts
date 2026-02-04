@@ -2,7 +2,23 @@ import type { CheckpointType } from '@caw/core';
 import { checkpointService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall } from './types';
+import { defineTool, handleToolCall, ToolCallError } from './types';
+
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('Task not found')) {
+    throw new ToolCallError({
+      code: 'TASK_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the task ID and try again',
+    });
+  }
+
+  throw err;
+}
 
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
@@ -22,12 +38,16 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        return checkpointService.add(db, args.task_id, {
-          type: args.type as CheckpointType,
-          summary: args.summary,
-          detail: args.detail,
-          filesChanged: args.files_changed,
-        });
+        try {
+          return checkpointService.add(db, args.task_id, {
+            type: args.type as CheckpointType,
+            summary: args.summary,
+            detail: args.detail,
+            filesChanged: args.files_changed,
+          });
+        } catch (err) {
+          toToolCallError(err);
+        }
       }),
   );
 
