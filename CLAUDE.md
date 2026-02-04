@@ -50,11 +50,10 @@ bun run clean
 
 ## Monorepo Structure
 
-Four workspace packages managed by Bun workspaces + Turbo:
+Three workspace packages managed by Bun workspaces + Turbo:
 
 - **`packages/core`** (`@caw/core`) — Database layer, types, services, utilities. All other packages depend on this.
 - **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library (tools, transport, config). Imported by the TUI app. Depends on core.
-- **`apps/orchestrator`** (`@caw/orchestrator`) — CLI orchestrator driving workflow execution via Anthropic SDK. Depends on core.
 - **`apps/tui`** (`@caw/tui`) — Unified `caw` binary — TUI (default) or headless MCP server (`--server`). Depends on core and mcp-server.
 - **`tooling/tsconfig`** (`@caw/tsconfig`) — Shared TypeScript configs (`base.json` and `library.json`).
 
@@ -91,7 +90,6 @@ One file per entity, matching the SQLite schema exactly. Barrel-exported through
 - **nanoid** — ESM-native ID generation
 - **@modelcontextprotocol/sdk** — MCP protocol implementation (mcp-server package)
 - **zod** — Schema validation for MCP tool input schemas (mcp-server package)
-- **@anthropic-ai/sdk** — Claude API client (orchestrator package)
 - **ink + react** — Terminal UI framework (tui package)
 
 ## Design Documentation
