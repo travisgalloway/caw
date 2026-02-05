@@ -63,7 +63,11 @@ export interface TuiOptions {
   workflow?: string;
 }
 
-export async function runTui(db: DatabaseType, _opts: TuiOptions): Promise<void> {
+export async function runTui(db: DatabaseType, opts: TuiOptions): Promise<void> {
+  if (opts.workflow) {
+    useAppStore.getState().selectWorkflow(opts.workflow);
+  }
+
   const instance = render(
     <DbContext.Provider value={db}>
       <App />
