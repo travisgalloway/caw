@@ -2,12 +2,15 @@ import { Box, Text } from 'ink';
 import type React from 'react';
 import { useAgents } from '../hooks/useAgents';
 import { useWorkflows } from '../hooks/useWorkflows';
+import { useAppStore } from '../store';
 import { AgentList } from './AgentList';
+import { TaskTree } from './TaskTree';
 import { WorkflowList } from './WorkflowList';
 
 export function Dashboard(): React.JSX.Element {
   const workflows = useWorkflows();
   const agents = useAgents();
+  const selectedWorkflowId = useAppStore((s) => s.selectedWorkflowId);
 
   if (workflows.error || agents.error) {
     const errorMessages = [
@@ -26,10 +29,13 @@ export function Dashboard(): React.JSX.Element {
 
   return (
     <Box>
-      <Box width="50%">
+      <Box width="35%">
         <WorkflowList workflows={workflows.data ?? []} />
       </Box>
-      <Box width="50%">
+      <Box width="35%">
+        <TaskTree workflowId={selectedWorkflowId} />
+      </Box>
+      <Box width="30%">
         <AgentList agents={agents.data ?? []} />
       </Box>
     </Box>
