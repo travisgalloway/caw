@@ -16,10 +16,11 @@
       "name": "@caw/tui",
       "version": "0.1.0",
       "bin": {
-        "caw-tui": "src/bin/cli.ts",
+        "caw": "src/bin/cli.ts",
       },
       "dependencies": {
         "@caw/core": "workspace:*",
+        "@caw/mcp-server": "workspace:*",
         "ink": "^5.1.0",
         "react": "^18.3.0",
         "zustand": "^5.0.0",

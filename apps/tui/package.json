@@ -8,14 +8,17 @@
     ".": "./src/index.ts"
   },
   "bin": {
-    "caw-tui": "src/bin/cli.ts"
+    "caw": "src/bin/cli.ts"
   },
   "scripts": {
     "build": "tsc --noEmit",
-    "lint": "biome check ./src"
+    "lint": "biome check ./src",
+    "test": "bun test",
+    "test:watch": "bun test --watch"
   },
   "dependencies": {
     "@caw/core": "workspace:*",
+    "@caw/mcp-server": "workspace:*",
     "ink": "^5.1.0",
     "react": "^18.3.0",
     "zustand": "^5.0.0"
