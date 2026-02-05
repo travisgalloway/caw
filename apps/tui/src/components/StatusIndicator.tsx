@@ -1,7 +1,7 @@
 import { Text } from 'ink';
 import type React from 'react';
 
-type StatusKind = 'workflow' | 'agent' | 'task';
+type StatusKind = 'workflow' | 'agent' | 'task' | 'workspace';
 
 interface StatusIndicatorProps {
   kind: StatusKind;
@@ -40,10 +40,17 @@ const taskStyles: Record<string, SymbolStyle> = {
   paused: { symbol: '◐', color: 'yellow' },
 };
 
+const workspaceStyles: Record<string, SymbolStyle> = {
+  active: { symbol: '●', color: 'green' },
+  merged: { symbol: '✓', color: 'blue' },
+  abandoned: { symbol: '○', color: 'gray' },
+};
+
 const styleMap: Record<StatusKind, Record<string, SymbolStyle>> = {
   workflow: workflowStyles,
   agent: agentStyles,
   task: taskStyles,
+  workspace: workspaceStyles,
 };
 
 const fallback: SymbolStyle = { symbol: '?', color: 'gray' };
