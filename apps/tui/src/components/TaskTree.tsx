@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TaskTreeNode } from '../hooks/useTasks';
 import { useTasks } from '../hooks/useTasks';
 import { useAppStore } from '../store';
@@ -53,6 +53,12 @@ export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
   const isFocused = activePanel === 'tasks';
   const { data: tasks, error } = useTasks(workflowId);
   const [selectedIndex, setSelectedIndex] = useState(0);
+
+  // Reset selection when workflow changes to prevent out-of-bounds index
+  // biome-ignore lint/correctness/useExhaustiveDependencies: workflowId is a prop and we intentionally reset on its change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [workflowId]);
 
   useInput(
     (_input, key) => {

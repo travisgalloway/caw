@@ -1,5 +1,5 @@
 import type { TaskDependency, TaskStatus } from '@caw/core';
-import { agentService, taskService, workflowService } from '@caw/core';
+import { workflowService } from '@caw/core';
 import { useMemo } from 'react';
 import { useDb } from '../context/db';
 import { useAppStore } from '../store';
@@ -162,11 +162,13 @@ export function useTasks(workflowId: string | null) {
     // Get all task IDs
     const taskIds = tasks.map((t) => t.id);
 
-    // Query dependencies for all tasks
-    const allDependencies: TaskDependency[] = [];
-    for (const taskId of taskIds) {
-      const { dependencies } = taskService.getDependencies(db, taskId);
-      allDependencies.push(...dependencies);
+    // Query dependencies for all tasks (batched)
+    let allDependencies: TaskDependency[] = [];
+    if (taskIds.length > 0) {
+      const placeholders = taskIds.map(() => '?').join(',');
+      allDependencies = db
+        .prepare(`SELECT * FROM task_dependencies WHERE task_id IN (${placeholders})`)
+        .all(...taskIds) as TaskDependency[];
     }
 
     // Get agent names for assigned tasks
@@ -177,20 +179,29 @@ export function useTasks(workflowId: string | null) {
         agentIds.add(t.assigned_agent_id);
       }
     }
-    for (const agentId of agentIds) {
-      const agent = agentService.get(db, agentId);
-      if (agent) {
-        agentNames.set(agentId, agent.name);
+    const agentIdArray = Array.from(agentIds);
+    if (agentIdArray.length > 0) {
+      const placeholders = agentIdArray.map(() => '?').join(',');
+      const rows = db
+        .prepare(`SELECT id, name FROM agents WHERE id IN (${placeholders})`)
+        .all(...agentIdArray) as { id: string; name: string }[];
+      for (const row of rows) {
+        agentNames.set(row.id, row.name);
       }
     }
 
-    // Get checkpoint counts per task
+    // Get checkpoint counts per task (batched with GROUP BY)
     const checkpointCounts = new Map<string, number>();
-    for (const taskId of taskIds) {
-      const { count } = db
-        .prepare('SELECT COUNT(*) as count FROM checkpoints WHERE task_id = ?')
-        .get(taskId) as { count: number };
-      checkpointCounts.set(taskId, count);
+    if (taskIds.length > 0) {
+      const placeholders = taskIds.map(() => '?').join(',');
+      const rows = db
+        .prepare(
+          `SELECT task_id, COUNT(*) as count FROM checkpoints WHERE task_id IN (${placeholders}) GROUP BY task_id`,
+        )
+        .all(...taskIds) as { task_id: string; count: number }[];
+      for (const row of rows) {
+        checkpointCounts.set(row.task_id, row.count);
+      }
     }
 
     return { tasks, dependencies: allDependencies, agentNames, checkpointCounts };
