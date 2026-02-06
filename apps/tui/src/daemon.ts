@@ -161,17 +161,14 @@ async function startAsDaemon(
     if (cleaned) return;
     cleaned = true;
     clearInterval(heartbeatTimer);
-    // Write shutting_down signal for clients
     try {
       const current = readLockFile(lockPath);
       if (current && current.session_id === session.id) {
         removeLockFile(lockPath);
-        // Overwrite with shutdown signal briefly isn't needed since we remove it
       }
     } catch {
       // best effort
     }
-    removeLockFile(lockPath);
     sessionService.deregister(db, session.id);
   };
 
@@ -191,6 +188,7 @@ function joinAsClient(db: DatabaseType, lockPath: string, daemonPort: number): D
   });
 
   let isDaemon = false;
+  let promoting = false;
   let currentPort = daemonPort;
 
   // Heartbeat + daemon monitor interval
@@ -202,13 +200,18 @@ function joinAsClient(db: DatabaseType, lockPath: string, daemonPort: number): D
       return;
     }
 
-    // If we've already been promoted, skip monitoring
-    if (isDaemon) return;
+    // If we've already been promoted or promotion is in progress, skip monitoring
+    if (isDaemon || promoting) return;
 
     // Monitor daemon health
     const healthy = await healthCheck(currentPort);
     if (!healthy) {
-      await attemptPromotion(db, lockPath, session.id, currentPort);
+      promoting = true;
+      try {
+        await attemptPromotion(db, lockPath, session.id, currentPort);
+      } finally {
+        promoting = false;
+      }
     }
   }, HEARTBEAT_INTERVAL);
 

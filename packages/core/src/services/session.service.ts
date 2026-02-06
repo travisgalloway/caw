@@ -69,6 +69,10 @@ export function promoteToDaemon(db: DatabaseType, id: string): Session {
     throw new Error(`Session not found: ${id}`);
   }
 
+  if (session.is_daemon === 1) return session;
+
+  // Demote any existing daemon before promoting (defense-in-depth)
+  db.prepare('UPDATE sessions SET is_daemon = 0 WHERE is_daemon = 1 AND id != ?').run(id);
   db.prepare('UPDATE sessions SET is_daemon = 1 WHERE id = ?').run(id);
 
   return { ...session, is_daemon: 1 };
