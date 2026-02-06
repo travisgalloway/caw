@@ -45,7 +45,7 @@ export function defineTool(
   name: string,
   config: { description: string; inputSchema?: Record<string, ZodTypeAny> },
   // biome-ignore lint/suspicious/noExplicitAny: intentional — breaks tsc inference chain
-  handler: (args: Record<string, any>) => CallToolResult,
+  handler: (args: Record<string, any>) => CallToolResult | Promise<CallToolResult>,
 ): void {
   // biome-ignore lint/suspicious/noExplicitAny: intentional — avoids registerTool generic inference
   (server as any).registerTool(name, config, handler);
@@ -67,6 +67,22 @@ export function toolError(message: string): CallToolResult {
 export function handleToolCall<T>(fn: () => T): CallToolResult {
   try {
     const result = fn();
+    return toolResult(result);
+  } catch (err: unknown) {
+    if (err instanceof ToolCallError) {
+      return {
+        content: [{ type: 'text', text: JSON.stringify(err.toJSON(), null, 2) }],
+        isError: true,
+      };
+    }
+    const message = err instanceof Error ? err.message : String(err);
+    return toolError(message);
+  }
+}
+
+export async function handleToolCallAsync<T>(fn: () => Promise<T>): Promise<CallToolResult> {
+  try {
+    const result = await fn();
     return toolResult(result);
   } catch (err: unknown) {
     if (err instanceof ToolCallError) {
