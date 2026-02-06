@@ -3,6 +3,22 @@ import { z } from 'zod';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
 
+function toToolCallError(err: unknown): never {
+  if (err instanceof ToolCallError) throw err;
+  const msg = err instanceof Error ? err.message : String(err);
+
+  if (msg.includes('not found')) {
+    throw new ToolCallError({
+      code: 'REPOSITORY_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the repository path and try again',
+    });
+  }
+
+  throw err;
+}
+
 export const register: ToolRegistrar = (server, db) => {
   defineTool(
     server,
@@ -54,16 +70,15 @@ export const register: ToolRegistrar = (server, db) => {
     },
     (args) =>
       handleToolCall(() => {
-        const repo = repositoryService.getByPath(db, args.path);
-        if (!repo) {
-          throw new ToolCallError({
-            code: 'REPOSITORY_NOT_FOUND',
-            message: `Repository not found at path: ${args.path}`,
-            recoverable: false,
-            suggestion: 'Check the repository path and try again',
-          });
+        try {
+          const repo = repositoryService.getByPath(db, args.path);
+          if (!repo) {
+            throw new Error(`Repository not found at path: ${args.path}`);
+          }
+          return repo;
+        } catch (err) {
+          toToolCallError(err);
         }
-        return repo;
       }),
   );
 };

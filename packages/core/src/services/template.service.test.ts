@@ -164,6 +164,34 @@ describe('templateService', () => {
     });
   });
 
+  // --- getByName ---
+
+  describe('getByName', () => {
+    it('returns null for missing name', () => {
+      const result = templateService.getByName(db, 'Nonexistent');
+      expect(result).toBeNull();
+    });
+
+    it('returns template when found', () => {
+      const tmpl = createBasicTemplate(db);
+      const result = templateService.getByName(db, 'Test Template');
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(tmpl.id);
+      expect(result?.name).toBe('Test Template');
+    });
+
+    it('returns correct match among multiple templates', () => {
+      createBasicTemplate(db, { name: 'Alpha' });
+      const target = createBasicTemplate(db, { name: 'Beta' });
+      createBasicTemplate(db, { name: 'Gamma' });
+
+      const result = templateService.getByName(db, 'Beta');
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe(target.id);
+      expect(result?.name).toBe('Beta');
+    });
+  });
+
   // --- list ---
 
   describe('list', () => {
