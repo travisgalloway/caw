@@ -7,7 +7,7 @@ function toToolCallError(err: unknown): never {
   if (err instanceof ToolCallError) throw err;
   const msg = err instanceof Error ? err.message : String(err);
 
-  if (msg.includes('not found')) {
+  if (msg.includes('Repository not found')) {
     throw new ToolCallError({
       code: 'REPOSITORY_NOT_FOUND',
       message: msg,

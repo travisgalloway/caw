@@ -57,13 +57,6 @@ export function toolResult(data: unknown): CallToolResult {
   };
 }
 
-export function toolError(message: string): CallToolResult {
-  return {
-    content: [{ type: 'text', text: message }],
-    isError: true,
-  };
-}
-
 export function handleToolCall<T>(fn: () => T): CallToolResult {
   try {
     const result = fn();
