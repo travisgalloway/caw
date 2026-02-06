@@ -970,4 +970,320 @@ describe('messageService', () => {
       expect(result.count).toBe(1);
     });
   });
+
+  // --- listAll ---
+
+  describe('listAll', () => {
+    it('returns messages across all agents', () => {
+      const sender = registerAgent(db, 'sender');
+      const r1 = registerAgent(db, 'recipient1');
+      const r2 = registerAgent(db, 'recipient2');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r1.id,
+        message_type: 'query',
+        body: 'For r1',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r2.id,
+        message_type: 'query',
+        body: 'For r2',
+      });
+
+      const messages = messageService.listAll(db);
+      expect(messages).toHaveLength(2);
+    });
+
+    it('uses default limit of 50', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      for (let i = 0; i < 55; i++) {
+        messageService.send(db, {
+          sender_id: sender.id,
+          recipient_id: recipient.id,
+          message_type: 'query',
+          body: `Message ${i}`,
+        });
+      }
+
+      const messages = messageService.listAll(db);
+      expect(messages).toHaveLength(50);
+    });
+
+    it('filters by status', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const r1 = messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Message 1',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Message 2',
+      });
+
+      messageService.markRead(db, [r1.id]);
+
+      const unread = messageService.listAll(db, { status: 'unread' });
+      expect(unread).toHaveLength(1);
+      expect(unread[0].body).toBe('Message 2');
+    });
+
+    it('filters by message_type', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Question',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'status_update',
+        body: 'Update',
+      });
+
+      const queries = messageService.listAll(db, { message_type: 'query' });
+      expect(queries).toHaveLength(1);
+      expect(queries[0].body).toBe('Question');
+    });
+
+    it('filters by priority', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Normal',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Urgent',
+        priority: 'urgent',
+      });
+
+      const urgent = messageService.listAll(db, { priority: 'urgent' });
+      expect(urgent).toHaveLength(1);
+      expect(urgent[0].body).toBe('Urgent');
+    });
+
+    it('filters by since timestamp', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const baseTime = Date.now() - 2000;
+
+      db.prepare(
+        `INSERT INTO messages (id, sender_id, recipient_id, message_type, body, priority, status, thread_id, created_at)
+         VALUES ('msg_aold0000001', ?, ?, 'query', 'Old message', 'normal', 'unread', 'thr_000000000005', ?)`,
+      ).run(sender.id, recipient.id, baseTime);
+
+      db.prepare(
+        `INSERT INTO messages (id, sender_id, recipient_id, message_type, body, priority, status, thread_id, created_at)
+         VALUES ('msg_anew0000001', ?, ?, 'query', 'New message', 'normal', 'unread', 'thr_000000000006', ?)`,
+      ).run(sender.id, recipient.id, baseTime + 1000);
+
+      const recent = messageService.listAll(db, { since: baseTime });
+      expect(recent).toHaveLength(1);
+      expect(recent[0].body).toBe('New message');
+    });
+
+    it('returns empty array when status filter is empty array', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Hello',
+      });
+
+      const result = messageService.listAll(db, { status: [] });
+      expect(result).toEqual([]);
+    });
+
+    it('orders by created_at DESC', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const baseTime = Date.now() - 2000;
+
+      db.prepare(
+        `INSERT INTO messages (id, sender_id, recipient_id, message_type, body, priority, status, thread_id, created_at)
+         VALUES ('msg_afirst00001', ?, ?, 'query', 'First', 'normal', 'unread', 'thr_000000000007', ?)`,
+      ).run(sender.id, recipient.id, baseTime);
+
+      db.prepare(
+        `INSERT INTO messages (id, sender_id, recipient_id, message_type, body, priority, status, thread_id, created_at)
+         VALUES ('msg_asecond0001', ?, ?, 'query', 'Second', 'normal', 'unread', 'thr_000000000008', ?)`,
+      ).run(sender.id, recipient.id, baseTime + 1000);
+
+      const messages = messageService.listAll(db);
+      expect(messages[0].body).toBe('Second');
+      expect(messages[1].body).toBe('First');
+    });
+  });
+
+  // --- countAllUnread ---
+
+  describe('countAllUnread', () => {
+    it('returns total unread count across all agents', () => {
+      const sender = registerAgent(db, 'sender');
+      const r1 = registerAgent(db, 'recipient1');
+      const r2 = registerAgent(db, 'recipient2');
+
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r1.id,
+        message_type: 'query',
+        body: 'For r1',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r2.id,
+        message_type: 'query',
+        body: 'For r2',
+      });
+
+      const count = messageService.countAllUnread(db);
+      expect(count).toBe(2);
+    });
+
+    it('returns 0 when no unread messages', () => {
+      const count = messageService.countAllUnread(db);
+      expect(count).toBe(0);
+    });
+
+    it('excludes read messages', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const r1 = messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Hello',
+      });
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'World',
+      });
+
+      messageService.markRead(db, [r1.id]);
+
+      const count = messageService.countAllUnread(db);
+      expect(count).toBe(1);
+    });
+  });
+
+  // --- getThread ---
+
+  describe('getThread', () => {
+    it('returns all messages in a thread', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const original = messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'Question?',
+      });
+
+      messageService.send(db, {
+        sender_id: recipient.id,
+        recipient_id: sender.id,
+        message_type: 'response',
+        body: 'Answer!',
+        reply_to_id: original.id,
+      });
+
+      const thread = messageService.getThread(db, original.thread_id);
+      expect(thread).toHaveLength(2);
+      expect(thread[0].body).toBe('Question?');
+      expect(thread[1].body).toBe('Answer!');
+    });
+
+    it('orders by created_at ASC', () => {
+      const sender = registerAgent(db, 'sender');
+      const recipient = registerAgent(db, 'recipient');
+
+      const original = messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: recipient.id,
+        message_type: 'query',
+        body: 'First',
+      });
+
+      messageService.send(db, {
+        sender_id: recipient.id,
+        recipient_id: sender.id,
+        message_type: 'response',
+        body: 'Second',
+        reply_to_id: original.id,
+      });
+
+      const thread = messageService.getThread(db, original.thread_id);
+      expect(thread[0].body).toBe('First');
+      expect(thread[1].body).toBe('Second');
+    });
+
+    it('returns empty array for non-existent thread', () => {
+      const thread = messageService.getThread(db, 'thr_nonexistent');
+      expect(thread).toEqual([]);
+    });
+
+    it('includes messages from different recipients in same thread', () => {
+      const sender = registerAgent(db, 'sender');
+      const r1 = registerAgent(db, 'recipient1');
+      const r2 = registerAgent(db, 'recipient2');
+
+      const original = messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r1.id,
+        message_type: 'query',
+        body: 'To r1',
+      });
+
+      // Reply from r1 to sender, same thread
+      messageService.send(db, {
+        sender_id: r1.id,
+        recipient_id: sender.id,
+        message_type: 'response',
+        body: 'From r1',
+        reply_to_id: original.id,
+      });
+
+      // Forward to r2 referencing same thread (via reply_to)
+      const r1Reply = messageService.getThread(db, original.thread_id);
+      messageService.send(db, {
+        sender_id: sender.id,
+        recipient_id: r2.id,
+        message_type: 'query',
+        body: 'Forwarded to r2',
+        reply_to_id: r1Reply[1].id,
+      });
+
+      const thread = messageService.getThread(db, original.thread_id);
+      expect(thread).toHaveLength(3);
+    });
+  });
 });

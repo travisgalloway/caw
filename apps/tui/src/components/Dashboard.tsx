@@ -1,15 +1,19 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useAgents } from '../hooks/useAgents';
+import { useAllMessages } from '../hooks/useMessages';
 import { useWorkflows } from '../hooks/useWorkflows';
 import { useAppStore } from '../store';
 import { AgentList } from './AgentList';
+import { MessagePanel } from './MessagePanel';
 import { TaskTree } from './TaskTree';
 import { WorkflowList } from './WorkflowList';
 
 export function Dashboard(): React.JSX.Element {
   const workflows = useWorkflows();
   const agents = useAgents();
+  const allMessages = useAllMessages();
+  const activePanel = useAppStore((s) => s.activePanel);
   const selectedWorkflowId = useAppStore((s) => s.selectedWorkflowId);
 
   if (workflows.error || agents.error) {
@@ -27,6 +31,8 @@ export function Dashboard(): React.JSX.Element {
     );
   }
 
+  const totalUnread = allMessages.data?.totalUnread ?? 0;
+
   return (
     <Box>
       <Box width="35%">
@@ -36,7 +42,11 @@ export function Dashboard(): React.JSX.Element {
         <TaskTree workflowId={selectedWorkflowId} />
       </Box>
       <Box width="30%">
-        <AgentList agents={agents.data ?? []} />
+        {activePanel === 'messages' ? (
+          <MessagePanel />
+        ) : (
+          <AgentList agents={agents.data ?? []} totalUnread={totalUnread} />
+        )}
       </Box>
     </Box>
   );

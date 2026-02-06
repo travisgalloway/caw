@@ -41,6 +41,7 @@ export type {
   BroadcastParams,
   BroadcastResult,
   CountUnreadResult,
+  ListAllFilters as MessageListAllFilters,
   ListFilters as MessageListFilters,
   SendParams,
   SendResult,

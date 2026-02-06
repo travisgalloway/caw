@@ -55,6 +55,14 @@ export interface ListFilters {
   limit?: number;
 }
 
+export interface ListAllFilters {
+  status?: MessageStatus | MessageStatus[];
+  message_type?: MessageType | MessageType[];
+  priority?: MessagePriority | MessagePriority[];
+  since?: number;
+  limit?: number;
+}
+
 export interface CountUnreadResult {
   count: number;
   by_priority: Record<string, number>;
@@ -341,4 +349,77 @@ export function countUnread(
   }
 
   return { count, by_priority: byPriority };
+}
+
+export function listAll(db: DatabaseType, filters?: ListAllFilters): Message[] {
+  const conditions: string[] = [];
+  const params: SQLParam[] = [];
+
+  if (filters?.status !== undefined) {
+    if (Array.isArray(filters.status)) {
+      if (filters.status.length === 0) {
+        return [];
+      }
+      const placeholders = filters.status.map(() => '?').join(', ');
+      conditions.push(`status IN (${placeholders})`);
+      params.push(...filters.status);
+    } else {
+      conditions.push('status = ?');
+      params.push(filters.status);
+    }
+  }
+
+  if (filters?.message_type !== undefined) {
+    if (Array.isArray(filters.message_type)) {
+      if (filters.message_type.length === 0) {
+        return [];
+      }
+      const placeholders = filters.message_type.map(() => '?').join(', ');
+      conditions.push(`message_type IN (${placeholders})`);
+      params.push(...filters.message_type);
+    } else {
+      conditions.push('message_type = ?');
+      params.push(filters.message_type);
+    }
+  }
+
+  if (filters?.priority !== undefined) {
+    if (Array.isArray(filters.priority)) {
+      if (filters.priority.length === 0) {
+        return [];
+      }
+      const placeholders = filters.priority.map(() => '?').join(', ');
+      conditions.push(`priority IN (${placeholders})`);
+      params.push(...filters.priority);
+    } else {
+      conditions.push('priority = ?');
+      params.push(filters.priority);
+    }
+  }
+
+  if (filters?.since !== undefined) {
+    conditions.push('created_at > ?');
+    params.push(filters.since);
+  }
+
+  // Higher default than per-agent list() since this is a global view across all agents
+  const limit = filters?.limit ?? 50;
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+  const sql = `SELECT * FROM messages ${where} ORDER BY created_at DESC LIMIT ?`;
+  params.push(limit);
+
+  return db.prepare(sql).all(...params) as Message[];
+}
+
+export function countAllUnread(db: DatabaseType): number {
+  const { count } = db
+    .prepare("SELECT COUNT(*) as count FROM messages WHERE status = 'unread'")
+    .get() as { count: number };
+  return count;
+}
+
+export function getThread(db: DatabaseType, threadId: string): Message[] {
+  return db
+    .prepare('SELECT * FROM messages WHERE thread_id = ? ORDER BY created_at ASC')
+    .all(threadId) as Message[];
 }
