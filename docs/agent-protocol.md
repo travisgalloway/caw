@@ -279,7 +279,6 @@ When agents work in parallel, each should operate in its own workspace (git work
 // Agent A creates a workspace for its task
 const ws = await workspace_create({
   workflow_id: "wf_a1b2c3d4e5f6",
-  path: "/projects/myapp-worktrees/feature-google-oauth",
   branch: "feature/google-oauth",
   base_branch: "main",
   create_worktree: true,
@@ -290,7 +289,6 @@ const ws = await workspace_create({
 // Agent B does the same for its task
 const ws2 = await workspace_create({
   workflow_id: "wf_a1b2c3d4e5f6",
-  path: "/projects/myapp-worktrees/feature-github-oauth",
   branch: "feature/github-oauth",
   base_branch: "main",
   create_worktree: true,

@@ -162,11 +162,11 @@ export const register: ToolRegistrar = (server, db) => {
             if (!workspace) {
               throw new Error('Workspace not found');
             }
-            await removeWorktree(workspace.path);
             workspaceService.update(db, args.id, {
               status,
               mergeCommit: args.merge_commit,
             });
+            await removeWorktree(workspace.path);
             return { success: true, worktree_removed: true };
           } catch (err) {
             toToolCallError(err);

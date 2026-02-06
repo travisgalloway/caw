@@ -58,6 +58,16 @@ describe('createWorktree', () => {
     await createWorktree(repoPath, 'dup-branch');
     await expect(createWorktree(repoPath, 'dup-branch')).rejects.toThrow();
   });
+
+  it('throws on branch name containing ".."', async () => {
+    await expect(createWorktree(repoPath, 'foo..bar')).rejects.toThrow('must not contain ".."');
+  });
+
+  it('throws on branch name ending with ".lock"', async () => {
+    await expect(createWorktree(repoPath, 'branch.lock')).rejects.toThrow(
+      'must not end with ".lock"',
+    );
+  });
 });
 
 describe('removeWorktree', () => {

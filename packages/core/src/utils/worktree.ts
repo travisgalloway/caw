@@ -9,7 +9,19 @@ export interface WorktreeInfo {
 }
 
 function sanitizeBranch(branch: string): string {
-  return branch.replace(/[^a-zA-Z0-9_-]/g, '-');
+  if (branch.includes('..')) {
+    throw new Error(`Invalid branch name "${branch}": must not contain ".."`);
+  }
+  if (branch.endsWith('.lock')) {
+    throw new Error(`Invalid branch name "${branch}": must not end with ".lock"`);
+  }
+  const sanitized = branch.replace(/[^a-zA-Z0-9_-]/g, '-');
+  if (!sanitized || /^[-_]+$/.test(sanitized)) {
+    throw new Error(
+      `Invalid branch name "${branch}": cannot derive a safe worktree directory name`,
+    );
+  }
+  return sanitized;
 }
 
 async function execGit(args: string[], cwd: string): Promise<string> {
@@ -21,7 +33,7 @@ async function execGit(args: string[], cwd: string): Promise<string> {
   const exitCode = await proc.exited;
   if (exitCode !== 0) {
     const stderr = await new Response(proc.stderr).text();
-    throw new Error(`git ${args[0]} failed: ${stderr.trim()}`);
+    throw new Error(`git ${args.join(' ')} failed: ${stderr.trim()}`);
   }
   return await new Response(proc.stdout).text();
 }
@@ -38,7 +50,7 @@ export async function createWorktree(
   const worktreeDir = `${repoPath}-worktrees`;
   const worktreePath = join(worktreeDir, sanitizeBranch(branch));
 
-  const args = ['worktree', 'add', '-b', branch, worktreePath];
+  const args = ['worktree', 'add', '-b', branch, '--', worktreePath];
   if (baseBranch) {
     args.push(baseBranch);
   }
