@@ -2,20 +2,12 @@ import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useWorkflowDetail } from '../hooks/useWorkflowDetail';
 import { useAppStore } from '../store';
+import { formatTimestamp } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 import { StatusIndicator } from './StatusIndicator';
 import { TaskTree } from './TaskTree';
 
-interface WorkflowDetailProps {
-  workflowId: string | null;
-}
-
-function formatTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString();
-}
-
-export function WorkflowDetail({ workflowId }: WorkflowDetailProps): React.JSX.Element {
+export function WorkflowDetail({ workflowId }: { workflowId: string | null }): React.JSX.Element {
   const { setView } = useAppStore();
   const { data, error } = useWorkflowDetail(workflowId);
 

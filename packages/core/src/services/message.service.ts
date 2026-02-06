@@ -402,6 +402,7 @@ export function listAll(db: DatabaseType, filters?: ListAllFilters): Message[] {
     params.push(filters.since);
   }
 
+  // Higher default than per-agent list() since this is a global view across all agents
   const limit = filters?.limit ?? 50;
   const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
   const sql = `SELECT * FROM messages ${where} ORDER BY created_at DESC LIMIT ?`;

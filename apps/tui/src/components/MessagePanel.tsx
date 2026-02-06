@@ -1,32 +1,10 @@
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useAllMessages } from '../hooks/useMessages';
 import { useAppStore } from '../store';
-
-function formatRelativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function TypeBadge({ type }: { type: string }): React.JSX.Element {
-  const badges: Record<string, { label: string; color: string }> = {
-    task_assignment: { label: 'TASK', color: 'yellow' },
-    status_update: { label: 'STATUS', color: 'blue' },
-    query: { label: 'QUERY', color: 'cyan' },
-    response: { label: 'REPLY', color: 'green' },
-    broadcast: { label: 'BCAST', color: 'magenta' },
-  };
-  const badge = badges[type] ?? { label: type.toUpperCase(), color: 'white' };
-  return <Text color={badge.color}>[{badge.label}]</Text>;
-}
+import { formatRelativeTime } from '../utils/format';
+import { TypeBadge } from './TypeBadge';
 
 export function MessagePanel(): React.JSX.Element {
   const { activePanel, selectAgent, setView } = useAppStore();
@@ -35,6 +13,13 @@ export function MessagePanel(): React.JSX.Element {
   const [selectedIndex, setSelectedIndex] = useState(0);
 
   const messages = data?.messages ?? [];
+
+  // Reset selection when the list changes
+  const prevLenRef = useRef(messages.length);
+  if (messages.length !== prevLenRef.current) {
+    prevLenRef.current = messages.length;
+    setSelectedIndex(0);
+  }
 
   useInput(
     (_input, key) => {

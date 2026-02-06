@@ -2,46 +2,17 @@ import type { Message } from '@caw/core';
 import { messageService } from '@caw/core';
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useDb } from '../context/db';
 import { useAppStore } from '../store';
+import { formatRelativeTime } from '../utils/format';
+import { PriorityIndicator, TypeBadge } from './TypeBadge';
 
 interface MessageInboxProps {
   messages: Message[];
   unreadCount: number;
   agentId: string | null;
   isFocused?: boolean;
-}
-
-function formatRelativeTime(timestamp: number): string {
-  const diff = Date.now() - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
-
-function PriorityIndicator({ priority }: { priority: string }): React.JSX.Element | null {
-  if (priority === 'urgent') return <Text color="red">!!</Text>;
-  if (priority === 'high') return <Text color="yellow">!</Text>;
-  if (priority === 'low') return <Text dimColor>·</Text>;
-  return null;
-}
-
-function TypeBadge({ type }: { type: string }): React.JSX.Element {
-  const badges: Record<string, { label: string; color: string }> = {
-    task_assignment: { label: 'TASK', color: 'yellow' },
-    status_update: { label: 'STATUS', color: 'blue' },
-    query: { label: 'QUERY', color: 'cyan' },
-    response: { label: 'REPLY', color: 'green' },
-    broadcast: { label: 'BCAST', color: 'magenta' },
-  };
-  const badge = badges[type] ?? { label: type.toUpperCase(), color: 'white' };
-  return <Text color={badge.color}>[{badge.label}]</Text>;
 }
 
 export function MessageInbox({
@@ -58,6 +29,18 @@ export function MessageInbox({
 
   const filteredMessages =
     messageStatusFilter === 'unread' ? messages.filter((m) => m.status === 'unread') : messages;
+
+  // Reset selection when the list changes
+  const prevLenRef = useRef(filteredMessages.length);
+  const prevFilterRef = useRef(messageStatusFilter);
+  if (
+    filteredMessages.length !== prevLenRef.current ||
+    messageStatusFilter !== prevFilterRef.current
+  ) {
+    prevLenRef.current = filteredMessages.length;
+    prevFilterRef.current = messageStatusFilter;
+    setSelectedIndex(0);
+  }
 
   useInput(
     (input, key) => {
@@ -80,7 +63,6 @@ export function MessageInbox({
         }
       } else if (input === 'u') {
         setMessageStatusFilter(messageStatusFilter === 'unread' ? 'all' : 'unread');
-        setSelectedIndex(0);
       }
     },
     { isActive: isFocused },

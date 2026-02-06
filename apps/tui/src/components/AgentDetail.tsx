@@ -2,28 +2,12 @@ import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useAgentDetail } from '../hooks/useAgentDetail';
 import { useAppStore } from '../store';
+import { formatRelativeTime, formatTimestamp } from '../utils/format';
 import { MessageInbox } from './MessageInbox';
 import { StatusIndicator } from './StatusIndicator';
 
 interface AgentDetailProps {
   agentId: string | null;
-}
-
-function formatTimestamp(timestamp: number): string {
-  const date = new Date(timestamp);
-  return date.toLocaleString();
-}
-
-function formatRelativeTime(timestamp: number | null): string {
-  if (!timestamp) return 'never';
-  const diff = Date.now() - timestamp;
-  const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return `${seconds}s ago`;
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  return 'offline';
 }
 
 export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
