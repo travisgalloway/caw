@@ -9,7 +9,6 @@ export type WorkflowStatus =
 
 export interface Workflow {
   id: string;
-  repository_id: string | null;
   name: string;
   source_type: string;
   source_ref: string | null;

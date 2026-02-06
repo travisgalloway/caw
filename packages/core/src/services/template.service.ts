@@ -31,7 +31,7 @@ export interface CreateParams {
 export interface ApplyParams {
   workflowName: string;
   variables?: Record<string, string>;
-  repoPath?: string;
+  repoPaths?: string[];
   maxParallel?: number;
 }
 
@@ -233,7 +233,7 @@ export function apply(db: DatabaseType, templateIdValue: string, params: ApplyPa
       name: params.workflowName,
       source_type: 'template',
       source_ref: tmpl.id,
-      repository_path: params.repoPath,
+      repository_paths: params.repoPaths,
       max_parallel_tasks: params.maxParallel,
     });
 

@@ -3,6 +3,7 @@ import type { Task } from '../types/task';
 import type { Workflow } from '../types/workflow';
 import type { Workspace, WorkspaceStatus } from '../types/workspace';
 import { workspaceId } from '../utils/id';
+import * as repositoryService from './repository.service';
 
 // --- Parameter / Result types ---
 
@@ -12,6 +13,8 @@ export interface CreateParams {
   branch: string;
   baseBranch?: string;
   taskIds?: string[];
+  repositoryId?: string;
+  repositoryPath?: string;
 }
 
 export interface UpdateParams {
@@ -31,11 +34,25 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       throw new Error(`Workflow not found: ${params.workflowId}`);
     }
 
+    let repoId = params.repositoryId ?? null;
+    if (!repoId && params.repositoryPath) {
+      const repo = repositoryService.register(db, { path: params.repositoryPath });
+      repoId = repo.id;
+    }
+
+    // Auto-add repo to workflow_repositories if not already present
+    if (repoId) {
+      db.prepare(
+        'INSERT OR IGNORE INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
+      ).run(params.workflowId, repoId, Date.now());
+    }
+
     const now = Date.now();
 
     const workspace: Workspace = {
       id: workspaceId(),
       workflow_id: params.workflowId,
+      repository_id: repoId,
       path: params.path,
       branch: params.branch,
       base_branch: params.baseBranch ?? null,
@@ -47,11 +64,12 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
 
     db.prepare(
       `INSERT INTO workspaces
-        (id, workflow_id, path, branch, base_branch, status, merge_commit, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, repository_id, path, branch, base_branch, status, merge_commit, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       workspace.id,
       workspace.workflow_id,
+      workspace.repository_id,
       workspace.path,
       workspace.branch,
       workspace.base_branch,
@@ -123,6 +141,7 @@ export function list(
   db: DatabaseType,
   workflowId: string,
   statusFilter?: WorkspaceStatus | WorkspaceStatus[],
+  repositoryId?: string,
 ): Workspace[] {
   const conditions: string[] = ['workflow_id = ?'];
   const params: SQLParam[] = [workflowId];
@@ -131,6 +150,11 @@ export function list(
     const statuses = Array.isArray(statusFilter) ? statusFilter : [statusFilter];
     conditions.push(`status IN (${statuses.map(() => '?').join(', ')})`);
     params.push(...statuses);
+  }
+
+  if (repositoryId) {
+    conditions.push('repository_id = ?');
+    params.push(repositoryId);
   }
 
   const where = conditions.join(' AND ');

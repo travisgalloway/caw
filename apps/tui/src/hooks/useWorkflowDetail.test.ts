@@ -17,7 +17,6 @@ describe('useWorkflowDetail', () => {
         status: 'in_progress',
         initial_plan: null,
         plan_summary: null,
-        repository_id: null,
         max_parallel_tasks: 1,
         auto_create_workspaces: 0,
         config: null,

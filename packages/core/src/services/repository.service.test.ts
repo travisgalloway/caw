@@ -3,6 +3,7 @@ import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';
 import * as repositoryService from './repository.service';
+import * as workflowService from './workflow.service';
 
 describe('repositoryService', () => {
   let db: DatabaseType;
@@ -118,6 +119,38 @@ describe('repositoryService', () => {
       repositoryService.register(db, { path: '/home/user/project' });
       expect(repositoryService.getByPath(db, '/home/user/project/')).toBeNull();
       expect(repositoryService.getByPath(db, '/home/user')).toBeNull();
+    });
+  });
+
+  describe('getWorkflows', () => {
+    it('returns workflows associated with a repo', () => {
+      const repo = repositoryService.register(db, { path: '/project' });
+      workflowService.create(db, {
+        name: 'WF1',
+        source_type: 'issue',
+        repository_paths: ['/project'],
+      });
+      workflowService.create(db, {
+        name: 'WF2',
+        source_type: 'issue',
+        repository_paths: ['/project'],
+      });
+      workflowService.create(db, {
+        name: 'WF3',
+        source_type: 'issue',
+      });
+
+      const workflows = repositoryService.getWorkflows(db, repo.id);
+      expect(workflows).toHaveLength(2);
+      const names = workflows.map((w) => w.name);
+      expect(names).toContain('WF1');
+      expect(names).toContain('WF2');
+    });
+
+    it('returns empty array when no workflows reference repo', () => {
+      const repo = repositoryService.register(db, { path: '/empty' });
+      const workflows = repositoryService.getWorkflows(db, repo.id);
+      expect(workflows).toEqual([]);
     });
   });
 });

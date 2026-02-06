@@ -35,7 +35,6 @@ describe('workflowService', () => {
 
     it('defaults optional fields', () => {
       const wf = createBasicWorkflow(db);
-      expect(wf.repository_id).toBeNull();
       expect(wf.source_ref).toBeNull();
       expect(wf.source_content).toBeNull();
       expect(wf.initial_plan).toBeNull();
@@ -61,22 +60,26 @@ describe('workflowService', () => {
       expect(wf.source_content).toBe('Fix the bug');
     });
 
-    it('auto-registers repository from path', () => {
+    it('auto-registers repositories from paths', () => {
       const wf = createBasicWorkflow(db, {
-        repository_path: '/home/user/project',
+        repository_paths: ['/home/user/project'],
       });
-      expect(wf.repository_id).toMatch(/^rp_[0-9a-z]{12}$/);
 
-      const repo = repositoryService.getByPath(db, '/home/user/project');
-      expect(repo).not.toBeNull();
-      if (!repo) throw new Error('expected repo');
-      expect(wf.repository_id).toBe(repo.id);
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(1);
+      expect(repos[0].path).toBe('/home/user/project');
     });
 
-    it('uses provided repository_id over repository_path', () => {
-      const repo = repositoryService.register(db, { path: '/existing' });
-      const wf = createBasicWorkflow(db, { repository_id: repo.id });
-      expect(wf.repository_id).toBe(repo.id);
+    it('registers multiple repositories', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/backend', '/repo/frontend'],
+      });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(2);
+      const paths = repos.map((r) => r.path);
+      expect(paths).toContain('/repo/backend');
+      expect(paths).toContain('/repo/frontend');
     });
 
     it('converts auto_create_workspaces boolean to 0/1', () => {
@@ -170,9 +173,9 @@ describe('workflowService', () => {
       expect(wf).toHaveProperty('updated_at');
     });
 
-    it('filters by repository_id', () => {
+    it('filters by repository_id via join table', () => {
       const repo = repositoryService.register(db, { path: '/project-a' });
-      createBasicWorkflow(db, { name: 'WF1', repository_id: repo.id });
+      createBasicWorkflow(db, { name: 'WF1', repository_paths: ['/project-a'] });
       createBasicWorkflow(db, { name: 'WF2' });
 
       const result = workflowService.list(db, { repository_id: repo.id });
@@ -209,8 +212,8 @@ describe('workflowService', () => {
 
     it('combines filters', () => {
       const repo = repositoryService.register(db, { path: '/project-a' });
-      const wf1 = createBasicWorkflow(db, { name: 'WF1', repository_id: repo.id });
-      createBasicWorkflow(db, { name: 'WF2', repository_id: repo.id });
+      const wf1 = createBasicWorkflow(db, { name: 'WF1', repository_paths: ['/project-a'] });
+      createBasicWorkflow(db, { name: 'WF2', repository_paths: ['/project-a'] });
       createBasicWorkflow(db, { name: 'WF3' });
 
       workflowService.setPlan(db, wf1.id, {
@@ -352,6 +355,34 @@ describe('workflowService', () => {
       const context = JSON.parse(result?.tasks[0].context as string);
       expect(context.estimated_complexity).toBe('high');
       expect(context.files_likely_affected).toEqual(['src/main.ts', 'src/utils.ts']);
+    });
+
+    it('sets repository_id on tasks with repository_path', () => {
+      const wf = createBasicWorkflow(db);
+      workflowService.setPlan(db, wf.id, {
+        summary: 'Plan',
+        tasks: [
+          { name: 'Backend', repository_path: '/repo/backend' },
+          { name: 'Frontend', repository_path: '/repo/frontend' },
+          { name: 'Shared' },
+        ],
+      });
+
+      const result = workflowService.get(db, wf.id, { includeTasks: true });
+      const tasks = result?.tasks ?? [];
+
+      const backend = tasks.find((t) => t.name === 'Backend');
+      const frontend = tasks.find((t) => t.name === 'Frontend');
+      const shared = tasks.find((t) => t.name === 'Shared');
+
+      expect(backend?.repository_id).toMatch(/^rp_/);
+      expect(frontend?.repository_id).toMatch(/^rp_/);
+      expect(backend?.repository_id).not.toBe(frontend?.repository_id);
+      expect(shared?.repository_id).toBeNull();
+
+      // Also auto-adds repos to workflow_repositories
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(2);
     });
 
     it('throws when workflow not found', () => {
@@ -619,6 +650,20 @@ describe('workflowService', () => {
       expect(parsed.tasks_by_status.pending).toBe(2);
     });
 
+    it('includes repositories in JSON summary', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/backend', '/repo/frontend'],
+      });
+      workflowService.setPlan(db, wf.id, {
+        summary: 'Multi-repo plan',
+        tasks: [{ name: 'T1' }],
+      });
+
+      const result = workflowService.getSummary(db, wf.id, 'json');
+      const parsed = JSON.parse(result.summary);
+      expect(parsed.repositories).toHaveLength(2);
+    });
+
     it('returns markdown format summary', () => {
       const wf = createBasicWorkflow(db);
       workflowService.setPlan(db, wf.id, {
@@ -632,6 +677,20 @@ describe('workflowService', () => {
       expect(result.summary).toContain('**Tasks:** 1 total');
       expect(result.summary).toContain('Build feature X');
       expect(result.summary).toContain('- pending: 1');
+    });
+
+    it('includes repositories section in markdown summary', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/backend'],
+      });
+      workflowService.setPlan(db, wf.id, {
+        summary: 'Plan',
+        tasks: [{ name: 'T1' }],
+      });
+
+      const result = workflowService.getSummary(db, wf.id, 'markdown');
+      expect(result.summary).toContain('## Repositories');
+      expect(result.summary).toContain('/repo/backend');
     });
 
     it('estimates token count', () => {
@@ -660,6 +719,116 @@ describe('workflowService', () => {
       const parsed = JSON.parse(result.summary);
       expect(parsed.total_tasks).toBe(0);
       expect(parsed.tasks_by_status).toEqual({});
+    });
+  });
+
+  // --- addRepository ---
+
+  describe('addRepository', () => {
+    it('adds a repository to a workflow', () => {
+      const wf = createBasicWorkflow(db);
+      const wr = workflowService.addRepository(db, wf.id, { path: '/repo/new' });
+
+      expect(wr.workflow_id).toBe(wf.id);
+      expect(wr.repository_id).toMatch(/^rp_/);
+      expect(wr.added_at).toBeGreaterThan(0);
+    });
+
+    it('returns existing association when re-adding same repo', () => {
+      const wf = createBasicWorkflow(db);
+      const first = workflowService.addRepository(db, wf.id, { path: '/repo/new' });
+      const second = workflowService.addRepository(db, wf.id, { path: '/repo/new' });
+
+      expect(second.repository_id).toBe(first.repository_id);
+    });
+
+    it('throws when workflow not found', () => {
+      expect(() => {
+        workflowService.addRepository(db, 'wf_nonexistent', { path: '/repo' });
+      }).toThrow('Workflow not found');
+    });
+
+    it('shows up in listRepositories', () => {
+      const wf = createBasicWorkflow(db);
+      workflowService.addRepository(db, wf.id, { path: '/repo/a' });
+      workflowService.addRepository(db, wf.id, { path: '/repo/b' });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(2);
+    });
+  });
+
+  // --- removeRepository ---
+
+  describe('removeRepository', () => {
+    it('removes a repository from a workflow', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/a', '/repo/b'],
+      });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(2);
+
+      workflowService.removeRepository(db, wf.id, repos[0].id);
+
+      const remaining = workflowService.listRepositories(db, wf.id);
+      expect(remaining).toHaveLength(1);
+    });
+
+    it('throws when workflow not found', () => {
+      expect(() => {
+        workflowService.removeRepository(db, 'wf_nonexistent', 'rp_abc');
+      }).toThrow('Workflow not found');
+    });
+
+    it('throws when tasks reference the repository', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/backend'],
+      });
+
+      workflowService.setPlan(db, wf.id, {
+        summary: 'Plan',
+        tasks: [{ name: 'Backend task', repository_path: '/repo/backend' }],
+      });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(() => {
+        workflowService.removeRepository(db, wf.id, repos[0].id);
+      }).toThrow('Cannot remove repository');
+    });
+  });
+
+  // --- listRepositories ---
+
+  describe('listRepositories', () => {
+    it('returns empty array for workflow with no repos', () => {
+      const wf = createBasicWorkflow(db);
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toEqual([]);
+    });
+
+    it('returns repos with enriched data', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/backend'],
+      });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(1);
+      expect(repos[0].id).toMatch(/^rp_/);
+      expect(repos[0].path).toBe('/repo/backend');
+      expect(repos[0].added_at).toBeGreaterThan(0);
+    });
+
+    it('orders by added_at', () => {
+      const wf = createBasicWorkflow(db, {
+        repository_paths: ['/repo/first'],
+      });
+      workflowService.addRepository(db, wf.id, { path: '/repo/second' });
+
+      const repos = workflowService.listRepositories(db, wf.id);
+      expect(repos).toHaveLength(2);
+      expect(repos[0].path).toBe('/repo/first');
+      expect(repos[1].path).toBe('/repo/second');
     });
   });
 });

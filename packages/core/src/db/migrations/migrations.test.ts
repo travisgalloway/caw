@@ -37,7 +37,8 @@ describe('runMigrations', () => {
     expect(tables).toContain('agents');
     expect(tables).toContain('messages');
     expect(tables).toContain('sessions');
-    expect(tables).toHaveLength(11);
+    expect(tables).toContain('workflow_repositories');
+    expect(tables).toHaveLength(12);
 
     db.close();
   });
@@ -47,8 +48,8 @@ describe('runMigrations', () => {
     runMigrations(db);
 
     const indexes = getIndexes(db);
-    expect(indexes).toHaveLength(16);
-    expect(indexes).toContain('idx_workflows_repository');
+    expect(indexes).toHaveLength(18);
+    expect(indexes).toContain('idx_workflow_repositories_repo');
     expect(indexes).toContain('idx_workflows_status');
     expect(indexes).toContain('idx_workflows_locked_by');
     expect(indexes).toContain('idx_tasks_workflow');
@@ -64,6 +65,8 @@ describe('runMigrations', () => {
     expect(indexes).toContain('idx_messages_thread');
     expect(indexes).toContain('idx_messages_workflow');
     expect(indexes).toContain('idx_sessions_heartbeat');
+    expect(indexes).toContain('idx_tasks_repository');
+    expect(indexes).toContain('idx_workspaces_repository');
 
     db.close();
   });
@@ -84,7 +87,7 @@ describe('runMigrations', () => {
     runMigrations(db);
 
     const tables = getTables(db);
-    expect(tables).toHaveLength(11);
+    expect(tables).toHaveLength(12);
 
     const versions = getAppliedVersions(db);
     expect(versions).toEqual([1, 2, 3]);

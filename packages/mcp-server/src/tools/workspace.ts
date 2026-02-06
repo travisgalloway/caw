@@ -108,6 +108,7 @@ export const register: ToolRegistrar = (server, db) => {
               branch: args.branch,
               baseBranch: args.base_branch,
               taskIds: args.task_ids,
+              repositoryPath: args.repo_path,
             });
             return { id: workspace.id, path: worktreePath };
           } catch (err) {
@@ -139,6 +140,7 @@ export const register: ToolRegistrar = (server, db) => {
             branch: args.branch,
             baseBranch: args.base_branch,
             taskIds: args.task_ids,
+            repositoryPath: args.repo_path,
           });
           return { id: workspace.id };
         } catch (err) {

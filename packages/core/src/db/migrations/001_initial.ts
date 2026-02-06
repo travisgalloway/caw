@@ -11,7 +11,6 @@ CREATE TABLE repositories (
 -- Core workflow
 CREATE TABLE workflows (
   id TEXT PRIMARY KEY,
-  repository_id TEXT REFERENCES repositories(id),
   name TEXT NOT NULL,
   source_type TEXT NOT NULL,
   source_ref TEXT,
@@ -24,6 +23,14 @@ CREATE TABLE workflows (
   max_parallel_tasks INTEGER NOT NULL DEFAULT 1,
   auto_create_workspaces INTEGER NOT NULL DEFAULT 0,
   config TEXT
+);
+
+-- Many-to-many: workflows ↔ repositories
+CREATE TABLE workflow_repositories (
+  workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  repository_id TEXT NOT NULL REFERENCES repositories(id),
+  added_at INTEGER NOT NULL,
+  PRIMARY KEY (workflow_id, repository_id)
 );
 
 -- Tasks within a workflow
@@ -41,6 +48,7 @@ CREATE TABLE tasks (
   outcome TEXT,
   outcome_detail TEXT,
   workspace_id TEXT REFERENCES workspaces(id),
+  repository_id TEXT REFERENCES repositories(id),
   assigned_agent_id TEXT REFERENCES agents(id),
   claimed_at INTEGER,
   created_at INTEGER NOT NULL,
@@ -71,6 +79,7 @@ CREATE TABLE checkpoints (
 CREATE TABLE workspaces (
   id TEXT PRIMARY KEY,
   workflow_id TEXT NOT NULL REFERENCES workflows(id) ON DELETE CASCADE,
+  repository_id TEXT REFERENCES repositories(id),
   path TEXT NOT NULL,
   branch TEXT NOT NULL,
   base_branch TEXT,
@@ -127,14 +136,16 @@ CREATE TABLE messages (
 );
 
 -- Indexes for common queries
-CREATE INDEX idx_workflows_repository ON workflows(repository_id);
+CREATE INDEX idx_workflow_repositories_repo ON workflow_repositories(repository_id);
 CREATE INDEX idx_workflows_status ON workflows(status);
 CREATE INDEX idx_tasks_workflow ON tasks(workflow_id, sequence);
 CREATE INDEX idx_tasks_status ON tasks(status);
 CREATE INDEX idx_tasks_parallel ON tasks(parallel_group);
 CREATE INDEX idx_tasks_agent ON tasks(assigned_agent_id);
+CREATE INDEX idx_tasks_repository ON tasks(repository_id);
 CREATE INDEX idx_checkpoints_task ON checkpoints(task_id, sequence);
 CREATE INDEX idx_workspaces_workflow ON workspaces(workflow_id);
+CREATE INDEX idx_workspaces_repository ON workspaces(repository_id);
 CREATE INDEX idx_workspaces_status ON workspaces(status);
 CREATE INDEX idx_agents_status ON agents(status);
 CREATE INDEX idx_agents_role ON agents(role);

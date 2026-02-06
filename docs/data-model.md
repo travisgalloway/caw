@@ -4,10 +4,14 @@
 
 ```
 ┌────────────┐
-│ Repository │
-└─────┬──────┘
-      │ 1:many
-      ▼
+│ Repository │◄───────────────────┐
+└─────┬──────┘                    │
+      │                           │ many-to-many
+      │    ┌──────────────────────┴──────┐
+      │    │ workflow_repositories (join) │
+      │    └──────────────────────┬──────┘
+      │                           │
+      ▼                           ▼
 ┌────────────┐       ┌───────────────────┐
 │  Workflow  │──────►│ Task Dependencies │
 └─────┬──────┘       └───────────────────┘
@@ -31,6 +35,8 @@
 └────────────┘
 ```
 
+Note: Tasks and Workspaces can optionally reference a specific Repository for multi-repo workflows.
+
 ## Multi-Agent Model
 
 Agents are registered instances that can claim and execute tasks:
@@ -49,6 +55,16 @@ The datastore supports two modes:
 2. **Per-repository mode** - SQLite at `{repo}/.caw/workflows.db` for isolation
 
 Configuration determines mode. Global mode uses `repositories` table to scope workflows.
+
+## Multi-Repository Workflows
+
+A single workflow can coordinate work across multiple repositories via the `workflow_repositories` join table. This is global mode only.
+
+- **Workflow → Repositories**: Many-to-many via `workflow_repositories` join table
+- **Tasks**: Optionally declare their `repository_id` to scope work to a specific repo
+- **Workspaces**: Optionally declare their `repository_id` to associate with a specific repo
+- **No inheritance**: In multi-repo workflows, tasks must explicitly declare their repository
+- **Per-repo mode**: Continues as single-repo isolation (no join table needed)
 
 ## ID Generation
 

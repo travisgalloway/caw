@@ -73,6 +73,19 @@ describe('workflow tools', () => {
       const data = parseContent(result) as { max_parallel_tasks: number };
       expect(data.max_parallel_tasks).toBe(3);
     });
+
+    it('accepts repository_paths array', () => {
+      const result = call('workflow_create', {
+        name: 'Multi-repo WF',
+        source_type: 'prompt',
+        source_content: 'content',
+        repository_paths: ['/repo/backend', '/repo/frontend'],
+      });
+
+      const data = parseContent(result) as { id: string };
+      const repos = workflowService.listRepositories(db, data.id);
+      expect(repos).toHaveLength(2);
+    });
   });
 
   // --- workflow_get ---
@@ -154,6 +167,24 @@ describe('workflow tools', () => {
       const readyData = parseContent(readyOnly) as { total: number };
       expect(readyData.total).toBe(1);
     });
+
+    it('filters by repository_path via join table', () => {
+      call('workflow_create', {
+        name: 'WF1',
+        source_type: 'prompt',
+        source_content: 'a',
+        repository_paths: ['/repo/backend'],
+      });
+      call('workflow_create', {
+        name: 'WF2',
+        source_type: 'prompt',
+        source_content: 'b',
+      });
+
+      const result = call('workflow_list', { repository_path: '/repo/backend' });
+      const data = parseContent(result) as { total: number };
+      expect(data.total).toBe(1);
+    });
   });
 
   // --- workflow_set_plan ---
@@ -189,6 +220,31 @@ describe('workflow tools', () => {
       expect(data.workflow_id).toBe(created.id);
       expect(data.tasks_created).toBe(3);
       expect(data.status).toBe('ready');
+    });
+
+    it('accepts repository_path on tasks', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'Multi-repo WF',
+          source_type: 'prompt',
+          source_content: 'content',
+        }),
+      ) as { id: string };
+
+      const result = call('workflow_set_plan', {
+        id: created.id,
+        plan: {
+          summary: 'Multi-repo plan',
+          tasks: [
+            { name: 'Backend', repository_path: '/repo/backend' },
+            { name: 'Frontend', repository_path: '/repo/frontend' },
+          ],
+        },
+      });
+
+      expect(result.isError).toBeUndefined();
+      const repos = workflowService.listRepositories(db, created.id);
+      expect(repos).toHaveLength(2);
     });
 
     it('returns WORKFLOW_NOT_FOUND for missing workflow', () => {
@@ -677,6 +733,137 @@ describe('workflow tools', () => {
         status: 'in_progress',
       });
       expect(result.isError).toBeUndefined();
+    });
+  });
+
+  // --- workflow_add_repository ---
+
+  describe('workflow_add_repository', () => {
+    it('adds a repository to a workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const result = call('workflow_add_repository', {
+        workflow_id: created.id,
+        repository_path: '/repo/new',
+      });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as {
+        workflow_id: string;
+        repository_id: string;
+      };
+      expect(data.workflow_id).toBe(created.id);
+      expect(data.repository_id).toMatch(/^rp_/);
+    });
+
+    it('returns WORKFLOW_NOT_FOUND for missing workflow', () => {
+      const result = call('workflow_add_repository', {
+        workflow_id: 'wf_nonexistent',
+        repository_path: '/repo/new',
+      });
+      const err = parseError(result);
+      expect(err.code).toBe('WORKFLOW_NOT_FOUND');
+    });
+  });
+
+  // --- workflow_remove_repository ---
+
+  describe('workflow_remove_repository', () => {
+    it('removes a repository from a workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+          repository_paths: ['/repo/a'],
+        }),
+      ) as { id: string };
+
+      const repos = workflowService.listRepositories(db, created.id);
+      expect(repos).toHaveLength(1);
+
+      const result = call('workflow_remove_repository', {
+        workflow_id: created.id,
+        repository_id: repos[0].id,
+      });
+      expect(result.isError).toBeUndefined();
+
+      const remaining = workflowService.listRepositories(db, created.id);
+      expect(remaining).toHaveLength(0);
+    });
+
+    it('returns REPOSITORY_IN_USE when tasks reference the repo', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      call('workflow_set_plan', {
+        id: created.id,
+        plan: {
+          summary: 'plan',
+          tasks: [{ name: 'Task', repository_path: '/repo/backend' }],
+        },
+      });
+
+      const repos = workflowService.listRepositories(db, created.id);
+      const result = call('workflow_remove_repository', {
+        workflow_id: created.id,
+        repository_id: repos[0].id,
+      });
+      const err = parseError(result);
+      expect(err.code).toBe('REPOSITORY_IN_USE');
+    });
+  });
+
+  // --- workflow_list_repositories ---
+
+  describe('workflow_list_repositories', () => {
+    it('returns empty list for workflow with no repos', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const result = call('workflow_list_repositories', {
+        workflow_id: created.id,
+      });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as { repositories: unknown[] };
+      expect(data.repositories).toEqual([]);
+    });
+
+    it('returns associated repositories', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+          repository_paths: ['/repo/backend', '/repo/frontend'],
+        }),
+      ) as { id: string };
+
+      const result = call('workflow_list_repositories', {
+        workflow_id: created.id,
+      });
+      const data = parseContent(result) as {
+        repositories: { id: string; path: string }[];
+      };
+      expect(data.repositories).toHaveLength(2);
+      const paths = data.repositories.map((r) => r.path);
+      expect(paths).toContain('/repo/backend');
+      expect(paths).toContain('/repo/frontend');
     });
   });
 });

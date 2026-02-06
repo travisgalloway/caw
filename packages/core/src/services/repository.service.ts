@@ -1,5 +1,6 @@
 import type { DatabaseType } from '../db/connection';
 import type { Repository } from '../types/repository';
+import type { WorkflowSummary } from '../types/workflow';
 import { repositoryId } from '../utils/id';
 
 export function register(db: DatabaseType, params: { path: string; name?: string }): Repository {
@@ -50,4 +51,16 @@ export function getByPath(db: DatabaseType, path: string): Repository | null {
     .prepare('SELECT * FROM repositories WHERE path = ?')
     .get(path) as Repository | null;
   return row ?? null;
+}
+
+export function getWorkflows(db: DatabaseType, repoId: string): WorkflowSummary[] {
+  return db
+    .prepare(
+      `SELECT w.id, w.name, w.status, w.created_at, w.updated_at
+       FROM workflows w
+       JOIN workflow_repositories wr ON wr.workflow_id = w.id
+       WHERE wr.repository_id = ?
+       ORDER BY w.created_at DESC`,
+    )
+    .all(repoId) as WorkflowSummary[];
 }
