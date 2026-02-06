@@ -89,7 +89,6 @@ export const register: ToolRegistrar = (server, db) => {
       },
     },
     (args) => {
-      requireWorkflowLock(db, args.workflow_id, args.session_id);
       if (args.create_worktree) {
         if (!args.repo_path) {
           throw new ToolCallError({
@@ -100,6 +99,7 @@ export const register: ToolRegistrar = (server, db) => {
           });
         }
         return handleToolCallAsync(async () => {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
           const worktreePath = await createWorktree(args.repo_path, args.branch, args.base_branch);
           try {
             const workspace = workspaceService.create(db, {
@@ -124,6 +124,7 @@ export const register: ToolRegistrar = (server, db) => {
 
       return handleToolCall(() => {
         try {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
           if (!args.path) {
             throw new ToolCallError({
               code: 'MISSING_PATH',
@@ -161,12 +162,12 @@ export const register: ToolRegistrar = (server, db) => {
       },
     },
     (args) => {
-      requireWorkflowLockForWorkspace(db, args.id, args.session_id);
       const status = args.status as WorkspaceStatus | undefined;
 
       if (args.cleanup_worktree && status && (status === 'abandoned' || status === 'merged')) {
         return handleToolCallAsync(async () => {
           try {
+            requireWorkflowLockForWorkspace(db, args.id, args.session_id);
             const workspace = workspaceService.get(db, args.id);
             if (!workspace) {
               throw new Error('Workspace not found');
@@ -185,6 +186,7 @@ export const register: ToolRegistrar = (server, db) => {
 
       return handleToolCall(() => {
         try {
+          requireWorkflowLockForWorkspace(db, args.id, args.session_id);
           workspaceService.update(db, args.id, {
             status,
             mergeCommit: args.merge_commit,

@@ -56,6 +56,14 @@ function toToolCallError(err: unknown): never {
       suggestion: 'Check that dependency names match task names in the plan',
     });
   }
+  if (msg.includes('Session not found')) {
+    throw new ToolCallError({
+      code: 'SESSION_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the session ID and try again',
+    });
+  }
   if (msg.includes('is locked by session')) {
     throw new ToolCallError({
       code: 'WORKFLOW_LOCKED',

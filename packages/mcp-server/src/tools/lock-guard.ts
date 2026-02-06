@@ -20,7 +20,7 @@ export function requireWorkflowLock(
       message: `Workflow ${workflowId} is locked by session ${check.holder_session_id} (PID ${check.holder_pid ?? 'unknown'})`,
       recoverable: true,
       suggestion:
-        'The workflow is locked by another session. Wait for it to be unlocked or use workflow_lock to acquire the lock.',
+        'The workflow is locked by another session. Wait for the other session to release the lock or end that session before trying again.',
     });
   }
 }
