@@ -120,7 +120,8 @@ const workflow = workflowService.create(db, {
   source_content: 'Implement feature X...',
 });
 
-const tasks = taskService.listByWorkflow(db, workflow.id);
+const workflowWithTasks = workflowService.get(db, workflow.id, { includeTasks: true });
+const tasks = workflowWithTasks.tasks;
 ```
 
 ## Dependencies

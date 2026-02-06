@@ -102,12 +102,10 @@ All tools use structured error responses via `ToolCallError`:
 
 ```json
 {
-  "error": {
-    "code": "TASK_NOT_FOUND",
-    "message": "Task not found: tk_invalid",
-    "recoverable": false,
-    "suggestion": "Check the task ID and try again"
-  }
+  "code": "TASK_NOT_FOUND",
+  "message": "Task not found: tk_invalid",
+  "recoverable": false,
+  "suggestion": "Check the task ID and try again"
 }
 ```
 

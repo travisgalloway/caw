@@ -68,20 +68,19 @@ workflow_set_plan({
   id: "wf_a1b2c3d4e5f6",
   plan: {
     summary: "OAuth with Google/GitHub, sessions, route protection",
-    approach: "Use passport.js for providers, express-session for sessions",
     tasks: [
-      { name: "Setup OAuth infrastructure", sequence: 1, ... },
-      { name: "Implement Google OAuth", sequence: 2, depends_on: ["Setup OAuth infrastructure"], ... },
-      { name: "Implement GitHub OAuth", sequence: 2, depends_on: ["Setup OAuth infrastructure"], ... },
-      { name: "Session management", sequence: 3, depends_on: ["Implement Google OAuth", "Implement GitHub OAuth"], ... },
-      { name: "Protected routes middleware", sequence: 4, depends_on: ["Session management"], ... }
+      { name: "Setup OAuth infrastructure", ... },
+      { name: "Implement Google OAuth", parallel_group: "oauth-providers", depends_on: ["Setup OAuth infrastructure"], ... },
+      { name: "Implement GitHub OAuth", parallel_group: "oauth-providers", depends_on: ["Setup OAuth infrastructure"], ... },
+      { name: "Session management", depends_on: ["Implement Google OAuth", "Implement GitHub OAuth"], ... },
+      { name: "Protected routes middleware", depends_on: ["Session management"], ... }
     ]
   }
 })
 → { tasks_created: 5, status: "ready" }
 ```
 
-Tasks at the same `sequence` number can run in parallel. The `depends_on` array enforces ordering.
+Tasks with the same `parallel_group` value can run in parallel. The `depends_on` array enforces ordering.
 
 ### Checking Progress
 
