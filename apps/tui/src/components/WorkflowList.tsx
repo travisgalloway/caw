@@ -1,4 +1,4 @@
-import { Box, Text } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import type { WorkflowListItem } from '../hooks/useWorkflows';
 import { useAppStore } from '../store';
@@ -10,8 +10,17 @@ interface WorkflowListProps {
 }
 
 export function WorkflowList({ workflows }: WorkflowListProps): React.JSX.Element {
-  const { activePanel, selectedWorkflowId } = useAppStore();
+  const { activePanel, selectedWorkflowId, setView } = useAppStore();
   const isFocused = activePanel === 'workflows';
+
+  useInput(
+    (_input, key) => {
+      if (key.return && selectedWorkflowId) {
+        setView('workflow-detail');
+      }
+    },
+    { isActive: isFocused },
+  );
 
   return (
     <Box

@@ -2,6 +2,7 @@ import type { DatabaseType } from '@caw/core';
 import { Box, render, Text } from 'ink';
 import type React from 'react';
 import { Dashboard } from './components/Dashboard';
+import { WorkflowDetail } from './components/WorkflowDetail';
 import { DbContext } from './context/db';
 import { useKeyBindings } from './hooks/useKeyBindings';
 import { useAppStore } from './store';
@@ -40,7 +41,7 @@ function HelpView(): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const { view } = useAppStore();
+  const { view, selectedWorkflowId } = useAppStore();
   useKeyBindings();
 
   return (
@@ -51,7 +52,13 @@ function App(): React.JSX.Element {
         </Text>
         <Text dimColor> — workflow agent</Text>
       </Box>
-      {view === 'help' ? <HelpView /> : <Dashboard />}
+      {view === 'workflow-detail' ? (
+        <WorkflowDetail workflowId={selectedWorkflowId} />
+      ) : view === 'help' ? (
+        <HelpView />
+      ) : (
+        <Dashboard />
+      )}
       <Box paddingX={1}>
         <Text dimColor>q quit | ? help | w/a/t/m panels | r refresh</Text>
       </Box>
