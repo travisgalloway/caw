@@ -38,3 +38,7 @@ export function agentId(): string {
 export function messageId(): string {
   return generateId('msg');
 }
+
+export function sessionId(): string {
+  return generateId('ss');
+}

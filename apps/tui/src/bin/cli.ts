@@ -101,8 +101,24 @@ if (values.server) {
     port: values.port,
   });
 } else {
+  const { initDaemon } = await import('../daemon');
+  const daemon = await initDaemon(db, dbPath, values.port ? Number(values.port) : undefined);
+
+  const shutdown = () => {
+    daemon.cleanup();
+    db.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+
   const { runTui } = await import('../app');
   await runTui(db, {
     workflow: values.workflow,
+    sessionId: daemon.sessionId,
+    isDaemon: daemon.isDaemon,
+    port: daemon.port,
   });
+
+  daemon.cleanup();
 }

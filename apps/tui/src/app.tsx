@@ -5,6 +5,8 @@ import { AgentDetail } from './components/AgentDetail';
 import { Dashboard } from './components/Dashboard';
 import { WorkflowDetail } from './components/WorkflowDetail';
 import { DbContext } from './context/db';
+import type { SessionInfo } from './context/session';
+import { SessionContext } from './context/session';
 import { useKeyBindings } from './hooks/useKeyBindings';
 import { useAppStore } from './store';
 
@@ -74,6 +76,9 @@ function App(): React.JSX.Element {
 
 export interface TuiOptions {
   workflow?: string;
+  sessionId?: string;
+  isDaemon?: boolean;
+  port?: number;
 }
 
 export async function runTui(db: DatabaseType, opts: TuiOptions): Promise<void> {
@@ -81,9 +86,16 @@ export async function runTui(db: DatabaseType, opts: TuiOptions): Promise<void> 
     useAppStore.getState().selectWorkflow(opts.workflow);
   }
 
+  const sessionInfo: SessionInfo | null =
+    opts.sessionId != null
+      ? { sessionId: opts.sessionId, isDaemon: opts.isDaemon ?? false, port: opts.port ?? 0 }
+      : null;
+
   const instance = render(
     <DbContext.Provider value={db}>
-      <App />
+      <SessionContext.Provider value={sessionInfo}>
+        <App />
+      </SessionContext.Provider>
     </DbContext.Provider>,
   );
 

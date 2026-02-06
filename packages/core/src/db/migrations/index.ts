@@ -1,5 +1,6 @@
 import type { DatabaseType } from '../connection';
 import { sql as initialSql } from './001_initial';
+import { sql as sessionsSql } from './002_sessions';
 
 export interface Migration {
   version: number;
@@ -7,7 +8,10 @@ export interface Migration {
   sql: string;
 }
 
-const migrations: Migration[] = [{ version: 1, name: '001_initial', sql: initialSql }];
+const migrations: Migration[] = [
+  { version: 1, name: '001_initial', sql: initialSql },
+  { version: 2, name: '002_sessions', sql: sessionsSql },
+];
 
 export function ensureMigrationsTable(db: DatabaseType): void {
   db.run(`
