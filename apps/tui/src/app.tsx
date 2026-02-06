@@ -1,6 +1,7 @@
 import type { DatabaseType } from '@caw/core';
 import { Box, render, Text } from 'ink';
 import type React from 'react';
+import { AgentDetail } from './components/AgentDetail';
 import { Dashboard } from './components/Dashboard';
 import { WorkflowDetail } from './components/WorkflowDetail';
 import { DbContext } from './context/db';
@@ -41,8 +42,19 @@ function HelpView(): React.JSX.Element {
 }
 
 function App(): React.JSX.Element {
-  const { view, selectedWorkflowId } = useAppStore();
+  const { view, selectedWorkflowId, selectedAgentId } = useAppStore();
   useKeyBindings();
+
+  let content: React.JSX.Element;
+  if (view === 'workflow-detail') {
+    content = <WorkflowDetail workflowId={selectedWorkflowId} />;
+  } else if (view === 'agent-detail') {
+    content = <AgentDetail agentId={selectedAgentId} />;
+  } else if (view === 'help') {
+    content = <HelpView />;
+  } else {
+    content = <Dashboard />;
+  }
 
   return (
     <Box flexDirection="column">
@@ -52,13 +64,7 @@ function App(): React.JSX.Element {
         </Text>
         <Text dimColor> — workflow agent</Text>
       </Box>
-      {view === 'workflow-detail' ? (
-        <WorkflowDetail workflowId={selectedWorkflowId} />
-      ) : view === 'help' ? (
-        <HelpView />
-      ) : (
-        <Dashboard />
-      )}
+      {content}
       <Box paddingX={1}>
         <Text dimColor>q quit | ? help | w/a/t/m panels | r refresh</Text>
       </Box>
