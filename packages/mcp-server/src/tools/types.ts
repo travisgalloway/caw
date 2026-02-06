@@ -57,13 +57,6 @@ export function toolResult(data: unknown): CallToolResult {
   };
 }
 
-export function toolError(message: string): CallToolResult {
-  return {
-    content: [{ type: 'text', text: message }],
-    isError: true,
-  };
-}
-
 export function handleToolCall<T>(fn: () => T): CallToolResult {
   try {
     const result = fn();
@@ -76,7 +69,16 @@ export function handleToolCall<T>(fn: () => T): CallToolResult {
       };
     }
     const message = err instanceof Error ? err.message : String(err);
-    return toolError(message);
+    const fallback = new ToolCallError({
+      code: 'INTERNAL_ERROR',
+      message,
+      recoverable: false,
+      suggestion: 'This is an unexpected error. Please report it if it persists.',
+    });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(fallback.toJSON(), null, 2) }],
+      isError: true,
+    };
   }
 }
 
@@ -92,6 +94,15 @@ export async function handleToolCallAsync<T>(fn: () => Promise<T>): Promise<Call
       };
     }
     const message = err instanceof Error ? err.message : String(err);
-    return toolError(message);
+    const fallback = new ToolCallError({
+      code: 'INTERNAL_ERROR',
+      message,
+      recoverable: false,
+      suggestion: 'This is an unexpected error. Please report it if it persists.',
+    });
+    return {
+      content: [{ type: 'text', text: JSON.stringify(fallback.toJSON(), null, 2) }],
+      isError: true,
+    };
   }
 }

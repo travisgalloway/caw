@@ -150,6 +150,13 @@ export function get(db: DatabaseType, id: string): WorkflowTemplate | null {
   return row ?? null;
 }
 
+export function getByName(db: DatabaseType, name: string): WorkflowTemplate | null {
+  const row = db
+    .prepare('SELECT * FROM workflow_templates WHERE name = ?')
+    .get(name) as WorkflowTemplate | null;
+  return row ?? null;
+}
+
 export function list(db: DatabaseType): WorkflowTemplate[] {
   return db.prepare('SELECT * FROM workflow_templates ORDER BY name').all() as WorkflowTemplate[];
 }
