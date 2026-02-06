@@ -29,6 +29,7 @@ export {
   messageService,
   orchestrationService,
   repositoryService,
+  sessionService,
   TASK_TRANSITIONS,
   taskService,
   templateService,
@@ -55,6 +56,7 @@ export type {
   ParallelGroupStats,
   ProgressResult,
 } from './services/orchestration.service';
+export type { SessionRegisterParams } from './services/session.service';
 export type {
   ClaimResult,
   Dependencies,
@@ -96,6 +98,7 @@ export type {
   MessageStatus,
   MessageType,
   Repository,
+  Session,
   Task,
   TaskDependency,
   TaskDependencyType,
@@ -113,6 +116,7 @@ export {
   generateId,
   messageId,
   repositoryId,
+  sessionId,
   taskId,
   templateId,
   workflowId,
