@@ -1,5 +1,6 @@
-import { repositoryService, workflowService } from '@caw/core';
+import { lockService, repositoryService, workflowService } from '@caw/core';
 import { z } from 'zod';
+import { requireWorkflowLock } from './lock-guard';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
 
@@ -53,6 +54,22 @@ function toToolCallError(err: unknown): never {
       message: msg,
       recoverable: true,
       suggestion: 'Check that dependency names match task names in the plan',
+    });
+  }
+  if (msg.includes('Session not found')) {
+    throw new ToolCallError({
+      code: 'SESSION_NOT_FOUND',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Check the session ID and try again',
+    });
+  }
+  if (msg.includes('is locked by session')) {
+    throw new ToolCallError({
+      code: 'WORKFLOW_LOCKED',
+      message: msg,
+      recoverable: true,
+      suggestion: 'The workflow is locked by another session. Unlock it first.',
     });
   }
 
@@ -162,6 +179,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Set the initial plan for a workflow, creating all tasks',
       inputSchema: {
         id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         plan: z.object({
           summary: z.string().describe('Brief description'),
           tasks: z.array(
@@ -180,6 +198,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLock(db, args.id, args.session_id);
           return workflowService.setPlan(db, args.id, {
             summary: args.plan.summary,
             tasks: args.plan.tasks.map((t: Record<string, unknown>) => ({
@@ -204,6 +223,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Update workflow status',
       inputSchema: {
         id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         status: z.string().describe('New status'),
         reason: z.string().optional().describe('Reason for status change'),
       },
@@ -211,6 +231,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLock(db, args.id, args.session_id);
           workflowService.updateStatus(db, args.id, args.status, args.reason);
           return { success: true };
         } catch (err) {
@@ -226,6 +247,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Update workflow parallelism settings',
       inputSchema: {
         id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         max_parallel_tasks: z.number().int().describe('1 = sequential, >1 = parallel'),
         auto_create_workspaces: z.boolean().optional().describe('Auto-create worktrees'),
       },
@@ -233,6 +255,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLock(db, args.id, args.session_id);
           workflowService.setParallelism(
             db,
             args.id,
@@ -260,6 +283,65 @@ export const register: ToolRegistrar = (server, db) => {
       handleToolCall(() => {
         try {
           return workflowService.getSummary(db, args.id, args.format ?? 'json');
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_lock',
+    {
+      description: 'Acquire a write lock on a workflow for the given session',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+        session_id: z.string().describe('Session ID to lock for'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          return lockService.lock(db, args.id, args.session_id);
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_unlock',
+    {
+      description: 'Release a write lock on a workflow',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+        session_id: z.string().describe('Session ID that holds the lock'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          return lockService.unlock(db, args.id, args.session_id);
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_lock_info',
+    {
+      description: 'Get lock information for a workflow',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          return lockService.getLockInfo(db, args.id);
         } catch (err) {
           toToolCallError(err);
         }

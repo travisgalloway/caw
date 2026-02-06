@@ -5,5 +5,5 @@ export type { Repository } from './repository';
 export type { Session } from './session';
 export type { Task, TaskDependency, TaskDependencyType, TaskStatus } from './task';
 export type { WorkflowTemplate } from './template';
-export type { Workflow, WorkflowStatus, WorkflowSummary } from './workflow';
+export type { Workflow, WorkflowLockInfo, WorkflowStatus, WorkflowSummary } from './workflow';
 export type { Workspace, WorkspaceStatus } from './workspace';

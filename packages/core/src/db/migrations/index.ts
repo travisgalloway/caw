@@ -1,6 +1,7 @@
 import type { DatabaseType } from '../connection';
 import { sql as initialSql } from './001_initial';
 import { sql as sessionsSql } from './002_sessions';
+import { sql as workflowLocksSql } from './003_workflow_locks';
 
 export interface Migration {
   version: number;
@@ -11,6 +12,7 @@ export interface Migration {
 const migrations: Migration[] = [
   { version: 1, name: '001_initial', sql: initialSql },
   { version: 2, name: '002_sessions', sql: sessionsSql },
+  { version: 3, name: '003_workflow_locks', sql: workflowLocksSql },
 ];
 
 export function ensureMigrationsTable(db: DatabaseType): void {

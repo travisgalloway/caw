@@ -21,6 +21,8 @@ describe('useWorkflowDetail', () => {
         max_parallel_tasks: 1,
         auto_create_workspaces: 0,
         config: null,
+        locked_by_session_id: null,
+        locked_at: null,
         created_at: Date.now(),
         updated_at: Date.now(),
         tasks: [],

@@ -49,6 +49,9 @@ export function WorkflowList({ workflows }: WorkflowListProps): React.JSX.Elemen
                 {wf.name}
               </Text>
               {wf.progress && total > 0 && <ProgressBar completed={completed} total={total} />}
+              {wf.lock?.locked && (
+                <Text color="yellow">[LOCKED by PID {wf.lock.session_pid ?? '?'}]</Text>
+              )}
             </Box>
           );
         })

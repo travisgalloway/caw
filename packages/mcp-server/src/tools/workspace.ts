@@ -1,6 +1,11 @@
 import type { WorkspaceStatus } from '@caw/core';
 import { createWorktree, removeWorktree, workspaceService } from '@caw/core';
 import { z } from 'zod';
+import {
+  requireWorkflowLock,
+  requireWorkflowLockForTask,
+  requireWorkflowLockForWorkspace,
+} from './lock-guard';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, handleToolCallAsync, ToolCallError } from './types';
 
@@ -68,6 +73,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Register a workspace (git worktree) for parallel task execution',
       inputSchema: {
         workflow_id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         path: z
           .string()
           .optional()
@@ -93,6 +99,7 @@ export const register: ToolRegistrar = (server, db) => {
           });
         }
         return handleToolCallAsync(async () => {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
           const worktreePath = await createWorktree(args.repo_path, args.branch, args.base_branch);
           try {
             const workspace = workspaceService.create(db, {
@@ -117,6 +124,7 @@ export const register: ToolRegistrar = (server, db) => {
 
       return handleToolCall(() => {
         try {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
           if (!args.path) {
             throw new ToolCallError({
               code: 'MISSING_PATH',
@@ -147,6 +155,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Update workspace status',
       inputSchema: {
         id: z.string().describe('Workspace ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         status: z.enum(['active', 'merged', 'abandoned']).optional().describe('New status'),
         merge_commit: z.string().optional().describe('Merge commit SHA'),
         cleanup_worktree: z.boolean().optional().describe('Remove the git worktree from disk'),
@@ -158,6 +167,7 @@ export const register: ToolRegistrar = (server, db) => {
       if (args.cleanup_worktree && status && (status === 'abandoned' || status === 'merged')) {
         return handleToolCallAsync(async () => {
           try {
+            requireWorkflowLockForWorkspace(db, args.id, args.session_id);
             const workspace = workspaceService.get(db, args.id);
             if (!workspace) {
               throw new Error('Workspace not found');
@@ -176,6 +186,7 @@ export const register: ToolRegistrar = (server, db) => {
 
       return handleToolCall(() => {
         try {
+          requireWorkflowLockForWorkspace(db, args.id, args.session_id);
           workspaceService.update(db, args.id, {
             status,
             mergeCommit: args.merge_commit,
@@ -216,12 +227,14 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Assign task to workspace',
       inputSchema: {
         task_id: z.string().describe('Task ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         workspace_id: z.string().describe('Workspace ID'),
       },
     },
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.task_id, args.session_id);
           workspaceService.assignTask(db, args.task_id, args.workspace_id);
           return { success: true };
         } catch (err) {

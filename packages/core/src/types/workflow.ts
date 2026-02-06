@@ -22,6 +22,15 @@ export interface Workflow {
   max_parallel_tasks: number;
   auto_create_workspaces: number;
   config: string | null;
+  locked_by_session_id: string | null;
+  locked_at: number | null;
+}
+
+export interface WorkflowLockInfo {
+  locked: boolean;
+  session_id: string | null;
+  locked_at: number | null;
+  session_pid: number | null;
 }
 
 export interface WorkflowSummary {
