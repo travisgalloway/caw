@@ -1,8 +1,8 @@
 import type { WorkspaceStatus } from '@caw/core';
-import { workspaceService } from '@caw/core';
+import { createWorktree, removeWorktree, workspaceService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
-import { defineTool, handleToolCall, ToolCallError } from './types';
+import { defineTool, handleToolCall, handleToolCallAsync, ToolCallError } from './types';
 
 function toToolCallError(err: unknown): never {
   if (err instanceof ToolCallError) throw err;
@@ -68,15 +68,63 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Register a workspace (git worktree) for parallel task execution',
       inputSchema: {
         workflow_id: z.string().describe('Workflow ID'),
-        path: z.string().describe('Workspace path'),
+        path: z
+          .string()
+          .optional()
+          .describe('Workspace path (auto-generated when create_worktree is true)'),
         branch: z.string().describe('Branch name'),
         base_branch: z.string().optional().describe('Base branch'),
         task_ids: z.array(z.string()).optional().describe('Tasks assigned to this workspace'),
+        create_worktree: z.boolean().optional().describe('Actually create a git worktree on disk'),
+        repo_path: z
+          .string()
+          .optional()
+          .describe('Repository path (required when create_worktree is true)'),
       },
     },
-    (args) =>
-      handleToolCall(() => {
+    (args) => {
+      if (args.create_worktree) {
+        if (!args.repo_path) {
+          throw new ToolCallError({
+            code: 'MISSING_REPO_PATH',
+            message: 'repo_path is required when create_worktree is true',
+            recoverable: true,
+            suggestion: 'Provide repo_path pointing to the git repository root',
+          });
+        }
+        return handleToolCallAsync(async () => {
+          const worktreePath = await createWorktree(args.repo_path, args.branch, args.base_branch);
+          try {
+            const workspace = workspaceService.create(db, {
+              workflowId: args.workflow_id,
+              path: worktreePath,
+              branch: args.branch,
+              baseBranch: args.base_branch,
+              taskIds: args.task_ids,
+            });
+            return { id: workspace.id, path: worktreePath };
+          } catch (err) {
+            // Best-effort cleanup of the worktree on DB error
+            try {
+              await removeWorktree(worktreePath);
+            } catch {
+              // Ignore cleanup errors
+            }
+            toToolCallError(err);
+          }
+        });
+      }
+
+      return handleToolCall(() => {
         try {
+          if (!args.path) {
+            throw new ToolCallError({
+              code: 'MISSING_PATH',
+              message: 'path is required when create_worktree is not true',
+              recoverable: true,
+              suggestion: 'Provide a workspace path or set create_worktree to true',
+            });
+          }
           const workspace = workspaceService.create(db, {
             workflowId: args.workflow_id,
             path: args.path,
@@ -88,7 +136,8 @@ export const register: ToolRegistrar = (server, db) => {
         } catch (err) {
           toToolCallError(err);
         }
-      }),
+      });
+    },
   );
 
   defineTool(
@@ -100,20 +149,43 @@ export const register: ToolRegistrar = (server, db) => {
         id: z.string().describe('Workspace ID'),
         status: z.enum(['active', 'merged', 'abandoned']).optional().describe('New status'),
         merge_commit: z.string().optional().describe('Merge commit SHA'),
+        cleanup_worktree: z.boolean().optional().describe('Remove the git worktree from disk'),
       },
     },
-    (args) =>
-      handleToolCall(() => {
+    (args) => {
+      const status = args.status as WorkspaceStatus | undefined;
+
+      if (args.cleanup_worktree && status && (status === 'abandoned' || status === 'merged')) {
+        return handleToolCallAsync(async () => {
+          try {
+            const workspace = workspaceService.get(db, args.id);
+            if (!workspace) {
+              throw new Error('Workspace not found');
+            }
+            await removeWorktree(workspace.path);
+            workspaceService.update(db, args.id, {
+              status,
+              mergeCommit: args.merge_commit,
+            });
+            return { success: true, worktree_removed: true };
+          } catch (err) {
+            toToolCallError(err);
+          }
+        });
+      }
+
+      return handleToolCall(() => {
         try {
           workspaceService.update(db, args.id, {
-            status: args.status as WorkspaceStatus | undefined,
+            status,
             mergeCommit: args.merge_commit,
           });
           return { success: true };
         } catch (err) {
           toToolCallError(err);
         }
-      }),
+      });
+    },
   );
 
   defineTool(
