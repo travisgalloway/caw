@@ -84,6 +84,8 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
     max_parallel_tasks: params.max_parallel_tasks ?? 1,
     auto_create_workspaces: params.auto_create_workspaces ? 1 : 0,
     config: configJson,
+    locked_by_session_id: null,
+    locked_at: null,
   };
 
   db.prepare(

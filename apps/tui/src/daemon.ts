@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { DatabaseType } from '@caw/core';
-import { sessionService } from '@caw/core';
+import { lockService, sessionService } from '@caw/core';
 import { createMcpServer, DEFAULT_PORT, resolveConfig, startServer } from '@caw/mcp-server';
 
 // --- Constants ---
@@ -92,7 +92,8 @@ export async function initDaemon(
   const resolvedPort = port ?? DEFAULT_PORT;
   const lockPath = getLockFilePath(dbPath);
 
-  // Clean up stale sessions
+  // Clean up stale sessions and release their workflow locks
+  lockService.releaseStaleWorkflowLocks(db, STALE_TIMEOUT);
   sessionService.cleanupStale(db, STALE_TIMEOUT);
 
   // Check if an existing daemon is running

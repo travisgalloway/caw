@@ -1,6 +1,7 @@
 import type { CheckpointType } from '@caw/core';
 import { checkpointService } from '@caw/core';
 import { z } from 'zod';
+import { requireWorkflowLockForTask } from './lock-guard';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
 
@@ -28,6 +29,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Add a checkpoint to a task for fine-grained recovery',
       inputSchema: {
         task_id: z.string().describe('Task ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         type: z
           .enum(['plan', 'progress', 'decision', 'error', 'recovery', 'complete', 'replan'])
           .describe('Checkpoint type'),
@@ -39,6 +41,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.task_id, args.session_id);
           return checkpointService.add(db, args.task_id, {
             type: args.type as CheckpointType,
             summary: args.summary,

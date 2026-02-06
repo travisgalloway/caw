@@ -1,5 +1,6 @@
 import { taskService } from '@caw/core';
 import { z } from 'zod';
+import { requireWorkflowLockForTask } from './lock-guard';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
 
@@ -104,6 +105,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Set task plan (when task moves to planning status)',
       inputSchema: {
         id: z.string().describe('Task ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         plan: z.object({
           approach: z.string(),
           steps: z.array(z.string()),
@@ -117,6 +119,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.id, args.session_id);
           taskService.setPlan(db, args.id, {
             plan: args.plan,
             context: args.context,
@@ -135,6 +138,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Update task status',
       inputSchema: {
         id: z.string().describe('Task ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         status: z.string().describe('New status'),
         outcome: z.string().optional().describe('Required for completed'),
         outcome_detail: z.record(z.unknown()).optional().describe('Additional outcome detail'),
@@ -144,6 +148,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.id, args.session_id);
           taskService.updateStatus(db, args.id, args.status, {
             outcome: args.outcome,
             error: args.error,
@@ -162,6 +167,7 @@ export const register: ToolRegistrar = (server, db) => {
       description: 'Replan a failed or in-progress task',
       inputSchema: {
         id: z.string().describe('Task ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         reason: z.string().describe('Reason for replanning'),
         new_plan: z.object({
           approach: z.string(),
@@ -174,6 +180,7 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.id, args.session_id);
           const result = taskService.replan(db, args.id, args.reason, args.new_plan);
           return { success: true, checkpoint_id: result.checkpoint_id };
         } catch (err) {

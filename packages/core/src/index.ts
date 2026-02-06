@@ -26,6 +26,7 @@ export {
   contextService,
   isValidTaskTransition,
   isValidWorkflowTransition,
+  lockService,
   messageService,
   orchestrationService,
   repositoryService,
@@ -37,6 +38,7 @@ export {
   workflowService,
   workspaceService,
 } from './services/index';
+export type { LockResult } from './services/lock.service';
 export type {
   BroadcastFilter,
   BroadcastParams,
@@ -104,6 +106,7 @@ export type {
   TaskDependencyType,
   TaskStatus,
   Workflow,
+  WorkflowLockInfo,
   WorkflowStatus,
   WorkflowSummary,
   WorkflowTemplate,

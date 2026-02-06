@@ -47,9 +47,10 @@ describe('runMigrations', () => {
     runMigrations(db);
 
     const indexes = getIndexes(db);
-    expect(indexes).toHaveLength(15);
+    expect(indexes).toHaveLength(16);
     expect(indexes).toContain('idx_workflows_repository');
     expect(indexes).toContain('idx_workflows_status');
+    expect(indexes).toContain('idx_workflows_locked_by');
     expect(indexes).toContain('idx_tasks_workflow');
     expect(indexes).toContain('idx_tasks_status');
     expect(indexes).toContain('idx_tasks_parallel');
@@ -72,7 +73,7 @@ describe('runMigrations', () => {
     runMigrations(db);
 
     const versions = getAppliedVersions(db);
-    expect(versions).toEqual([1, 2]);
+    expect(versions).toEqual([1, 2, 3]);
 
     db.close();
   });
@@ -86,7 +87,7 @@ describe('runMigrations', () => {
     expect(tables).toHaveLength(11);
 
     const versions = getAppliedVersions(db);
-    expect(versions).toEqual([1, 2]);
+    expect(versions).toEqual([1, 2, 3]);
 
     db.close();
   });

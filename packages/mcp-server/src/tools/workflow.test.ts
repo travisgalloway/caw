@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'bun:test';
 import type { DatabaseType } from '@caw/core';
-import { createConnection, runMigrations, workflowService } from '@caw/core';
+import { createConnection, runMigrations, sessionService, workflowService } from '@caw/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../server';
 import type { ToolErrorInfo } from './types';
@@ -464,6 +464,219 @@ describe('workflow tools', () => {
       expect(typeof err.message).toBe('string');
       expect(typeof err.recoverable).toBe('boolean');
       expect(typeof err.suggestion).toBe('string');
+    });
+  });
+
+  // --- workflow_lock ---
+
+  describe('workflow_lock', () => {
+    it('locks a workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const session = sessionService.register(db, { pid: 1234 });
+
+      const result = call('workflow_lock', { id: created.id, session_id: session.id });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as { success: boolean; locked_by: string };
+      expect(data.success).toBe(true);
+      expect(data.locked_by).toBe(session.id);
+    });
+
+    it('fails when locked by another session', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const sessionA = sessionService.register(db, { pid: 1000 });
+      const sessionB = sessionService.register(db, { pid: 2000 });
+
+      call('workflow_lock', { id: created.id, session_id: sessionA.id });
+      const result = call('workflow_lock', { id: created.id, session_id: sessionB.id });
+      const data = parseContent(result) as { success: boolean; locked_by: string };
+      expect(data.success).toBe(false);
+      expect(data.locked_by).toBe(sessionA.id);
+    });
+
+    it('returns WORKFLOW_NOT_FOUND for missing workflow', () => {
+      const session = sessionService.register(db, { pid: 1234 });
+      const result = call('workflow_lock', { id: 'wf_nonexistent', session_id: session.id });
+      const err = parseError(result);
+      expect(err.code).toBe('WORKFLOW_NOT_FOUND');
+    });
+  });
+
+  // --- workflow_unlock ---
+
+  describe('workflow_unlock', () => {
+    it('unlocks a locked workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const session = sessionService.register(db, { pid: 1234 });
+
+      call('workflow_lock', { id: created.id, session_id: session.id });
+      const result = call('workflow_unlock', { id: created.id, session_id: session.id });
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('returns error when unlocking with wrong session', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const sessionA = sessionService.register(db, { pid: 1000 });
+      const sessionB = sessionService.register(db, { pid: 2000 });
+
+      call('workflow_lock', { id: created.id, session_id: sessionA.id });
+      const result = call('workflow_unlock', { id: created.id, session_id: sessionB.id });
+      const err = parseError(result);
+      expect(err.code).toBe('WORKFLOW_LOCKED');
+    });
+  });
+
+  // --- workflow_lock_info ---
+
+  describe('workflow_lock_info', () => {
+    it('returns unlocked info for unlocked workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const result = call('workflow_lock_info', { id: created.id });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as { locked: boolean; session_id: null };
+      expect(data.locked).toBe(false);
+      expect(data.session_id).toBeNull();
+    });
+
+    it('returns lock info for locked workflow', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      const session = sessionService.register(db, { pid: 5678 });
+      call('workflow_lock', { id: created.id, session_id: session.id });
+
+      const result = call('workflow_lock_info', { id: created.id });
+      const data = parseContent(result) as {
+        locked: boolean;
+        session_id: string;
+        session_pid: number;
+      };
+      expect(data.locked).toBe(true);
+      expect(data.session_id).toBe(session.id);
+      expect(data.session_pid).toBe(5678);
+    });
+  });
+
+  // --- lock guard integration ---
+
+  describe('lock guard integration', () => {
+    it('blocks workflow_update_status when locked by another session', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      // Set plan so we can try updating status
+      call('workflow_set_plan', {
+        id: created.id,
+        plan: { summary: 'plan', tasks: [{ name: 'task1' }] },
+      });
+
+      const sessionA = sessionService.register(db, { pid: 1000 });
+      const sessionB = sessionService.register(db, { pid: 2000 });
+
+      call('workflow_lock', { id: created.id, session_id: sessionA.id });
+
+      // Session B should be blocked
+      const result = call('workflow_update_status', {
+        id: created.id,
+        session_id: sessionB.id,
+        status: 'in_progress',
+      });
+      const err = parseError(result);
+      expect(err.code).toBe('WORKFLOW_LOCKED');
+    });
+
+    it('allows workflow_update_status without session_id (backward compat)', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      call('workflow_set_plan', {
+        id: created.id,
+        plan: { summary: 'plan', tasks: [{ name: 'task1' }] },
+      });
+
+      const session = sessionService.register(db, { pid: 1000 });
+      call('workflow_lock', { id: created.id, session_id: session.id });
+
+      // No session_id — should pass through (backward compat)
+      const result = call('workflow_update_status', {
+        id: created.id,
+        status: 'in_progress',
+      });
+      expect(result.isError).toBeUndefined();
+    });
+
+    it('allows workflow_update_status when locked by same session', () => {
+      const created = parseContent(
+        call('workflow_create', {
+          name: 'WF',
+          source_type: 'prompt',
+          source_content: 'x',
+        }),
+      ) as { id: string };
+
+      call('workflow_set_plan', {
+        id: created.id,
+        plan: { summary: 'plan', tasks: [{ name: 'task1' }] },
+      });
+
+      const session = sessionService.register(db, { pid: 1000 });
+      call('workflow_lock', { id: created.id, session_id: session.id });
+
+      const result = call('workflow_update_status', {
+        id: created.id,
+        session_id: session.id,
+        status: 'in_progress',
+      });
+      expect(result.isError).toBeUndefined();
     });
   });
 });

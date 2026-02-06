@@ -1,6 +1,7 @@
 import type { AgentRole, AgentStatus } from '@caw/core';
 import { agentService, taskService } from '@caw/core';
 import { z } from 'zod';
+import { requireWorkflowLockForTask } from './lock-guard';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
 
@@ -221,11 +222,13 @@ export const register: ToolRegistrar = (server, db) => {
       inputSchema: {
         task_id: z.string().describe('Task ID'),
         agent_id: z.string().describe('Agent ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
       },
     },
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.task_id, args.session_id);
           return taskService.claim(db, args.task_id, args.agent_id);
         } catch (err) {
           toToolCallError(err);
@@ -241,12 +244,14 @@ export const register: ToolRegistrar = (server, db) => {
       inputSchema: {
         task_id: z.string().describe('Task ID'),
         agent_id: z.string().describe('Agent ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
         reason: z.string().optional().describe('Reason for release'),
       },
     },
     (args) =>
       handleToolCall(() => {
         try {
+          requireWorkflowLockForTask(db, args.task_id, args.session_id);
           taskService.release(db, args.task_id, args.agent_id, args.reason);
           return { success: true };
         } catch (err) {
