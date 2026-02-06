@@ -26,6 +26,7 @@
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",
     "@types/bun": "^1.2.0",
-    "@types/react": "^18.3.0"
+    "@types/react": "^18.3.0",
+    "ink-testing-library": "^4.0.0"
   }
 }

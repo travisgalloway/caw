@@ -18,7 +18,7 @@ export interface TaskTreeNode {
   isLastInGroup: boolean;
 }
 
-interface RawTaskData {
+export interface RawTaskData {
   id: string;
   name: string;
   status: TaskStatus;
@@ -27,7 +27,7 @@ interface RawTaskData {
   assigned_agent_id: string | null;
 }
 
-function buildTaskTree(
+export function buildTaskTree(
   tasks: RawTaskData[],
   dependencies: TaskDependency[],
   agentNames: Map<string, string>,
