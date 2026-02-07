@@ -28,7 +28,7 @@ const agentColumns: Column<AgentRow>[] = [
     width: 3,
     render: (_val, row) => <StatusIndicator kind="agent" status={row.status} />,
   },
-  { key: 'name', header: 'Name', width: 20 },
+  { key: 'name', header: 'Name' },
   { key: 'status', header: 'Status', width: 10 },
   { key: 'runtime', header: 'Runtime', width: 12 },
   { key: 'role', header: 'Role', width: 12 },
@@ -82,7 +82,7 @@ export function GlobalAgentList(): React.JSX.Element {
   }
 
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1} flexGrow={1}>
       <Text bold>Active Agents ({activeAgents.length})</Text>
       <SelectableTable
         data={activeAgents}
@@ -94,7 +94,6 @@ export function GlobalAgentList(): React.JSX.Element {
         }}
         isFocused={!promptFocused}
         emptyMessage="No active agents"
-        maxVisibleRows={15}
       />
     </Box>
   );

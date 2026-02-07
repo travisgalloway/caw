@@ -37,7 +37,6 @@ const messageColumns: Column<MessageRow>[] = [
   {
     key: 'body',
     header: 'Subject',
-    width: 35,
     render: (_val, row) => <Text>{row.subject ?? row.body.slice(0, 30)}</Text>,
   },
   {
@@ -100,7 +99,7 @@ export function GlobalMessageList(): React.JSX.Element {
   const filterLabel = messageStatusFilter === 'unread' ? 'Unread' : 'All';
 
   return (
-    <Box flexDirection="column" paddingX={1}>
+    <Box flexDirection="column" paddingX={1} flexGrow={1}>
       <Text bold>
         {filterLabel} Messages ({rows.length}){totalUnread > 0 && ` · ${totalUnread} unread`}
       </Text>
@@ -114,7 +113,6 @@ export function GlobalMessageList(): React.JSX.Element {
         }}
         isFocused={!promptFocused}
         emptyMessage={messageStatusFilter === 'unread' ? 'No unread messages' : 'No messages'}
-        maxVisibleRows={15}
       />
     </Box>
   );

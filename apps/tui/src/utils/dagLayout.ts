@@ -24,6 +24,13 @@ export interface GridCell {
   char: string;
   color: string | null;
   dim: boolean;
+  nodeId: string | null;
+}
+
+export interface DagLayoutResult {
+  grid: GridCell[][];
+  taskOrder: string[];
+  nodeRows: Map<string, number>;
 }
 
 // --- Constants ---
@@ -174,7 +181,7 @@ export function orderLayers(
 // --- Grid rendering ---
 
 function emptyCell(): GridCell {
-  return { char: ' ', color: null, dim: false };
+  return { char: ' ', color: null, dim: false, nodeId: null };
 }
 
 function createGrid(rows: number, cols: number): GridCell[][] {
@@ -188,9 +195,10 @@ function setCell(
   char: string,
   color: string | null,
   dim: boolean,
+  nodeId: string | null = null,
 ): void {
   if (row >= 0 && row < grid.length && col >= 0 && col < grid[0].length) {
-    grid[row][col] = { char, color, dim };
+    grid[row][col] = { char, color, dim, nodeId };
   }
 }
 
@@ -201,32 +209,33 @@ function drawBox(
   width: number,
   label: string,
   color: string,
+  nodeId: string,
 ): void {
   // Top border: ┌──...──┐
-  setCell(grid, row, col, '┌', color, false);
+  setCell(grid, row, col, '┌', color, false, nodeId);
   for (let c = col + 1; c < col + width - 1; c++) {
-    setCell(grid, row, c, '─', color, false);
+    setCell(grid, row, c, '─', color, false, nodeId);
   }
-  setCell(grid, row, col + width - 1, '┐', color, false);
+  setCell(grid, row, col + width - 1, '┐', color, false, nodeId);
 
   // Content row: │ label │
-  setCell(grid, row + 1, col, '│', color, false);
+  setCell(grid, row + 1, col, '│', color, false, nodeId);
   const padded = ` ${label} `;
   for (let i = 0; i < padded.length && col + 1 + i < col + width - 1; i++) {
-    setCell(grid, row + 1, col + 1 + i, padded[i], null, false);
+    setCell(grid, row + 1, col + 1 + i, padded[i], null, false, nodeId);
   }
   // Fill remaining space
   for (let c = col + 1 + padded.length; c < col + width - 1; c++) {
-    setCell(grid, row + 1, c, ' ', null, false);
+    setCell(grid, row + 1, c, ' ', null, false, nodeId);
   }
-  setCell(grid, row + 1, col + width - 1, '│', color, false);
+  setCell(grid, row + 1, col + width - 1, '│', color, false, nodeId);
 
   // Bottom border: └──...──┘
-  setCell(grid, row + 2, col, '└', color, false);
+  setCell(grid, row + 2, col, '└', color, false, nodeId);
   for (let c = col + 1; c < col + width - 1; c++) {
-    setCell(grid, row + 2, c, '─', color, false);
+    setCell(grid, row + 2, c, '─', color, false, nodeId);
   }
-  setCell(grid, row + 2, col + width - 1, '┘', color, false);
+  setCell(grid, row + 2, col + width - 1, '┘', color, false, nodeId);
 }
 
 function drawEdge(
@@ -282,11 +291,11 @@ function drawEdge(
 
 // --- Main layout function ---
 
-export function layoutDag(input: DagLayoutInput): GridCell[][] {
+export function layoutDag(input: DagLayoutInput): DagLayoutResult {
   const { nodes, edges, width } = input;
 
   if (nodes.length === 0) {
-    return createGrid(1, width);
+    return { grid: createGrid(1, width), taskOrder: [], nodeRows: new Map() };
   }
 
   const layers = assignLayers(nodes, edges);
@@ -345,7 +354,7 @@ export function layoutDag(input: DagLayoutInput): GridCell[][] {
           node.name.length > nw - NODE_PADDING
             ? `${node.name.slice(0, nw - NODE_PADDING - 1)}…`
             : node.name;
-        drawBox(grid, layerRow, startCol, nw, truncatedName, statusColor(node.status));
+        drawBox(grid, layerRow, startCol, nw, truncatedName, statusColor(node.status), id);
       }
       nodePositions.set(id, { row: layerRow, col: startCol, width: nw });
       startCol += nw + gap;
@@ -377,5 +386,12 @@ export function layoutDag(input: DagLayoutInput): GridCell[][] {
     }
   }
 
-  return grid;
+  // Build task ordering and row mapping for navigation
+  const taskOrder = layerGroups.flat();
+  const nodeRows = new Map<string, number>();
+  for (const [id, pos] of nodePositions) {
+    nodeRows.set(id, pos.row);
+  }
+
+  return { grid, taskOrder, nodeRows };
 }

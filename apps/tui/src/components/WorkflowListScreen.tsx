@@ -46,7 +46,6 @@ const workflowColumns: Column<WorkflowListItem>[] = [
   {
     key: 'name',
     header: 'Name',
-    width: 30,
   },
   {
     key: 'status',
@@ -125,7 +124,6 @@ function WorkflowsTab(): React.JSX.Element {
           }}
           isFocused={!promptFocused}
           emptyMessage="No workflows"
-          maxVisibleRows={15}
         />
       </Box>
     </Box>
@@ -166,7 +164,7 @@ export function WorkflowListScreen(): React.JSX.Element {
   };
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexGrow={1}>
       <Box paddingX={1} gap={2} marginBottom={1} alignItems="flex-start">
         <LogoHeader />
         <SystemInfo />
@@ -182,9 +180,11 @@ export function WorkflowListScreen(): React.JSX.Element {
         <Tab name="messages">Messages</Tab>
       </Tabs>
 
-      {mainTab === 'workflows' && <WorkflowsTab />}
-      {mainTab === 'agents' && <GlobalAgentList />}
-      {mainTab === 'messages' && <GlobalMessageList />}
+      <Box flexGrow={1}>
+        {mainTab === 'workflows' && <WorkflowsTab />}
+        {mainTab === 'agents' && <GlobalAgentList />}
+        {mainTab === 'messages' && <GlobalMessageList />}
+      </Box>
 
       <HintBar hints={hintsForTab(mainTab, showAll)} />
     </Box>

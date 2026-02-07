@@ -1,6 +1,7 @@
-import { Box, Text, useInput, useStdout } from 'ink';
+import { Box, Text, useInput } from 'ink';
 import type React from 'react';
 import { useEffect, useRef, useState } from 'react';
+import { useTerminalSize } from '../hooks/useTerminalSize';
 import { useAppStore } from '../store';
 import type { SlashCommand } from '../utils/parseCommand';
 import { COMMAND_DESCRIPTIONS, completeCommand } from '../utils/parseCommand';
@@ -18,8 +19,7 @@ export function CommandPrompt({ onSubmit }: CommandPromptProps): React.JSX.Eleme
   const promptError = useAppStore((s) => s.promptError);
   const promptSuccess = useAppStore((s) => s.promptSuccess);
   const { setPromptValue, setPromptFocused, clearPromptFeedback } = useAppStore();
-  const { stdout } = useStdout();
-  const termWidth = stdout?.columns ?? 80;
+  const { columns: termWidth } = useTerminalSize();
 
   const [suggestionIdx, setSuggestionIdx] = useState(-1);
 

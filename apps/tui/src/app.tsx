@@ -17,6 +17,7 @@ import type { SessionInfo } from './context/session';
 import { SessionContext } from './context/session';
 import { useCommandHandler } from './hooks/useCommandHandler';
 import { useKeyBindings } from './hooks/useKeyBindings';
+import { useTerminalSize } from './hooks/useTerminalSize';
 import { currentScreen, useAppStore } from './store';
 
 function buildBreadcrumbs(screen: ReturnType<typeof currentScreen>): BreadcrumbSegment[] {
@@ -61,6 +62,7 @@ function App(): React.JSX.Element {
   const navStack = useAppStore((s) => s.navStack);
   useKeyBindings();
   const handleSubmit = useCommandHandler();
+  const { columns, rows } = useTerminalSize();
 
   const screen = currentScreen({ navStack });
   const segments = buildBreadcrumbs(screen);
@@ -95,9 +97,11 @@ function App(): React.JSX.Element {
   const showBreadcrumb = screen.screen !== 'workflow-list';
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" width={columns} height={rows}>
       {showBreadcrumb && <Breadcrumb segments={segments} />}
-      {content}
+      <Box flexGrow={1} overflow="hidden">
+        {content}
+      </Box>
       <CommandPrompt onSubmit={handleSubmit} />
     </Box>
   );
@@ -123,6 +127,12 @@ export async function runTui(db: DatabaseType, opts: TuiOptions): Promise<void> 
       ? { sessionId: opts.sessionId, isDaemon: opts.isDaemon ?? false, port: opts.port ?? 0 }
       : null;
 
+  // Enter alternate screen buffer (like vim/htop) — eliminates scrollback
+  // artifacts during resize. Restored on exit via process.on('exit').
+  process.stdout.write('\x1b[?1049h');
+  const exitAltScreen = () => process.stdout.write('\x1b[?1049l');
+  process.on('exit', exitAltScreen);
+
   const instance = render(
     <DbContext.Provider value={db}>
       <DbPathContext.Provider value={opts.dbPath ?? null}>
@@ -133,7 +143,22 @@ export async function runTui(db: DatabaseType, opts: TuiOptions): Promise<void> 
     </DbContext.Provider>,
   );
 
+  // On width changes, clear the alternate screen buffer and reset
+  // log-update's internal state so the next render starts fresh.
+  let lastWidth = process.stdout.columns ?? 80;
+  const onResize = () => {
+    const newWidth = process.stdout.columns ?? 80;
+    if (newWidth !== lastWidth) {
+      process.stdout.write('\x1b[H\x1b[J');
+      instance.clear();
+      lastWidth = newWidth;
+    }
+  };
+  process.stdout.prependListener('resize', onResize);
+
   await instance.waitUntilExit();
-  db.close();
-  process.exit(0);
+
+  process.stdout.off('resize', onResize);
+  process.off('exit', exitAltScreen);
+  exitAltScreen();
 }

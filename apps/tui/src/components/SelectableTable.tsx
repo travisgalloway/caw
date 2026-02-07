@@ -1,6 +1,6 @@
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useMemo } from 'react';
+import { ScrollArea } from './ScrollArea';
 
 export interface Column<T> {
   key: keyof T & string;
@@ -19,7 +19,6 @@ interface SelectableTableProps<T extends { id: string }> {
   onConfirm: (item: T) => void;
   isFocused?: boolean;
   emptyMessage?: string;
-  maxVisibleRows?: number;
 }
 
 export function SelectableTable<T extends { id: string }>({
@@ -30,7 +29,6 @@ export function SelectableTable<T extends { id: string }>({
   onConfirm,
   isFocused = true,
   emptyMessage = 'No data',
-  maxVisibleRows,
 }: SelectableTableProps<T>): React.JSX.Element {
   useInput(
     (_input, key) => {
@@ -50,33 +48,19 @@ export function SelectableTable<T extends { id: string }>({
     { isActive: isFocused },
   );
 
-  const scrollWindow = useMemo(() => {
-    if (!maxVisibleRows || data.length <= maxVisibleRows) {
-      return { start: 0, end: data.length };
-    }
-    const half = Math.floor(maxVisibleRows / 2);
-    let start = selectedIndex - half;
-    if (start < 0) start = 0;
-    let end = start + maxVisibleRows;
-    if (end > data.length) {
-      end = data.length;
-      start = Math.max(0, end - maxVisibleRows);
-    }
-    return { start, end };
-  }, [data.length, maxVisibleRows, selectedIndex]);
-
-  const visibleData = data.slice(scrollWindow.start, scrollWindow.end);
-
   if (data.length === 0) {
     return <Text dimColor>{emptyMessage}</Text>;
   }
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexGrow={1}>
       {/* Header row */}
       <Box>
         {columns.map((col) => (
-          <Box key={col.id ?? col.key} width={col.width}>
+          <Box
+            key={col.id ?? col.key}
+            {...(col.width ? { width: col.width } : { flexGrow: 1, overflow: 'hidden' as const })}
+          >
             <Text bold dimColor>
               {col.header}
             </Text>
@@ -84,28 +68,29 @@ export function SelectableTable<T extends { id: string }>({
         ))}
       </Box>
       {/* Data rows */}
-      {visibleData.map((row, visibleIdx) => {
-        const actualIndex = scrollWindow.start + visibleIdx;
-        const isSelected = isFocused && actualIndex === selectedIndex;
-        return (
-          <Box key={row.id}>
-            {columns.map((col) => (
-              <Box key={col.id ?? col.key} width={col.width}>
-                {col.render ? (
-                  <Text inverse={isSelected}>{col.render(row[col.key], row)}</Text>
-                ) : (
-                  <Text inverse={isSelected}>{String(row[col.key] ?? '')}</Text>
-                )}
-              </Box>
-            ))}
-          </Box>
-        );
-      })}
-      {maxVisibleRows && data.length > maxVisibleRows && (
-        <Text dimColor>
-          [{scrollWindow.start + 1}-{scrollWindow.end} of {data.length}]
-        </Text>
-      )}
+      <ScrollArea focusIndex={selectedIndex}>
+        {data.map((row, idx) => {
+          const isSelected = isFocused && idx === selectedIndex;
+          return (
+            <Box key={row.id}>
+              {columns.map((col) => (
+                <Box
+                  key={col.id ?? col.key}
+                  {...(col.width
+                    ? { width: col.width }
+                    : { flexGrow: 1, overflow: 'hidden' as const })}
+                >
+                  {col.render ? (
+                    <Text inverse={isSelected}>{col.render(row[col.key], row)}</Text>
+                  ) : (
+                    <Text inverse={isSelected}>{String(row[col.key] ?? '')}</Text>
+                  )}
+                </Box>
+              ))}
+            </Box>
+          );
+        })}
+      </ScrollArea>
     </Box>
   );
 }

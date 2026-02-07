@@ -185,6 +185,18 @@ if (values.server) {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  process.on('uncaughtException', (err) => {
+    daemon.cleanup();
+    db.close();
+    console.error(err);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    daemon.cleanup();
+    db.close();
+    console.error(reason);
+    process.exit(1);
+  });
 
   const { runTui } = await import('../app');
   await runTui(db, {
@@ -196,4 +208,6 @@ if (values.server) {
   });
 
   daemon.cleanup();
+  db.close();
+  process.exit(0);
 }

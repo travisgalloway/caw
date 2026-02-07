@@ -64,7 +64,7 @@ const taskColumns: Column<TaskRow>[] = [
     width: 3,
     render: (_val, row) => <StatusIndicator kind="task" status={row.status} />,
   },
-  { key: 'name', header: 'Name', width: 30 },
+  { key: 'name', header: 'Name' },
   { key: 'status', header: 'Status', width: 14 },
   {
     key: 'sequence',
@@ -82,7 +82,7 @@ const agentColumns: Column<AgentRow>[] = [
     width: 3,
     render: (_val, row) => <StatusIndicator kind="agent" status={row.status} />,
   },
-  { key: 'name', header: 'Name', width: 20 },
+  { key: 'name', header: 'Name' },
   { key: 'status', header: 'Status', width: 12 },
   { key: 'runtime', header: 'Runtime', width: 12 },
   { key: 'role', header: 'Role', width: 12 },
@@ -98,7 +98,6 @@ const messageColumns: Column<MessageRow>[] = [
   {
     key: 'body',
     header: 'Subject',
-    width: 35,
     render: (_val, row) => <Text>{row.subject ?? row.body.slice(0, 30)}</Text>,
   },
   { key: 'status', header: 'Status', width: 10 },
@@ -119,7 +118,7 @@ const workspaceColumns: Column<WorkspaceRow>[] = [
     render: (_val, row) => <StatusIndicator kind="workspace" status={row.status} />,
   },
   { key: 'branch', header: 'Branch', width: 25 },
-  { key: 'path', header: 'Path', width: 40 },
+  { key: 'path', header: 'Path' },
   { key: 'status', header: 'Status', width: 10 },
 ];
 
@@ -242,7 +241,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
   };
 
   return (
-    <Box flexDirection="column">
+    <Box flexDirection="column" flexGrow={1}>
       <WorkflowHeader workflow={workflow} progress={progress} workspaceCount={workspaces.length} />
 
       <Tabs
@@ -255,12 +254,24 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
         <Tab name="workspaces">Workspaces ({wsRows.length})</Tab>
       </Tabs>
 
-      <Box flexDirection="column" paddingX={1}>
+      <Box flexDirection="column" paddingX={1} flexGrow={1}>
         {tab === 'tasks' &&
           (taskViewMode === 'dag' ? (
-            <TaskDag workflowId={workflowId} />
+            <TaskDag
+              workflowId={workflowId}
+              selectedIndex={taskIdx}
+              onSelectIndex={setTaskIdx}
+              onConfirm={(taskId) => push({ screen: 'task-detail', workflowId, taskId })}
+              isFocused={!promptFocused}
+            />
           ) : taskViewMode === 'tree' ? (
-            <TaskTree workflowId={workflowId} />
+            <TaskTree
+              workflowId={workflowId}
+              selectedIndex={taskIdx}
+              onSelectIndex={setTaskIdx}
+              onConfirm={(taskId) => push({ screen: 'task-detail', workflowId, taskId })}
+              isFocused={!promptFocused}
+            />
           ) : (
             <SelectableTable
               data={tasks}
@@ -272,7 +283,6 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
               }}
               isFocused={!promptFocused}
               emptyMessage="No tasks"
-              maxVisibleRows={20}
             />
           ))}
 
