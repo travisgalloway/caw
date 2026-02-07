@@ -8,6 +8,7 @@ import { TypeBadge } from './TypeBadge';
 
 export function MessagePanel(): React.JSX.Element {
   const { activePanel, selectAgent, setView } = useAppStore();
+  const promptFocused = useAppStore((s) => s.promptFocused);
   const isFocused = activePanel === 'messages';
   const { data, error } = useAllMessages();
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -29,7 +30,7 @@ export function MessagePanel(): React.JSX.Element {
         setSelectedIndex((prev) => Math.max(0, prev - 1));
       } else if (key.downArrow) {
         setSelectedIndex((prev) => Math.min(messages.length - 1, prev + 1));
-      } else if (key.return) {
+      } else if (key.return && !promptFocused) {
         const msg = messages[selectedIndex];
         if (msg) {
           selectAgent(msg.recipient_id);

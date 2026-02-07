@@ -7,7 +7,11 @@ export interface UsePollingResult<T> {
   refresh: () => void;
 }
 
-export function usePolling<T>(fetcher: () => T, interval = 2000): UsePollingResult<T> {
+export function usePolling<T>(
+  fetcher: () => T,
+  interval = 2000,
+  refreshTrigger = 0,
+): UsePollingResult<T> {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -29,11 +33,12 @@ export function usePolling<T>(fetcher: () => T, interval = 2000): UsePollingResu
     }
   }, []);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshTrigger intentionally resets the polling interval
   useEffect(() => {
     run();
     const id = setInterval(run, interval);
     return () => clearInterval(id);
-  }, [run, interval]);
+  }, [run, interval, refreshTrigger]);
 
   return { data, loading, error, refresh: run };
 }

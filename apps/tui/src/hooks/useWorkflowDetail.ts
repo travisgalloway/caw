@@ -13,26 +13,31 @@ export interface WorkflowDetailData {
 export function useWorkflowDetail(workflowId: string | null) {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
+  const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
-  return usePolling<WorkflowDetailData | null>(() => {
-    if (!workflowId) {
-      return null;
-    }
+  return usePolling<WorkflowDetailData | null>(
+    () => {
+      if (!workflowId) {
+        return null;
+      }
 
-    const workflow = workflowService.get(db, workflowId, { includeTasks: true });
-    if (!workflow) {
-      return null;
-    }
+      const workflow = workflowService.get(db, workflowId, { includeTasks: true });
+      if (!workflow) {
+        return null;
+      }
 
-    let progress: ProgressResult | null = null;
-    try {
-      progress = orchestrationService.getProgress(db, workflowId);
-    } catch {
-      // workflow may not have tasks yet
-    }
+      let progress: ProgressResult | null = null;
+      try {
+        progress = orchestrationService.getProgress(db, workflowId);
+      } catch {
+        // workflow may not have tasks yet
+      }
 
-    const workspaces = workspaceService.list(db, workflowId);
+      const workspaces = workspaceService.list(db, workflowId);
 
-    return { workflow, progress, workspaces };
-  }, pollInterval);
+      return { workflow, progress, workspaces };
+    },
+    pollInterval,
+    lastRefreshAt,
+  );
 }
