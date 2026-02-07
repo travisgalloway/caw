@@ -50,6 +50,7 @@ interface TaskTreeProps {
 
 export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
   const { activePanel, selectTask } = useAppStore();
+  const promptFocused = useAppStore((s) => s.promptFocused);
   const isFocused = activePanel === 'tasks';
   const { data: tasks, error } = useTasks(workflowId);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -68,7 +69,7 @@ export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
         setSelectedIndex((prev) => Math.max(0, prev - 1));
       } else if (key.downArrow) {
         setSelectedIndex((prev) => Math.min(tasks.length - 1, prev + 1));
-      } else if (key.return) {
+      } else if (key.return && !promptFocused) {
         const selectedTask = tasks[selectedIndex];
         if (selectedTask) {
           selectTask(selectedTask.id);

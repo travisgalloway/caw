@@ -11,11 +11,12 @@ interface WorkflowListProps {
 
 export function WorkflowList({ workflows }: WorkflowListProps): React.JSX.Element {
   const { activePanel, selectedWorkflowId, setView } = useAppStore();
+  const promptFocused = useAppStore((s) => s.promptFocused);
   const isFocused = activePanel === 'workflows';
 
   useInput(
     (_input, key) => {
-      if (key.return && selectedWorkflowId) {
+      if (key.return && !promptFocused && selectedWorkflowId) {
         setView('workflow-detail');
       }
     },

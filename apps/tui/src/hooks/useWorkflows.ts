@@ -12,23 +12,28 @@ export interface WorkflowListItem extends WorkflowSummary {
 export function useWorkflows() {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
+  const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
-  return usePolling<WorkflowListItem[]>(() => {
-    const { workflows } = workflowService.list(db, { limit: 20 });
-    return workflows.map((wf) => {
-      let progress: ProgressResult | null = null;
-      let lock: WorkflowLockInfo | null = null;
-      try {
-        progress = orchestrationService.getProgress(db, wf.id);
-      } catch {
-        // workflow may not have tasks yet
-      }
-      try {
-        lock = lockService.getLockInfo(db, wf.id);
-      } catch {
-        // ignore lock info errors
-      }
-      return { ...wf, progress, lock };
-    });
-  }, pollInterval);
+  return usePolling<WorkflowListItem[]>(
+    () => {
+      const { workflows } = workflowService.list(db, { limit: 20 });
+      return workflows.map((wf) => {
+        let progress: ProgressResult | null = null;
+        let lock: WorkflowLockInfo | null = null;
+        try {
+          progress = orchestrationService.getProgress(db, wf.id);
+        } catch {
+          // workflow may not have tasks yet
+        }
+        try {
+          lock = lockService.getLockInfo(db, wf.id);
+        } catch {
+          // ignore lock info errors
+        }
+        return { ...wf, progress, lock };
+      });
+    },
+    pollInterval,
+    lastRefreshAt,
+  );
 }

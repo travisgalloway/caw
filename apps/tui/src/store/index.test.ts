@@ -14,6 +14,11 @@ describe('useAppStore', () => {
       selectedThreadId: null,
       messageStatusFilter: 'all',
       pollInterval: 2000,
+      promptValue: '',
+      promptFocused: false,
+      promptError: null,
+      promptSuccess: null,
+      lastRefreshAt: 0,
     });
   });
 
@@ -28,6 +33,11 @@ describe('useAppStore', () => {
     expect(state.selectedThreadId).toBeNull();
     expect(state.messageStatusFilter).toBe('all');
     expect(state.pollInterval).toBe(2000);
+    expect(state.promptValue).toBe('');
+    expect(state.promptFocused).toBe(false);
+    expect(state.promptError).toBeNull();
+    expect(state.promptSuccess).toBeNull();
+    expect(state.lastRefreshAt).toBe(0);
   });
 
   test('setView updates view', () => {
@@ -135,6 +145,58 @@ describe('useAppStore', () => {
     expect(state.view).toBe('dashboard');
     expect(state.selectedWorkflowId).toBeNull();
     expect(state.selectedTaskId).toBeNull();
+  });
+
+  test('setPromptValue updates promptValue', () => {
+    useAppStore.getState().setPromptValue('/help');
+    expect(useAppStore.getState().promptValue).toBe('/help');
+
+    useAppStore.getState().setPromptValue('');
+    expect(useAppStore.getState().promptValue).toBe('');
+  });
+
+  test('setPromptFocused updates promptFocused', () => {
+    useAppStore.getState().setPromptFocused(true);
+    expect(useAppStore.getState().promptFocused).toBe(true);
+
+    useAppStore.getState().setPromptFocused(false);
+    expect(useAppStore.getState().promptFocused).toBe(false);
+  });
+
+  test('setPromptError updates promptError', () => {
+    useAppStore.getState().setPromptError('Something went wrong');
+    expect(useAppStore.getState().promptError).toBe('Something went wrong');
+
+    useAppStore.getState().setPromptError(null);
+    expect(useAppStore.getState().promptError).toBeNull();
+  });
+
+  test('setPromptSuccess updates promptSuccess', () => {
+    useAppStore.getState().setPromptSuccess('Data refreshed');
+    expect(useAppStore.getState().promptSuccess).toBe('Data refreshed');
+
+    useAppStore.getState().setPromptSuccess(null);
+    expect(useAppStore.getState().promptSuccess).toBeNull();
+  });
+
+  test('triggerRefresh updates lastRefreshAt', () => {
+    const before = Date.now();
+    useAppStore.getState().triggerRefresh();
+    const after = Date.now();
+
+    const value = useAppStore.getState().lastRefreshAt;
+    expect(value).toBeGreaterThanOrEqual(before);
+    expect(value).toBeLessThanOrEqual(after);
+  });
+
+  test('clearPromptFeedback clears both error and success', () => {
+    useAppStore.getState().setPromptError('error');
+    useAppStore.getState().setPromptSuccess('success');
+    useAppStore.getState().clearPromptFeedback();
+
+    const state = useAppStore.getState();
+    expect(state.promptError).toBeNull();
+    expect(state.promptSuccess).toBeNull();
   });
 
   test('agent detail with message filter flow', () => {

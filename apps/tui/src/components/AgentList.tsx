@@ -12,6 +12,7 @@ interface AgentListProps {
 
 export function AgentList({ agents, totalUnread }: AgentListProps): React.JSX.Element {
   const { activePanel, selectAgent, setView } = useAppStore();
+  const promptFocused = useAppStore((s) => s.promptFocused);
   const isFocused = activePanel === 'agents';
   const [selectedIndex, setSelectedIndex] = useState(0);
 
@@ -29,7 +30,7 @@ export function AgentList({ agents, totalUnread }: AgentListProps): React.JSX.El
         setSelectedIndex((prev) => Math.max(0, prev - 1));
       } else if (key.downArrow) {
         setSelectedIndex((prev) => Math.min(agents.length - 1, prev + 1));
-      } else if (key.return) {
+      } else if (key.return && !promptFocused) {
         const agent = agents[selectedIndex];
         if (agent) {
           selectAgent(agent.id);

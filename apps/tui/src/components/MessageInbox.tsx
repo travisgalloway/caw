@@ -22,7 +22,8 @@ export function MessageInbox({
   isFocused = false,
 }: MessageInboxProps): React.JSX.Element {
   const db = useDb();
-  const { messageStatusFilter, setMessageStatusFilter } = useAppStore();
+  const { messageStatusFilter } = useAppStore();
+  const promptFocused = useAppStore((s) => s.promptFocused);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [expandedThreadId, setExpandedThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<Message[]>([]);
@@ -43,14 +44,14 @@ export function MessageInbox({
   }
 
   useInput(
-    (input, key) => {
+    (_input, key) => {
       if (!filteredMessages || filteredMessages.length === 0) return;
 
       if (key.upArrow) {
         setSelectedIndex((prev) => Math.max(0, prev - 1));
       } else if (key.downArrow) {
         setSelectedIndex((prev) => Math.min(filteredMessages.length - 1, prev + 1));
-      } else if (key.return) {
+      } else if (key.return && !promptFocused) {
         const msg = filteredMessages[selectedIndex];
         if (msg?.thread_id) {
           if (expandedThreadId === msg.thread_id) {
@@ -61,8 +62,6 @@ export function MessageInbox({
             setThreadMessages(messageService.getThread(db, msg.thread_id));
           }
         }
-      } else if (input === 'u') {
-        setMessageStatusFilter(messageStatusFilter === 'unread' ? 'all' : 'unread');
       }
     },
     { isActive: isFocused },
@@ -109,7 +108,7 @@ export function MessageInbox({
           );
         })
       )}
-      {isFocused && <Text dimColor>↑↓ navigate | Enter expand thread | u toggle unread</Text>}
+      {isFocused && <Text dimColor>↑↓ navigate | Enter expand thread | /unread toggle filter</Text>}
     </Box>
   );
 }

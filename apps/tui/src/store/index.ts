@@ -15,6 +15,11 @@ interface AppState {
   selectedThreadId: string | null;
   messageStatusFilter: MessageStatusFilter;
   pollInterval: number;
+  promptValue: string;
+  promptFocused: boolean;
+  promptError: string | null;
+  promptSuccess: string | null;
+  lastRefreshAt: number;
 
   setView: (view: View) => void;
   setActivePanel: (panel: Panel) => void;
@@ -25,6 +30,12 @@ interface AppState {
   selectThread: (id: string | null) => void;
   setMessageStatusFilter: (filter: MessageStatusFilter) => void;
   setPollInterval: (interval: number) => void;
+  setPromptValue: (value: string) => void;
+  setPromptFocused: (focused: boolean) => void;
+  setPromptError: (error: string | null) => void;
+  setPromptSuccess: (success: string | null) => void;
+  triggerRefresh: () => void;
+  clearPromptFeedback: () => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -37,6 +48,11 @@ export const useAppStore = create<AppState>((set) => ({
   selectedThreadId: null,
   messageStatusFilter: 'all',
   pollInterval: 2000,
+  promptValue: '',
+  promptFocused: false,
+  promptError: null,
+  promptSuccess: null,
+  lastRefreshAt: 0,
 
   setView: (view) => set({ view }),
   setActivePanel: (panel) => set({ activePanel: panel }),
@@ -47,4 +63,10 @@ export const useAppStore = create<AppState>((set) => ({
   selectThread: (id) => set({ selectedThreadId: id }),
   setMessageStatusFilter: (filter) => set({ messageStatusFilter: filter }),
   setPollInterval: (interval) => set({ pollInterval: interval }),
+  setPromptValue: (value) => set({ promptValue: value }),
+  setPromptFocused: (focused) => set({ promptFocused: focused }),
+  setPromptError: (error) => set({ promptError: error }),
+  setPromptSuccess: (success) => set({ promptSuccess: success }),
+  triggerRefresh: () => set({ lastRefreshAt: Date.now() }),
+  clearPromptFeedback: () => set({ promptError: null, promptSuccess: null }),
 }));

@@ -17,27 +17,37 @@ export interface AllMessagesData {
 export function useMessages(agentId: string | null, filters?: MessageListFilters) {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
+  const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
-  return usePolling<MessagesData | null>(() => {
-    if (!agentId) {
-      return null;
-    }
+  return usePolling<MessagesData | null>(
+    () => {
+      if (!agentId) {
+        return null;
+      }
 
-    const messages = messageService.list(db, agentId, filters);
-    const unreadCount = messageService.countUnread(db, agentId);
+      const messages = messageService.list(db, agentId, filters);
+      const unreadCount = messageService.countUnread(db, agentId);
 
-    return { messages, unreadCount };
-  }, pollInterval);
+      return { messages, unreadCount };
+    },
+    pollInterval,
+    lastRefreshAt,
+  );
 }
 
 export function useAllMessages() {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
+  const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
-  return usePolling<AllMessagesData>(() => {
-    const messages = messageService.listAll(db, { limit: 50 });
-    const totalUnread = messageService.countAllUnread(db);
+  return usePolling<AllMessagesData>(
+    () => {
+      const messages = messageService.listAll(db, { limit: 50 });
+      const totalUnread = messageService.countAllUnread(db);
 
-    return { messages, totalUnread };
-  }, pollInterval);
+      return { messages, totalUnread };
+    },
+    pollInterval,
+    lastRefreshAt,
+  );
 }

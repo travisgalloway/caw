@@ -7,8 +7,13 @@ import { usePolling } from './usePolling';
 export function useAgents() {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
+  const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
-  return usePolling<Agent[]>(() => {
-    return agentService.list(db);
-  }, pollInterval);
+  return usePolling<Agent[]>(
+    () => {
+      return agentService.list(db);
+    },
+    pollInterval,
+    lastRefreshAt,
+  );
 }
