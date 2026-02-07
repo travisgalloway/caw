@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export function ensureGitignore(repoPath: string, entry: string): boolean {
-  const gitignorePath = `${repoPath}/.gitignore`;
+  const gitignorePath = join(repoPath, '.gitignore');
 
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, 'utf-8');

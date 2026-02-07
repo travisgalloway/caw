@@ -73,9 +73,19 @@ function checkStatus(dbPath: string | null): StatusChecks {
     if (existsSync(settingsPath)) {
       const content = readFileSync(settingsPath, 'utf-8');
       const settings = JSON.parse(content);
-      if (settings?.mcpServers?.caw) {
-        mcpConfigured = true;
-        mcpDetail = '.claude/settings.json configured';
+      const cawMcp = settings?.mcpServers?.caw;
+      if (cawMcp) {
+        const hasExpectedConfig =
+          cawMcp.command === 'bunx' &&
+          Array.isArray(cawMcp.args) &&
+          cawMcp.args[0] === '@caw/tui' &&
+          cawMcp.args.includes('--server');
+        if (hasExpectedConfig) {
+          mcpConfigured = true;
+          mcpDetail = '.claude/settings.json configured';
+        } else {
+          mcpDetail = `.claude/settings.json has caw entry but unexpected config (run caw setup claude-code)`;
+        }
       }
     }
   } catch {
