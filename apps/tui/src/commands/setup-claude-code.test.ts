@@ -24,7 +24,8 @@ describe('setupClaudeCode', () => {
     expect(existsSync(settingsPath)).toBe(true);
     const settings = JSON.parse(readFileSync(settingsPath, 'utf-8'));
     expect(settings.mcpServers.caw).toBeDefined();
-    expect(settings.mcpServers.caw.args).toContain('--server');
+    expect(settings.mcpServers.caw.command).toBe('bunx');
+    expect(settings.mcpServers.caw.args).toEqual(['@caw/tui', '--server']);
   });
 
   test('merges into existing .claude/settings.json', () => {

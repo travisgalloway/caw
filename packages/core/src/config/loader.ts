@@ -1,8 +1,8 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import type { CawConfig } from './schema';
-import { validateConfig } from './schema';
+import { validateConfig } from './validate';
 
 export function readConfigFile(filePath: string): { config: CawConfig; warnings: string[] } {
   if (!existsSync(filePath)) {
@@ -64,4 +64,12 @@ export function loadConfig(repoPath?: string): LoadConfigResult {
   const config = mergeConfigs(globalResult.config, repoConfig);
 
   return { config, warnings: allWarnings };
+}
+
+export function writeConfig(filePath: string, config: CawConfig): void {
+  const dir = dirname(filePath);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  writeFileSync(filePath, `${JSON.stringify(config, null, 2)}\n`);
 }

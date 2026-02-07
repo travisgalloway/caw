@@ -54,13 +54,13 @@ caw --server                     # stdio transport
 caw --server --transport stdio   # explicit
 ```
 
-### HTTP
+### SSE
 
 Streamable HTTP transport with session support:
 
 ```bash
-caw --server --transport http             # port 3100
-caw --server --transport http --port 8080 # custom port
+caw --server --transport sse             # port 3100
+caw --server --transport sse --port 8080 # custom port
 ```
 
 Endpoints:
@@ -90,10 +90,10 @@ await startServer(server, config);
 
 | Variable | Default | Description |
 |---|---|---|
-| `CAW_TRANSPORT` | `stdio` | Transport type: `stdio` or `http` |
+| `CAW_TRANSPORT` | `stdio` | Transport type: `stdio` or `sse` |
 | `CAW_PORT` | `3100` | HTTP port |
-| `CAW_DB_MODE` | `repository` | Database mode: `repository` or `global` |
-| `CAW_REPO_PATH` | `cwd` | Repository path (repository mode) |
+| `CAW_DB_MODE` | `per-repo` | Database mode: `per-repo` or `global` |
+| `CAW_REPO_PATH` | `cwd` | Repository path (per-repo mode) |
 | `CAW_DB_PATH` | — | Explicit database file path |
 
 ## Error Handling

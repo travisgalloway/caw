@@ -26,12 +26,12 @@ describe('getDbPath', () => {
     expect(result).toBe(join(homedir(), '.caw', 'workflows.db'));
   });
 
-  it('returns repository-local path', () => {
-    const result = getDbPath('repository', '/home/user/my-project');
+  it('returns per-repo path', () => {
+    const result = getDbPath('per-repo', '/home/user/my-project');
     expect(result).toBe(join('/home/user/my-project', '.caw', 'workflows.db'));
   });
 
-  it('throws if repository mode missing repoPath', () => {
-    expect(() => getDbPath('repository')).toThrow('repoPath is required for repository mode');
+  it('throws if per-repo mode missing repoPath', () => {
+    expect(() => getDbPath('per-repo')).toThrow('repoPath is required for per-repo mode');
   });
 });
