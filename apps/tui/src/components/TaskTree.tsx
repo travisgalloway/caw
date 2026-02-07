@@ -1,9 +1,9 @@
 import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useEffect, useState } from 'react';
 import type { TaskTreeNode } from '../hooks/useTasks';
 import { useTasks } from '../hooks/useTasks';
-import { useAppStore } from '../store';
+import { THEME } from '../utils/theme';
+import { ScrollArea } from './ScrollArea';
 import { StatusIndicator } from './StatusIndicator';
 
 interface TaskNodeProps {
@@ -22,14 +22,24 @@ function TaskNode({ node, isSelected }: TaskNodeProps): React.JSX.Element {
   return (
     <Box flexDirection="column">
       <Box gap={1}>
-        <Text>{indent}</Text>
-        {parallelPrefix && <Text dimColor>{parallelPrefix}</Text>}
+        <Text inverse={isSelected}>{indent}</Text>
+        {parallelPrefix && (
+          <Text dimColor inverse={isSelected}>
+            {parallelPrefix}
+          </Text>
+        )}
         <StatusIndicator kind="task" status={node.status} />
-        <Text inverse={isSelected} bold={isSelected}>
-          {node.name}
-        </Text>
-        {node.agentName && <Text color="yellow">({node.agentName})</Text>}
-        {node.checkpointCount > 0 && <Text dimColor>[{node.checkpointCount} cp]</Text>}
+        <Text inverse={isSelected}>{node.name}</Text>
+        {node.agentName && (
+          <Text color="yellow" inverse={isSelected}>
+            ({node.agentName})
+          </Text>
+        )}
+        {node.checkpointCount > 0 && (
+          <Text dimColor inverse={isSelected}>
+            [{node.checkpointCount} cp]
+          </Text>
+        )}
       </Box>
       {node.blockedBy.length > 0 && (
         <Box>
@@ -46,33 +56,33 @@ function TaskNode({ node, isSelected }: TaskNodeProps): React.JSX.Element {
 
 interface TaskTreeProps {
   workflowId: string | null;
+  selectedIndex: number;
+  onSelectIndex: (index: number) => void;
+  onConfirm: (taskId: string) => void;
+  isFocused?: boolean;
 }
 
-export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
-  const { activePanel, selectTask } = useAppStore();
-  const promptFocused = useAppStore((s) => s.promptFocused);
-  const isFocused = activePanel === 'tasks';
+export function TaskTree({
+  workflowId,
+  selectedIndex,
+  onSelectIndex,
+  onConfirm,
+  isFocused = true,
+}: TaskTreeProps): React.JSX.Element {
   const { data: tasks, error } = useTasks(workflowId);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-
-  // Reset selection when workflow changes to prevent out-of-bounds index
-  // biome-ignore lint/correctness/useExhaustiveDependencies: workflowId is a prop and we intentionally reset on its change
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [workflowId]);
 
   useInput(
     (_input, key) => {
       if (!tasks || tasks.length === 0) return;
 
       if (key.upArrow) {
-        setSelectedIndex((prev) => Math.max(0, prev - 1));
+        onSelectIndex(Math.max(0, selectedIndex - 1));
       } else if (key.downArrow) {
-        setSelectedIndex((prev) => Math.min(tasks.length - 1, prev + 1));
-      } else if (key.return && !promptFocused) {
-        const selectedTask = tasks[selectedIndex];
-        if (selectedTask) {
-          selectTask(selectedTask.id);
+        onSelectIndex(Math.min(tasks.length - 1, selectedIndex + 1));
+      } else if (key.return) {
+        const task = tasks[selectedIndex];
+        if (task) {
+          onConfirm(task.id);
         }
       }
     },
@@ -81,13 +91,8 @@ export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
 
   if (error) {
     return (
-      <Box
-        flexDirection="column"
-        borderStyle={isFocused ? 'bold' : 'single'}
-        borderColor={isFocused ? 'cyan' : undefined}
-        paddingX={1}
-      >
-        <Text bold>Tasks</Text>
+      <Box flexDirection="column" borderStyle="round" borderColor={THEME.muted} paddingX={1}>
+        <Text bold>Tasks (Tree)</Text>
         <Text color="red">Error: {error.message}</Text>
       </Box>
     );
@@ -96,19 +101,22 @@ export function TaskTree({ workflowId }: TaskTreeProps): React.JSX.Element {
   return (
     <Box
       flexDirection="column"
-      borderStyle={isFocused ? 'bold' : 'single'}
-      borderColor={isFocused ? 'cyan' : undefined}
+      borderStyle="round"
+      borderColor={THEME.muted}
       paddingX={1}
+      flexGrow={1}
     >
-      <Text bold>Tasks</Text>
+      <Text bold>Tasks (Tree)</Text>
       {!workflowId ? (
         <Text dimColor>Select a workflow</Text>
       ) : !tasks || tasks.length === 0 ? (
         <Text dimColor>No tasks</Text>
       ) : (
-        tasks.map((task, index) => (
-          <TaskNode key={task.id} node={task} isSelected={isFocused && index === selectedIndex} />
-        ))
+        <ScrollArea focusIndex={selectedIndex}>
+          {tasks.map((task, idx) => (
+            <TaskNode key={task.id} node={task} isSelected={isFocused && idx === selectedIndex} />
+          ))}
+        </ScrollArea>
       )}
     </Box>
   );

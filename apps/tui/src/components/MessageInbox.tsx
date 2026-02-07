@@ -6,6 +6,7 @@ import { useRef, useState } from 'react';
 import { useDb } from '../context/db';
 import { useAppStore } from '../store';
 import { formatRelativeTime } from '../utils/format';
+import { THEME } from '../utils/theme';
 import { PriorityIndicator, TypeBadge } from './TypeBadge';
 
 interface MessageInboxProps {
@@ -68,9 +69,16 @@ export function MessageInbox({
   );
 
   return (
-    <Box flexDirection="column" borderStyle="single" paddingX={1}>
+    <Box
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={isFocused ? THEME.accent : THEME.muted}
+      paddingX={1}
+    >
       <Box gap={1}>
-        <Text bold>Messages</Text>
+        <Text bold color={isFocused ? THEME.accent : undefined}>
+          Messages
+        </Text>
         {unreadCount > 0 && <Text color="yellow">({unreadCount} unread)</Text>}
         {messageStatusFilter === 'unread' && <Text dimColor>[filter: unread]</Text>}
       </Box>

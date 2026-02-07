@@ -56,7 +56,7 @@ export function getByPath(db: DatabaseType, path: string): Repository | null {
 export function getWorkflows(db: DatabaseType, repoId: string): WorkflowSummary[] {
   return db
     .prepare(
-      `SELECT w.id, w.name, w.status, w.created_at, w.updated_at
+      `SELECT w.id, w.name, w.status, w.source_type, w.created_at, w.updated_at
        FROM workflows w
        JOIN workflow_repositories wr ON wr.workflow_id = w.id
        WHERE wr.repository_id = ?

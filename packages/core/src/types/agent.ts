@@ -4,6 +4,7 @@ export type AgentStatus = 'online' | 'offline' | 'busy';
 
 export interface Agent {
   id: string;
+  workflow_id: string | null;
   name: string;
   runtime: string;
   role: AgentRole;

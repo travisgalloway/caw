@@ -4,6 +4,8 @@ import { createConnection, getDbPath, runMigrations, templateService } from '@ca
 
 function printUsage(): void {
   console.log(`Usage: caw [options] [description]
+       caw init [--yes] [--global]
+       caw setup claude-code [--print] [--mcp-only] [--claude-md-only]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -14,8 +16,80 @@ Options:
   --template <name>     Create workflow from named template (requires description)
   --list-templates      List available workflow templates
   -h, --help            Show this help message
+
+Commands:
+  init                  Initialize caw in the current repository
+    --yes, -y           Skip prompts, use defaults
+    --global            Initialize global config (~/.caw/) instead of per-repo
+
+  setup claude-code     Configure Claude Code to use caw
+    --print             Print what would be added without modifying files
+    --mcp-only          Only configure MCP server, skip CLAUDE.md
+    --claude-md-only    Only update CLAUDE.md, skip MCP config
 `);
 }
+
+// --- Subcommand detection ---
+
+const subcommand = process.argv[2];
+
+if (subcommand === 'init') {
+  const { values: initValues } = parseArgs({
+    args: process.argv.slice(3),
+    options: {
+      yes: { type: 'boolean', short: 'y', default: false },
+      global: { type: 'boolean', default: false },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+
+  if (initValues.help) {
+    printUsage();
+    process.exit(0);
+  }
+
+  const { runInit } = await import('../commands/init');
+  await runInit({
+    yes: initValues.yes,
+    global: initValues.global,
+    repoPath: process.cwd(),
+  });
+  process.exit(0);
+}
+
+if (subcommand === 'setup') {
+  const target = process.argv[3];
+  const { values: setupValues } = parseArgs({
+    args: process.argv.slice(4),
+    options: {
+      print: { type: 'boolean', default: false },
+      'mcp-only': { type: 'boolean', default: false },
+      'claude-md-only': { type: 'boolean', default: false },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: false,
+  });
+
+  if (setupValues.help || !target) {
+    printUsage();
+    process.exit(target ? 0 : 1);
+  }
+
+  const { runSetup } = await import('../commands/setup');
+  runSetup({
+    target,
+    repoPath: process.cwd(),
+    print: setupValues.print,
+    mcpOnly: setupValues['mcp-only'],
+    claudeMdOnly: setupValues['claude-md-only'],
+  });
+  process.exit(0);
+}
+
+// --- Main CLI argument parsing ---
 
 const { values, positionals } = parseArgs({
   args: process.argv.slice(2),
@@ -111,6 +185,18 @@ if (values.server) {
   };
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
+  process.on('uncaughtException', (err) => {
+    daemon.cleanup();
+    db.close();
+    console.error(err);
+    process.exit(1);
+  });
+  process.on('unhandledRejection', (reason) => {
+    daemon.cleanup();
+    db.close();
+    console.error(reason);
+    process.exit(1);
+  });
 
   const { runTui } = await import('../app');
   await runTui(db, {
@@ -118,7 +204,10 @@ if (values.server) {
     sessionId: daemon.sessionId,
     isDaemon: daemon.isDaemon,
     port: daemon.port,
+    dbPath,
   });
 
   daemon.cleanup();
+  db.close();
+  process.exit(0);
 }

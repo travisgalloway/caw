@@ -1,36 +1,31 @@
 import { afterEach, describe, expect, test } from 'bun:test';
-import { useAppStore } from './index';
+import { currentScreen, getWorkflowId, useAppStore } from './index';
+
+const INITIAL_STATE = {
+  navStack: [{ screen: 'workflow-list' as const }],
+  mainTab: 'workflows' as const,
+  showAllWorkflows: false,
+  taskViewMode: 'table' as const,
+  messageStatusFilter: 'all' as const,
+  pollInterval: 2000,
+  lastRefreshAt: 0,
+  promptValue: '',
+  promptFocused: false,
+  promptError: null,
+  promptSuccess: null,
+};
 
 describe('useAppStore', () => {
   afterEach(() => {
-    // Reset store to initial state between tests
-    useAppStore.setState({
-      view: 'dashboard',
-      activePanel: 'workflows',
-      selectedWorkflowId: null,
-      selectedAgentId: null,
-      selectedTaskId: null,
-      selectedMessageId: null,
-      selectedThreadId: null,
-      messageStatusFilter: 'all',
-      pollInterval: 2000,
-      promptValue: '',
-      promptFocused: false,
-      promptError: null,
-      promptSuccess: null,
-      lastRefreshAt: 0,
-    });
+    useAppStore.setState(INITIAL_STATE);
   });
 
   test('has correct initial state', () => {
     const state = useAppStore.getState();
-    expect(state.view).toBe('dashboard');
-    expect(state.activePanel).toBe('workflows');
-    expect(state.selectedWorkflowId).toBeNull();
-    expect(state.selectedAgentId).toBeNull();
-    expect(state.selectedTaskId).toBeNull();
-    expect(state.selectedMessageId).toBeNull();
-    expect(state.selectedThreadId).toBeNull();
+    expect(state.navStack).toEqual([{ screen: 'workflow-list' }]);
+    expect(state.mainTab).toBe('workflows');
+    expect(state.showAllWorkflows).toBe(false);
+    expect(state.taskViewMode).toBe('table');
     expect(state.messageStatusFilter).toBe('all');
     expect(state.pollInterval).toBe(2000);
     expect(state.promptValue).toBe('');
@@ -40,39 +35,66 @@ describe('useAppStore', () => {
     expect(state.lastRefreshAt).toBe(0);
   });
 
-  test('setView updates view', () => {
-    useAppStore.getState().setView('help');
-    expect(useAppStore.getState().view).toBe('help');
-
-    useAppStore.getState().setView('workflow-detail');
-    expect(useAppStore.getState().view).toBe('workflow-detail');
+  test('push appends frame to navStack', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    expect(useAppStore.getState().navStack).toEqual([
+      { screen: 'workflow-list' },
+      { screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' },
+    ]);
   });
 
-  test('setActivePanel updates panel', () => {
-    useAppStore.getState().setActivePanel('agents');
-    expect(useAppStore.getState().activePanel).toBe('agents');
-
-    useAppStore.getState().setActivePanel('tasks');
-    expect(useAppStore.getState().activePanel).toBe('tasks');
-
-    useAppStore.getState().setActivePanel('messages');
-    expect(useAppStore.getState().activePanel).toBe('messages');
+  test('pop removes top frame', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore.getState().pop();
+    expect(useAppStore.getState().navStack).toEqual([{ screen: 'workflow-list' }]);
   });
 
-  test('selectWorkflow updates selectedWorkflowId', () => {
-    useAppStore.getState().selectWorkflow('wf_abc123');
-    expect(useAppStore.getState().selectedWorkflowId).toBe('wf_abc123');
-
-    useAppStore.getState().selectWorkflow(null);
-    expect(useAppStore.getState().selectedWorkflowId).toBeNull();
+  test('pop on root is no-op', () => {
+    useAppStore.getState().pop();
+    expect(useAppStore.getState().navStack).toEqual([{ screen: 'workflow-list' }]);
   });
 
-  test('selectAgent updates selectedAgentId', () => {
-    useAppStore.getState().selectAgent('ag_xyz789');
-    expect(useAppStore.getState().selectedAgentId).toBe('ag_xyz789');
+  test('replaceTop swaps top frame', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore
+      .getState()
+      .replaceTop({ screen: 'workflow-detail', workflowId: 'wf_456', tab: 'agents' });
+    expect(useAppStore.getState().navStack).toEqual([
+      { screen: 'workflow-list' },
+      { screen: 'workflow-detail', workflowId: 'wf_456', tab: 'agents' },
+    ]);
+  });
 
-    useAppStore.getState().selectAgent(null);
-    expect(useAppStore.getState().selectedAgentId).toBeNull();
+  test('resetTo replaces entire stack', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore.getState().push({ screen: 'task-detail', workflowId: 'wf_123', taskId: 'tk_456' });
+    useAppStore.getState().resetTo({ screen: 'workflow-list' });
+    expect(useAppStore.getState().navStack).toEqual([{ screen: 'workflow-list' }]);
+  });
+
+  test('setWorkflowTab updates tab on workflow-detail frame', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore.getState().setWorkflowTab('agents');
+    const top = useAppStore.getState().navStack[1];
+    expect(top).toEqual({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'agents' });
+  });
+
+  test('setWorkflowTab is no-op on non-workflow-detail screen', () => {
+    const before = useAppStore.getState().navStack;
+    useAppStore.getState().setWorkflowTab('agents');
+    expect(useAppStore.getState().navStack).toEqual(before);
+  });
+
+  test('navigation flow: push workflow-detail → push task-detail → pop → pop → back at workflow-list', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore.getState().push({ screen: 'task-detail', workflowId: 'wf_123', taskId: 'tk_456' });
+    expect(useAppStore.getState().navStack).toHaveLength(3);
+
+    useAppStore.getState().pop();
+    expect(currentScreen(useAppStore.getState()).screen).toBe('workflow-detail');
+
+    useAppStore.getState().pop();
+    expect(currentScreen(useAppStore.getState()).screen).toBe('workflow-list');
   });
 
   test('setPollInterval updates interval', () => {
@@ -80,103 +102,24 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().pollInterval).toBe(5000);
   });
 
-  test('selectTask updates selectedTaskId', () => {
-    useAppStore.getState().selectTask('tk_abc123');
-    expect(useAppStore.getState().selectedTaskId).toBe('tk_abc123');
-
-    useAppStore.getState().selectTask(null);
-    expect(useAppStore.getState().selectedTaskId).toBeNull();
-  });
-
-  test('selectMessage updates selectedMessageId', () => {
-    useAppStore.getState().selectMessage('msg_abc123');
-    expect(useAppStore.getState().selectedMessageId).toBe('msg_abc123');
-
-    useAppStore.getState().selectMessage(null);
-    expect(useAppStore.getState().selectedMessageId).toBeNull();
-  });
-
-  test('selectThread updates selectedThreadId', () => {
-    useAppStore.getState().selectThread('msg_thread1');
-    expect(useAppStore.getState().selectedThreadId).toBe('msg_thread1');
-
-    useAppStore.getState().selectThread(null);
-    expect(useAppStore.getState().selectedThreadId).toBeNull();
-  });
-
-  test('setMessageStatusFilter updates filter', () => {
-    useAppStore.getState().setMessageStatusFilter('unread');
-    expect(useAppStore.getState().messageStatusFilter).toBe('unread');
-
-    useAppStore.getState().setMessageStatusFilter('all');
-    expect(useAppStore.getState().messageStatusFilter).toBe('all');
-  });
-
-  test('multiple state changes are independent', () => {
-    useAppStore.getState().setView('help');
-    useAppStore.getState().setActivePanel('agents');
-    useAppStore.getState().selectWorkflow('wf_test');
-
-    const state = useAppStore.getState();
-    expect(state.view).toBe('help');
-    expect(state.activePanel).toBe('agents');
-    expect(state.selectedWorkflowId).toBe('wf_test');
-    expect(state.selectedAgentId).toBeNull();
-    expect(state.pollInterval).toBe(2000);
-  });
-
-  test('workflow detail navigation flow', () => {
-    // Simulate: dashboard → select workflow → select task → back
-    useAppStore.getState().setView('workflow-detail');
-    useAppStore.getState().selectWorkflow('wf_123');
-    useAppStore.getState().selectTask('tk_456');
-
-    let state = useAppStore.getState();
-    expect(state.view).toBe('workflow-detail');
-    expect(state.selectedWorkflowId).toBe('wf_123');
-    expect(state.selectedTaskId).toBe('tk_456');
-
-    // Navigate back
-    useAppStore.getState().selectTask(null);
-    useAppStore.getState().selectWorkflow(null);
-    useAppStore.getState().setView('dashboard');
-
-    state = useAppStore.getState();
-    expect(state.view).toBe('dashboard');
-    expect(state.selectedWorkflowId).toBeNull();
-    expect(state.selectedTaskId).toBeNull();
-  });
-
   test('setPromptValue updates promptValue', () => {
     useAppStore.getState().setPromptValue('/help');
     expect(useAppStore.getState().promptValue).toBe('/help');
-
-    useAppStore.getState().setPromptValue('');
-    expect(useAppStore.getState().promptValue).toBe('');
   });
 
   test('setPromptFocused updates promptFocused', () => {
     useAppStore.getState().setPromptFocused(true);
     expect(useAppStore.getState().promptFocused).toBe(true);
-
-    useAppStore.getState().setPromptFocused(false);
-    expect(useAppStore.getState().promptFocused).toBe(false);
   });
 
   test('setPromptError updates promptError', () => {
     useAppStore.getState().setPromptError('Something went wrong');
     expect(useAppStore.getState().promptError).toBe('Something went wrong');
-
-    useAppStore.getState().setPromptError(null);
-    expect(useAppStore.getState().promptError).toBeNull();
   });
 
   test('setPromptSuccess updates promptSuccess', () => {
     useAppStore.getState().setPromptSuccess('Data refreshed');
     expect(useAppStore.getState().promptSuccess).toBe('Data refreshed');
-
-    useAppStore.getState().setPromptSuccess(null);
-    expect(useAppStore.getState().promptSuccess).toBeNull();
   });
 
   test('triggerRefresh updates lastRefreshAt', () => {
@@ -199,16 +142,82 @@ describe('useAppStore', () => {
     expect(state.promptSuccess).toBeNull();
   });
 
-  test('agent detail with message filter flow', () => {
-    useAppStore.getState().setView('agent-detail');
-    useAppStore.getState().selectAgent('ag_123');
-    useAppStore.getState().setMessageStatusFilter('unread');
-    useAppStore.getState().selectMessage('msg_456');
+  test('toggleShowAllWorkflows toggles the flag', () => {
+    expect(useAppStore.getState().showAllWorkflows).toBe(false);
+    useAppStore.getState().toggleShowAllWorkflows();
+    expect(useAppStore.getState().showAllWorkflows).toBe(true);
+    useAppStore.getState().toggleShowAllWorkflows();
+    expect(useAppStore.getState().showAllWorkflows).toBe(false);
+  });
 
-    const state = useAppStore.getState();
-    expect(state.view).toBe('agent-detail');
-    expect(state.selectedAgentId).toBe('ag_123');
-    expect(state.messageStatusFilter).toBe('unread');
-    expect(state.selectedMessageId).toBe('msg_456');
+  test('setTaskViewMode updates taskViewMode', () => {
+    expect(useAppStore.getState().taskViewMode).toBe('table');
+    useAppStore.getState().setTaskViewMode('dag');
+    expect(useAppStore.getState().taskViewMode).toBe('dag');
+    useAppStore.getState().setTaskViewMode('tree');
+    expect(useAppStore.getState().taskViewMode).toBe('tree');
+  });
+
+  test('setMessageStatusFilter updates filter', () => {
+    useAppStore.getState().setMessageStatusFilter('unread');
+    expect(useAppStore.getState().messageStatusFilter).toBe('unread');
+    useAppStore.getState().setMessageStatusFilter('all');
+    expect(useAppStore.getState().messageStatusFilter).toBe('all');
+  });
+
+  test('setMainTab updates mainTab', () => {
+    expect(useAppStore.getState().mainTab).toBe('workflows');
+    useAppStore.getState().setMainTab('agents');
+    expect(useAppStore.getState().mainTab).toBe('agents');
+    useAppStore.getState().setMainTab('messages');
+    expect(useAppStore.getState().mainTab).toBe('messages');
+    useAppStore.getState().setMainTab('workflows');
+    expect(useAppStore.getState().mainTab).toBe('workflows');
+  });
+});
+
+describe('currentScreen', () => {
+  afterEach(() => {
+    useAppStore.setState(INITIAL_STATE);
+  });
+
+  test('returns top frame', () => {
+    expect(currentScreen(useAppStore.getState()).screen).toBe('workflow-list');
+  });
+
+  test('returns top frame after push', () => {
+    useAppStore.getState().push({ screen: 'help' });
+    expect(currentScreen(useAppStore.getState()).screen).toBe('help');
+  });
+
+  test('returns setup screen after push', () => {
+    useAppStore.getState().push({ screen: 'setup' });
+    expect(currentScreen(useAppStore.getState()).screen).toBe('setup');
+  });
+});
+
+describe('getWorkflowId', () => {
+  afterEach(() => {
+    useAppStore.setState(INITIAL_STATE);
+  });
+
+  test('returns null when no workflow in stack', () => {
+    expect(getWorkflowId(useAppStore.getState())).toBeNull();
+  });
+
+  test('returns workflowId from workflow-detail frame', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    expect(getWorkflowId(useAppStore.getState())).toBe('wf_123');
+  });
+
+  test('returns workflowId from deepest frame with workflowId', () => {
+    useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
+    useAppStore.getState().push({ screen: 'task-detail', workflowId: 'wf_123', taskId: 'tk_456' });
+    expect(getWorkflowId(useAppStore.getState())).toBe('wf_123');
+  });
+
+  test('returns null for agent-detail with null workflowId', () => {
+    useAppStore.getState().push({ screen: 'agent-detail', workflowId: null, agentId: 'ag_123' });
+    expect(getWorkflowId(useAppStore.getState())).toBeNull();
   });
 });

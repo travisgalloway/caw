@@ -67,6 +67,13 @@ describe('isValidSlashCommand', () => {
     expect(isValidSlashCommand('quit')).toBe(true);
     expect(isValidSlashCommand('workflows')).toBe(true);
     expect(isValidSlashCommand('lock')).toBe(true);
+    expect(isValidSlashCommand('back')).toBe(true);
+    expect(isValidSlashCommand('all')).toBe(true);
+    expect(isValidSlashCommand('resume')).toBe(true);
+  });
+
+  test('returns true for setup command', () => {
+    expect(isValidSlashCommand('setup')).toBe(true);
   });
 
   test('returns false for invalid commands', () => {
@@ -125,9 +132,27 @@ describe('completeCommand', () => {
     expect(result.candidates).toEqual(['quit']);
   });
 
-  test('handles lock/unlock ambiguity with /l prefix', () => {
+  test('handles lock as only /l match', () => {
     const result = completeCommand('/l');
     expect(result.completed).toBe('/lock');
     expect(result.candidates).toEqual(['lock']);
+  });
+
+  test('completes /da to /dag', () => {
+    const result = completeCommand('/da');
+    expect(result.completed).toBe('/dag');
+    expect(result.candidates).toEqual(['dag']);
+  });
+
+  test('completes /res to /resume', () => {
+    const result = completeCommand('/res');
+    expect(result.completed).toBe('/resume');
+    expect(result.candidates).toEqual(['resume']);
+  });
+
+  test('completes /al to /all', () => {
+    const result = completeCommand('/al');
+    expect(result.completed).toBe('/all');
+    expect(result.candidates).toEqual(['all']);
   });
 });

@@ -115,6 +115,7 @@ CREATE TABLE workflow_templates (
 -- Agent registry
 CREATE TABLE agents (
   id TEXT PRIMARY KEY,                    -- ag_xxxxxxxxxxxx
+  workflow_id TEXT REFERENCES workflows(id), -- Workflow this agent belongs to
   name TEXT NOT NULL,                     -- Human-friendly name (e.g., "worker-1", "coordinator")
   runtime TEXT NOT NULL,                  -- 'claude_code', 'codex', 'opencode', etc.
   role TEXT NOT NULL DEFAULT 'worker',    -- 'coordinator', 'worker'
@@ -166,6 +167,7 @@ CREATE INDEX idx_workspaces_repository ON workspaces(repository_id);
 CREATE INDEX idx_workspaces_status ON workspaces(status);
 CREATE INDEX idx_agents_status ON agents(status);
 CREATE INDEX idx_agents_role ON agents(role);
+CREATE INDEX idx_agents_workflow_id ON agents(workflow_id);
 CREATE INDEX idx_messages_recipient ON messages(recipient_id, status);
 CREATE INDEX idx_messages_thread ON messages(thread_id);
 CREATE INDEX idx_messages_workflow ON messages(workflow_id);
