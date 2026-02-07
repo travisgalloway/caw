@@ -44,7 +44,7 @@ const NODE_PADDING = 4; // 2 chars padding each side inside box
 
 const statusColors: Record<string, string> = {
   completed: 'green',
-  in_progress: 'green',
+  in_progress: 'yellow',
   planning: 'yellow',
   pending: 'gray',
   blocked: 'red',
@@ -57,69 +57,68 @@ function statusColor(status: string): string {
   return statusColors[status] ?? 'gray';
 }
 
-// --- Layer assignment (topological BFS) ---
+// --- Layer assignment (Kahn-style topological sort) ---
 
 export function assignLayers(nodes: DagNode[], edges: DagEdge[]): Map<string, number> {
   const layers = new Map<string, number>();
-  const incomingMap = new Map<string, Set<string>>();
+  const predecessors = new Map<string, string[]>();
   const outgoingMap = new Map<string, string[]>();
+  const inDegree = new Map<string, number>();
 
   for (const n of nodes) {
-    incomingMap.set(n.id, new Set());
+    predecessors.set(n.id, []);
     outgoingMap.set(n.id, []);
+    inDegree.set(n.id, 0);
   }
 
   for (const e of edges) {
-    incomingMap.get(e.to)?.add(e.from);
+    predecessors.get(e.to)?.push(e.from);
     outgoingMap.get(e.from)?.push(e.to);
+    inDegree.set(e.to, (inDegree.get(e.to) ?? 0) + 1);
   }
 
-  // BFS from roots (no incoming edges)
+  // Seed queue with in-degree-0 nodes (roots) at layer 0
   const queue: string[] = [];
+  const enqueued = new Set<string>();
   for (const n of nodes) {
-    const inc = incomingMap.get(n.id);
-    if (!inc || inc.size === 0) {
+    if ((inDegree.get(n.id) ?? 0) === 0) {
       layers.set(n.id, 0);
       queue.push(n.id);
+      enqueued.add(n.id);
     }
   }
 
-  // Handle disconnected / all-cyclic nodes
+  // Handle disconnected / all-cyclic graphs
   if (queue.length === 0 && nodes.length > 0) {
     layers.set(nodes[0].id, 0);
     queue.push(nodes[0].id);
+    enqueued.add(nodes[0].id);
   }
 
   let head = 0;
   while (head < queue.length) {
     const current = queue[head++];
-    const currentLayer = layers.get(current) ?? 0;
     const children = outgoingMap.get(current) ?? [];
 
     for (const child of children) {
-      const existing = layers.get(child);
-      const newLayer = currentLayer + 1;
-      if (existing === undefined || newLayer > existing) {
-        layers.set(child, newLayer);
-      }
-      // Only add to queue if all predecessors have been assigned
-      const preds = incomingMap.get(child);
-      if (preds) {
-        let allAssigned = true;
+      const remaining = (inDegree.get(child) ?? 1) - 1;
+      inDegree.set(child, remaining);
+
+      if (remaining === 0 && !enqueued.has(child)) {
+        // All predecessors are fully processed — compute layer
+        const preds = predecessors.get(child) ?? [];
+        let maxPredLayer = 0;
         for (const p of preds) {
-          if (!layers.has(p)) {
-            allAssigned = false;
-            break;
-          }
+          maxPredLayer = Math.max(maxPredLayer, layers.get(p) ?? 0);
         }
-        if (allAssigned && !queue.includes(child)) {
-          queue.push(child);
-        }
+        layers.set(child, maxPredLayer + 1);
+        queue.push(child);
+        enqueued.add(child);
       }
     }
   }
 
-  // Assign remaining unvisited nodes to layer 0
+  // Assign remaining unvisited nodes (cycles) to layer 0
   for (const n of nodes) {
     if (!layers.has(n.id)) {
       layers.set(n.id, 0);

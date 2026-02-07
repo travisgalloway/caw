@@ -79,12 +79,10 @@ function App(): React.JSX.Element {
       content = <TaskDetailScreen workflowId={screen.workflowId} taskId={screen.taskId} />;
       break;
     case 'agent-detail':
-      content = <AgentDetail workflowId={screen.workflowId ?? ''} agentId={screen.agentId} />;
+      content = <AgentDetail workflowId={screen.workflowId} agentId={screen.agentId} />;
       break;
     case 'message-detail':
-      content = (
-        <MessageDetailScreen workflowId={screen.workflowId ?? ''} messageId={screen.messageId} />
-      );
+      content = <MessageDetailScreen workflowId={screen.workflowId} messageId={screen.messageId} />;
       break;
     case 'help':
       content = <HelpView />;

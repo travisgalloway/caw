@@ -33,7 +33,7 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
     // Check existing config
     const configPath = join(configDir, 'config.json');
     if (existsSync(configPath)) {
-      const answer = await prompt(rl, '.caw/config.json already exists. Overwrite? (y/N) ');
+      const answer = await prompt(rl, `${configPath} already exists. Overwrite? (y/N) `);
       if (answer.toLowerCase() !== 'y') {
         messages.push('Init cancelled.');
         return {
@@ -86,20 +86,23 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
   }
 }
 
-function runNonInteractive(repoPath: string, configDir: string): InitResult {
+function runNonInteractive(repoPath: string, configDir: string, isGlobal: boolean): InitResult {
   const messages: string[] = [];
   const configPath = join(configDir, 'config.json');
   const config: CawConfig = {
-    dbMode: 'repository',
+    dbMode: isGlobal ? 'global' : 'repository',
     agent: { runtime: 'claude_code', autoSetup: true },
   };
 
   writeConfig(configPath, config);
   messages.push(`Created ${configPath}`);
 
-  const gitignoreUpdated = ensureGitignore(repoPath, '.caw/');
-  if (gitignoreUpdated) {
-    messages.push('Added .caw/ to .gitignore');
+  let gitignoreUpdated = false;
+  if (!isGlobal) {
+    gitignoreUpdated = ensureGitignore(repoPath, '.caw/');
+    if (gitignoreUpdated) {
+      messages.push('Added .caw/ to .gitignore');
+    }
   }
 
   const result = setupClaudeCode({ repoPath });
@@ -122,7 +125,7 @@ export async function runInit(opts: InitOptions): Promise<void> {
 
   let result: InitResult;
   if (opts.yes) {
-    result = runNonInteractive(repoPath, configDir);
+    result = runNonInteractive(repoPath, configDir, opts.global ?? false);
   } else {
     result = await runInteractive(repoPath, configDir);
   }

@@ -8,7 +8,7 @@ import { StatusIndicator } from './StatusIndicator';
 
 interface AgentDetailProps {
   agentId: string;
-  workflowId: string;
+  workflowId?: string | null;
 }
 
 export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {

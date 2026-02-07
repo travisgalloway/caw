@@ -200,7 +200,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
     load();
     const timer = setInterval(load, pollInterval);
     return () => clearInterval(timer);
-  }, [db, workflowId, pollInterval, lastRefreshAt, data]);
+  }, [db, workflowId, pollInterval, lastRefreshAt]);
 
   if (error) {
     return (

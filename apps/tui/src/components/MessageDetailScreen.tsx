@@ -7,7 +7,7 @@ import { THEME } from '../utils/theme';
 import { TypeBadge } from './TypeBadge';
 
 interface MessageDetailScreenProps {
-  workflowId: string;
+  workflowId?: string | null;
   messageId: string;
 }
 

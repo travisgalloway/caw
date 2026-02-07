@@ -47,6 +47,20 @@ describe('assignLayers', () => {
     const layers = assignLayers([], []);
     expect(layers.size).toBe(0);
   });
+
+  test('diamond with long path propagates depth correctly', () => {
+    // a → b → d → e
+    // a → c ------→ e
+    // e should be at layer 3 (max of b→d→e path), not layer 2
+    const nodes = [node('a'), node('b'), node('c'), node('d'), node('e')];
+    const edges = [edge('a', 'b'), edge('a', 'c'), edge('b', 'd'), edge('d', 'e'), edge('c', 'e')];
+    const layers = assignLayers(nodes, edges);
+    expect(layers.get('a')).toBe(0);
+    expect(layers.get('b')).toBe(1);
+    expect(layers.get('c')).toBe(1);
+    expect(layers.get('d')).toBe(2);
+    expect(layers.get('e')).toBe(3);
+  });
 });
 
 describe('orderLayers', () => {

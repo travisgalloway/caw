@@ -138,8 +138,8 @@ const t1_setup = wf1TaskMap.get('Setup auth models') ?? '';
 const t2_jwt = wf1TaskMap.get('Create JWT utils') ?? '';
 const t3_login = wf1TaskMap.get('Build login endpoint') ?? '';
 const t4_register = wf1TaskMap.get('Build register endpoint') ?? '';
-const t5_middleware = wf1TaskMap.get('Add auth middleware') ?? '';
-const t6_tests = wf1TaskMap.get('Write integration tests') ?? '';
+const _t5_middleware = wf1TaskMap.get('Add auth middleware') ?? '';
+const _t6_tests = wf1TaskMap.get('Write integration tests') ?? '';
 
 // Transition task statuses through valid state machine paths:
 // Task 1: pending → planning → in_progress → completed
@@ -172,7 +172,7 @@ console.log(`Workflow 1: ${wf1.id} — "Add user authentication" (in_progress, $
 // Workflow 2: "Refactor database layer" — completed
 const wf2 = workflowService.create(db, {
   name: 'Refactor database layer',
-  source_type: 'github_issue',
+  source_type: 'issue',
   source_ref: 'https://github.com/travisgalloway/acme-api/issues/42',
   source_content: 'Replace raw SQL queries with a query builder for better maintainability.',
   repository_paths: ['/Users/travisgalloway/github/acme-api'],
@@ -398,7 +398,7 @@ const msg3 = messageService.send(db, {
 });
 
 // Coordinator → worker-1: response (reply in thread)
-const msg4 = messageService.send(db, {
+messageService.send(db, {
   sender_id: coordinator.id,
   recipient_id: worker1.id,
   message_type: 'response',
@@ -411,7 +411,7 @@ const msg4 = messageService.send(db, {
 });
 
 // System → worker-2: urgent unread message
-const msg5 = messageService.send(db, {
+messageService.send(db, {
   sender_id: null,
   recipient_id: worker2.id,
   message_type: 'status_update',
@@ -423,7 +423,7 @@ const msg5 = messageService.send(db, {
 });
 
 // Coordinator → worker-2: normal unread
-const msg6 = messageService.send(db, {
+messageService.send(db, {
   sender_id: coordinator.id,
   recipient_id: worker2.id,
   message_type: 'status_update',
