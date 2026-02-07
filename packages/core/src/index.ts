@@ -107,6 +107,7 @@ export type {
   TaskStatus,
   Workflow,
   WorkflowLockInfo,
+  WorkflowRepository,
   WorkflowStatus,
   WorkflowSummary,
   WorkflowTemplate,

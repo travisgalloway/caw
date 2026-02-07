@@ -72,6 +72,14 @@ function toToolCallError(err: unknown): never {
       suggestion: 'The workflow is locked by another session. Unlock it first.',
     });
   }
+  if (msg.includes('Cannot remove repository')) {
+    throw new ToolCallError({
+      code: 'REPOSITORY_IN_USE',
+      message: msg,
+      recoverable: false,
+      suggestion: 'Remove all tasks and workspaces referencing this repository first',
+    });
+  }
 
   throw err;
 }
@@ -89,7 +97,10 @@ export const register: ToolRegistrar = (server, db) => {
           .describe('Source type'),
         source_ref: z.string().optional().describe('URL or identifier'),
         source_content: z.string().describe('The actual prompt/issue content'),
-        repository_path: z.string().optional().describe('Repository path, defaults to cwd'),
+        repository_paths: z
+          .array(z.string())
+          .optional()
+          .describe('Repository paths to associate with the workflow'),
         max_parallel_tasks: z.number().int().optional().describe('Max parallel tasks, default 1'),
         auto_create_workspaces: z
           .boolean()
@@ -104,7 +115,7 @@ export const register: ToolRegistrar = (server, db) => {
           source_type: args.source_type,
           source_ref: args.source_ref,
           source_content: args.source_content,
-          repository_path: args.repository_path,
+          repository_paths: args.repository_paths,
           max_parallel_tasks: args.max_parallel_tasks,
           auto_create_workspaces: args.auto_create_workspaces,
         });
@@ -190,6 +201,7 @@ export const register: ToolRegistrar = (server, db) => {
               depends_on: z.array(z.string()).optional(),
               estimated_complexity: z.enum(['low', 'medium', 'high']).optional(),
               files_likely_affected: z.array(z.string()).optional(),
+              repository_path: z.string().optional().describe('Repository path for this task'),
             }),
           ),
         }),
@@ -208,6 +220,7 @@ export const register: ToolRegistrar = (server, db) => {
               estimated_complexity: t.estimated_complexity as string | undefined,
               files_likely_affected: t.files_likely_affected as string[] | undefined,
               depends_on: t.depends_on as string[] | undefined,
+              repository_path: t.repository_path as string | undefined,
             })),
           });
         } catch (err) {
@@ -345,6 +358,83 @@ export const register: ToolRegistrar = (server, db) => {
         } catch (err) {
           toToolCallError(err);
         }
+      }),
+  );
+
+  // --- Multi-repo management tools ---
+
+  defineTool(
+    server,
+    'workflow_add_repository',
+    {
+      description: 'Add a repository to a workflow',
+      inputSchema: {
+        workflow_id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
+        repository_path: z.string().describe('Repository path to add'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
+          const wr = workflowService.addRepository(db, args.workflow_id, {
+            path: args.repository_path,
+          });
+          return {
+            workflow_id: wr.workflow_id,
+            repository_id: wr.repository_id,
+            added_at: wr.added_at,
+          };
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_remove_repository',
+    {
+      description: 'Remove a repository from a workflow',
+      inputSchema: {
+        workflow_id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
+        repository_id: z.string().describe('Repository ID to remove'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          requireWorkflowLock(db, args.workflow_id, args.session_id);
+          workflowService.removeRepository(db, args.workflow_id, args.repository_id);
+          return { success: true };
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_list_repositories',
+    {
+      description: 'List repositories associated with a workflow',
+      inputSchema: {
+        workflow_id: z.string().describe('Workflow ID'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        const repos = workflowService.listRepositories(db, args.workflow_id);
+        return {
+          repositories: repos.map((r) => ({
+            id: r.id,
+            path: r.path,
+            name: r.name,
+            added_at: r.added_at,
+          })),
+        };
       }),
   );
 };

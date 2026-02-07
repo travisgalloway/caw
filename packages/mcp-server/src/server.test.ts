@@ -3,14 +3,14 @@ import { createConnection, runMigrations } from '@caw/core';
 import { createMcpServer } from './server';
 
 describe('createMcpServer', () => {
-  test('registers all 46 tools', () => {
+  test('registers all 49 tools', () => {
     const db = createConnection(':memory:');
     runMigrations(db);
     const server = createMcpServer(db);
 
     // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
     const tools = (server as any)._registeredTools as Record<string, unknown>;
-    expect(Object.keys(tools).length).toBe(46);
+    expect(Object.keys(tools).length).toBe(49);
   });
 
   test('registered tool names match expected set', () => {
@@ -34,5 +34,8 @@ describe('createMcpServer', () => {
     expect(names).toContain('task_claim');
     expect(names).toContain('message_send');
     expect(names).toContain('message_count_unread');
+    expect(names).toContain('workflow_add_repository');
+    expect(names).toContain('workflow_remove_repository');
+    expect(names).toContain('workflow_list_repositories');
   });
 });

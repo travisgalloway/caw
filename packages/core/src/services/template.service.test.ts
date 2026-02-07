@@ -349,15 +349,16 @@ describe('templateService', () => {
       expect(wf?.source_ref).toBe(tmpl.id);
     });
 
-    it('associates repository when repoPath provided', () => {
+    it('associates repositories when repoPaths provided', () => {
       const tmpl = createBasicTemplate(db);
       const result = templateService.apply(db, tmpl.id, {
         workflowName: 'Workflow',
-        repoPath: '/home/user/project',
+        repoPaths: ['/home/user/project'],
       });
 
-      const wf = workflowService.get(db, result.workflow_id);
-      expect(wf?.repository_id).toMatch(/^rp_[0-9a-z]{12}$/);
+      const repos = workflowService.listRepositories(db, result.workflow_id);
+      expect(repos).toHaveLength(1);
+      expect(repos[0].path).toBe('/home/user/project');
     });
 
     it('sets maxParallel when provided', () => {

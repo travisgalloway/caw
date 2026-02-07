@@ -24,6 +24,7 @@ export interface Task {
   outcome: string | null;
   outcome_detail: string | null;
   workspace_id: string | null;
+  repository_id: string | null;
   assigned_agent_id: string | null;
   claimed_at: number | null;
   created_at: number;

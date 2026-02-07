@@ -1,6 +1,8 @@
 import type { DatabaseType, SQLParam } from '../db/connection';
+import type { Repository } from '../types/repository';
 import type { Task } from '../types/task';
 import type { Workflow, WorkflowStatus, WorkflowSummary } from '../types/workflow';
+import type { WorkflowRepository } from '../types/workflow-repository';
 import { taskId, workflowId } from '../utils/id';
 import { estimateTokens } from '../utils/tokens';
 import * as repositoryService from './repository.service';
@@ -13,8 +15,7 @@ export interface CreateParams {
   source_type: string;
   source_ref?: string;
   source_content?: string;
-  repository_id?: string;
-  repository_path?: string;
+  repository_paths?: string[];
   max_parallel_tasks?: number;
   auto_create_workspaces?: boolean;
   config?: Record<string, unknown>;
@@ -42,6 +43,7 @@ export interface PlanTask {
   estimated_complexity?: string;
   files_likely_affected?: string[];
   depends_on?: string[];
+  repository_path?: string;
 }
 
 export interface SetPlanParams {
@@ -56,22 +58,18 @@ export interface SetPlanResult {
   status: 'ready';
 }
 
+export interface WorkflowRepositoryInfo extends Repository {
+  added_at: number;
+}
+
 // --- Service functions ---
 
 export function create(db: DatabaseType, params: CreateParams): Workflow {
-  let repoId = params.repository_id ?? null;
-
-  if (!repoId && params.repository_path) {
-    const repo = repositoryService.register(db, { path: params.repository_path });
-    repoId = repo.id;
-  }
-
   const now = Date.now();
   const configJson = params.config ? JSON.stringify(params.config) : null;
 
   const workflow: Workflow = {
     id: workflowId(),
-    repository_id: repoId,
     name: params.name,
     source_type: params.source_type,
     source_ref: params.source_ref ?? null,
@@ -90,13 +88,12 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
 
   db.prepare(
     `INSERT INTO workflows
-      (id, repository_id, name, source_type, source_ref, source_content, status,
+      (id, name, source_type, source_ref, source_content, status,
        initial_plan, plan_summary, created_at, updated_at, max_parallel_tasks,
        auto_create_workspaces, config)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   ).run(
     workflow.id,
-    workflow.repository_id,
     workflow.name,
     workflow.source_type,
     workflow.source_ref,
@@ -110,6 +107,19 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
     workflow.auto_create_workspaces,
     workflow.config,
   );
+
+  if (params.repository_paths && params.repository_paths.length > 0) {
+    const insertWR = db.prepare(
+      'INSERT INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
+    );
+    const seen = new Set<string>();
+    for (const path of params.repository_paths) {
+      const repo = repositoryService.register(db, { path });
+      if (seen.has(repo.id)) continue;
+      seen.add(repo.id);
+      insertWR.run(workflow.id, repo.id, now);
+    }
+  }
 
   return workflow;
 }
@@ -140,7 +150,9 @@ export function list(
   const offset = filters?.offset ?? 0;
 
   if (filters?.repository_id) {
-    conditions.push('repository_id = ?');
+    conditions.push(
+      'id IN (SELECT workflow_id FROM workflow_repositories WHERE repository_id = ?)',
+    );
     params.push(filters.repository_id);
   }
 
@@ -203,8 +215,12 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
 
     const insertTask = db.prepare(
       `INSERT INTO tasks
-        (id, workflow_id, name, description, status, sequence, parallel_group, context, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, name, description, status, sequence, parallel_group, repository_id, context, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    );
+
+    const insertWR = db.prepare(
+      'INSERT OR IGNORE INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
     );
 
     for (let i = 0; i < plan.tasks.length; i++) {
@@ -221,6 +237,13 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
       if (t.files_likely_affected) context.files_likely_affected = t.files_likely_affected;
       const contextJson = Object.keys(context).length > 0 ? JSON.stringify(context) : null;
 
+      let repoId: string | null = null;
+      if (t.repository_path) {
+        const repo = repositoryService.register(db, { path: t.repository_path });
+        repoId = repo.id;
+        insertWR.run(id, repo.id, now);
+      }
+
       insertTask.run(
         tId,
         id,
@@ -229,6 +252,7 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
         'pending',
         i + 1,
         t.parallel_group ?? null,
+        repoId,
         contextJson,
         now,
         now,
@@ -354,6 +378,8 @@ export function getSummary(
     .prepare('SELECT * FROM tasks WHERE workflow_id = ? ORDER BY sequence, name')
     .all(id) as Task[];
 
+  const repos = listRepositories(db, id);
+
   const taskCountsByStatus: Record<string, number> = {};
   for (const t of tasks) {
     taskCountsByStatus[t.status] = (taskCountsByStatus[t.status] ?? 0) + 1;
@@ -369,6 +395,7 @@ export function getSummary(
       plan_summary: workflow.plan_summary,
       total_tasks: tasks.length,
       tasks_by_status: taskCountsByStatus,
+      repositories: repos.map((r) => ({ id: r.id, path: r.path })),
     };
     summary = JSON.stringify(obj, null, 2);
   } else {
@@ -379,6 +406,14 @@ export function getSummary(
       `**Tasks:** ${tasks.length} total`,
       '',
     ];
+
+    if (repos.length > 0) {
+      lines.push('## Repositories', '');
+      for (const r of repos) {
+        lines.push(`- ${r.path}`);
+      }
+      lines.push('');
+    }
 
     if (workflow.plan_summary) {
       lines.push(`## Plan`, '', workflow.plan_summary, '');
@@ -399,4 +434,85 @@ export function getSummary(
     summary,
     token_estimate: estimateTokens(summary),
   };
+}
+
+// --- Multi-repo management ---
+
+export function addRepository(
+  db: DatabaseType,
+  workflowId: string,
+  params: { path: string },
+): WorkflowRepository {
+  const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(workflowId) as Pick<
+    Workflow,
+    'id'
+  > | null;
+
+  if (!workflow) {
+    throw new Error(`Workflow not found: ${workflowId}`);
+  }
+
+  const repo = repositoryService.register(db, { path: params.path });
+  const now = Date.now();
+
+  const existing = db
+    .prepare(
+      'SELECT workflow_id, repository_id, added_at FROM workflow_repositories WHERE workflow_id = ? AND repository_id = ?',
+    )
+    .get(workflowId, repo.id) as WorkflowRepository | null;
+
+  if (existing) {
+    return existing;
+  }
+
+  db.prepare(
+    'INSERT INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
+  ).run(workflowId, repo.id, now);
+
+  return { workflow_id: workflowId, repository_id: repo.id, added_at: now };
+}
+
+export function removeRepository(db: DatabaseType, workflowId: string, repositoryId: string): void {
+  const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(workflowId) as Pick<
+    Workflow,
+    'id'
+  > | null;
+
+  if (!workflow) {
+    throw new Error(`Workflow not found: ${workflowId}`);
+  }
+
+  // Validate no tasks/workspaces still reference this repo
+  const taskRef = db
+    .prepare('SELECT id FROM tasks WHERE workflow_id = ? AND repository_id = ? LIMIT 1')
+    .get(workflowId, repositoryId) as { id: string } | null;
+
+  if (taskRef) {
+    throw new Error(`Cannot remove repository: task ${taskRef.id} still references it`);
+  }
+
+  const wsRef = db
+    .prepare('SELECT id FROM workspaces WHERE workflow_id = ? AND repository_id = ? LIMIT 1')
+    .get(workflowId, repositoryId) as { id: string } | null;
+
+  if (wsRef) {
+    throw new Error(`Cannot remove repository: workspace ${wsRef.id} still references it`);
+  }
+
+  db.prepare('DELETE FROM workflow_repositories WHERE workflow_id = ? AND repository_id = ?').run(
+    workflowId,
+    repositoryId,
+  );
+}
+
+export function listRepositories(db: DatabaseType, workflowId: string): WorkflowRepositoryInfo[] {
+  return db
+    .prepare(
+      `SELECT r.*, wr.added_at
+       FROM workflow_repositories wr
+       JOIN repositories r ON r.id = wr.repository_id
+       WHERE wr.workflow_id = ?
+       ORDER BY wr.added_at`,
+    )
+    .all(workflowId) as WorkflowRepositoryInfo[];
 }

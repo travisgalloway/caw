@@ -3,6 +3,7 @@ export type WorkspaceStatus = 'active' | 'merged' | 'abandoned';
 export interface Workspace {
   id: string;
   workflow_id: string;
+  repository_id: string | null;
   path: string;
   branch: string;
   base_branch: string | null;

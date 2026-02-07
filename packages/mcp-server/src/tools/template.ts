@@ -123,7 +123,7 @@ export const register: ToolRegistrar = (server, db) => {
         template_id: z.string().describe('Template ID'),
         workflow_name: z.string().describe('Name for the new workflow'),
         variables: z.record(z.string()).optional().describe('Template variables'),
-        repository_path: z.string().optional().describe('Repository path'),
+        repository_paths: z.array(z.string()).optional().describe('Repository paths to associate'),
         max_parallel_tasks: z.number().int().optional().describe('Max parallel tasks'),
       },
     },
@@ -133,7 +133,7 @@ export const register: ToolRegistrar = (server, db) => {
           return templateService.apply(db, args.template_id, {
             workflowName: args.workflow_name,
             variables: args.variables,
-            repoPath: args.repository_path,
+            repoPaths: args.repository_paths,
             maxParallel: args.max_parallel_tasks,
           });
         } catch (err) {

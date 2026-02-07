@@ -26,7 +26,7 @@ workflow_create(params: {
   source_type: 'prompt' | 'github_issue' | 'linear' | 'jira' | 'custom';
   source_ref?: string;           // URL or identifier
   source_content: string;        // The actual prompt/issue content
-  repository_path?: string;      // Defaults to cwd, used in global mode
+  repository_paths?: string[];   // Repository paths to associate (global mode, multi-repo)
 
   // Parallelism configuration
   max_parallel_tasks?: number;   // Default 1 (sequential execution)
@@ -74,6 +74,7 @@ workflow_set_plan(params: {
       depends_on?: string[];     // Task names this depends on
       estimated_complexity?: 'low' | 'medium' | 'high';
       files_likely_affected?: string[];
+      repository_path?: string; // Scope task to a specific repo (multi-repo)
     }>;
     risks?: string[];
     assumptions?: string[];
@@ -102,6 +103,43 @@ workflow_set_parallelism(params: {
   max_parallel_tasks: number;    // 1 = sequential, >1 = parallel
   auto_create_workspaces?: boolean;
 }): Promise<{ success: boolean }>
+
+/**
+ * Add a repository to a workflow (multi-repo support)
+ */
+workflow_add_repository(params: {
+  workflow_id: string;
+  session_id?: string;           // Lock enforcement
+  repository_path: string;       // Path to register/associate
+}): Promise<{
+  workflow_id: string;
+  repository_id: string;
+  added_at: number;
+}>
+
+/**
+ * Remove a repository from a workflow
+ * Fails if tasks or workspaces still reference it
+ */
+workflow_remove_repository(params: {
+  workflow_id: string;
+  session_id?: string;           // Lock enforcement
+  repository_id: string;         // Repository ID to remove
+}): Promise<{ success: boolean }>
+
+/**
+ * List repositories associated with a workflow
+ */
+workflow_list_repositories(params: {
+  workflow_id: string;
+}): Promise<{
+  repositories: Array<{
+    id: string;
+    path: string;
+    name: string | null;
+    added_at: number;
+  }>;
+}>
 ```
 
 ### Task Management
@@ -427,7 +465,7 @@ template_apply(params: {
   template_id: string;
   workflow_name: string;
   variables?: Record<string, string>;
-  repository_path?: string;
+  repository_paths?: string[];   // Repository paths to associate (multi-repo)
   max_parallel_tasks?: number;
 }): Promise<{ workflow_id: string }>
 ```
