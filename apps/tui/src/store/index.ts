@@ -1,7 +1,9 @@
 import { create } from 'zustand';
 
 export type Panel = 'workflows' | 'agents' | 'tasks' | 'messages';
-export type View = 'dashboard' | 'workflow-detail' | 'agent-detail' | 'help';
+export type View = 'dashboard' | 'active-workflows' | 'workflow-detail' | 'agent-detail' | 'help';
+
+export type TaskViewMode = 'tree' | 'dag';
 
 export type MessageStatusFilter = 'all' | 'unread';
 
@@ -14,6 +16,8 @@ interface AppState {
   selectedMessageId: string | null;
   selectedThreadId: string | null;
   messageStatusFilter: MessageStatusFilter;
+  showAllWorkflows: boolean;
+  taskViewMode: TaskViewMode;
   pollInterval: number;
   promptValue: string;
   promptFocused: boolean;
@@ -29,6 +33,8 @@ interface AppState {
   selectMessage: (id: string | null) => void;
   selectThread: (id: string | null) => void;
   setMessageStatusFilter: (filter: MessageStatusFilter) => void;
+  toggleShowAllWorkflows: () => void;
+  setTaskViewMode: (mode: TaskViewMode) => void;
   setPollInterval: (interval: number) => void;
   setPromptValue: (value: string) => void;
   setPromptFocused: (focused: boolean) => void;
@@ -39,7 +45,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  view: 'dashboard',
+  view: 'active-workflows',
   activePanel: 'workflows',
   selectedWorkflowId: null,
   selectedAgentId: null,
@@ -47,6 +53,8 @@ export const useAppStore = create<AppState>((set) => ({
   selectedMessageId: null,
   selectedThreadId: null,
   messageStatusFilter: 'all',
+  showAllWorkflows: false,
+  taskViewMode: 'tree',
   pollInterval: 2000,
   promptValue: '',
   promptFocused: false,
@@ -62,6 +70,8 @@ export const useAppStore = create<AppState>((set) => ({
   selectMessage: (id) => set({ selectedMessageId: id }),
   selectThread: (id) => set({ selectedThreadId: id }),
   setMessageStatusFilter: (filter) => set({ messageStatusFilter: filter }),
+  toggleShowAllWorkflows: () => set((s) => ({ showAllWorkflows: !s.showAllWorkflows })),
+  setTaskViewMode: (mode) => set({ taskViewMode: mode }),
   setPollInterval: (interval) => set({ pollInterval: interval }),
   setPromptValue: (value) => set({ promptValue: value }),
   setPromptFocused: (focused) => set({ promptFocused: focused }),

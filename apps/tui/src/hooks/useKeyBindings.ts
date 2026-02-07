@@ -6,7 +6,7 @@ export function useKeyBindings(): void {
     if (key.escape) {
       const { promptFocused, promptValue } = useAppStore.getState();
       if (!promptFocused && !promptValue) {
-        useAppStore.getState().setView('dashboard');
+        useAppStore.getState().setView('active-workflows');
       }
     }
   });

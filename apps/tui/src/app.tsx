@@ -1,6 +1,7 @@
 import type { DatabaseType } from '@caw/core';
 import { Box, render, Text } from 'ink';
 import type React from 'react';
+import { ActiveWorkflows } from './components/ActiveWorkflows';
 import { AgentDetail } from './components/AgentDetail';
 import { CommandPrompt } from './components/CommandPrompt';
 import { Dashboard } from './components/Dashboard';
@@ -20,7 +21,10 @@ function HelpView(): React.JSX.Element {
       <Box gap={2}>
         <Box flexDirection="column">
           <Text>
-            <Text bold>/workflows</Text> Focus workflows
+            <Text bold>/workflows</Text> Active workflows
+          </Text>
+          <Text>
+            <Text bold>/dashboard</Text> 3-panel dashboard
           </Text>
           <Text>
             <Text bold>/tasks</Text> Focus tasks
@@ -32,10 +36,19 @@ function HelpView(): React.JSX.Element {
             <Text bold>/lock</Text> Lock workflow
           </Text>
           <Text>
+            <Text bold>/dag</Text> DAG task view
+          </Text>
+          <Text>
             <Text bold>/help</Text> Show this help
           </Text>
         </Box>
         <Box flexDirection="column">
+          <Text>
+            <Text bold>/all</Text> Toggle all/active filter
+          </Text>
+          <Text>
+            <Text bold>/resume</Text> Resume paused/failed
+          </Text>
           <Text>
             <Text bold>/agents</Text> Focus agents
           </Text>
@@ -47,6 +60,9 @@ function HelpView(): React.JSX.Element {
           </Text>
           <Text>
             <Text bold>/unlock</Text> Unlock workflow
+          </Text>
+          <Text>
+            <Text bold>/tree</Text> Tree task view
           </Text>
           <Text>
             <Text bold>/quit</Text> Exit caw
@@ -73,6 +89,8 @@ function App(): React.JSX.Element {
     content = <AgentDetail agentId={selectedAgentId} />;
   } else if (view === 'help') {
     content = <HelpView />;
+  } else if (view === 'active-workflows') {
+    content = <ActiveWorkflows />;
   } else {
     content = <Dashboard />;
   }

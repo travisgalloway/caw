@@ -36,6 +36,7 @@ export interface WorkflowSummary {
   id: string;
   name: string;
   status: WorkflowStatus;
+  source_type: string;
   created_at: number;
   updated_at: number;
 }

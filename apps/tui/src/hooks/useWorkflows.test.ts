@@ -11,6 +11,7 @@ describe('useWorkflows', () => {
       id: 'wf_123',
       name: 'Test Workflow',
       status: 'in_progress',
+      source_type: 'prompt',
       created_at: Date.now(),
       updated_at: Date.now(),
       progress: {
@@ -35,6 +36,7 @@ describe('useWorkflows', () => {
       id: 'wf_123',
       name: 'New Workflow',
       status: 'planning',
+      source_type: 'manual',
       created_at: Date.now(),
       updated_at: Date.now(),
       progress: null,
@@ -49,6 +51,7 @@ describe('useWorkflows', () => {
       id: 'wf_123',
       name: 'Locked Workflow',
       status: 'in_progress',
+      source_type: 'issue',
       created_at: Date.now(),
       updated_at: Date.now(),
       progress: null,

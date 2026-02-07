@@ -6,6 +6,7 @@ import { useWorkflows } from '../hooks/useWorkflows';
 import { useAppStore } from '../store';
 import { AgentList } from './AgentList';
 import { MessagePanel } from './MessagePanel';
+import { TaskDag } from './TaskDag';
 import { TaskTree } from './TaskTree';
 import { WorkflowList } from './WorkflowList';
 
@@ -15,6 +16,7 @@ export function Dashboard(): React.JSX.Element {
   const allMessages = useAllMessages();
   const activePanel = useAppStore((s) => s.activePanel);
   const selectedWorkflowId = useAppStore((s) => s.selectedWorkflowId);
+  const taskViewMode = useAppStore((s) => s.taskViewMode);
 
   if (workflows.error || agents.error) {
     const errorMessages = [
@@ -39,7 +41,11 @@ export function Dashboard(): React.JSX.Element {
         <WorkflowList workflows={workflows.data ?? []} />
       </Box>
       <Box width="35%">
-        <TaskTree workflowId={selectedWorkflowId} />
+        {taskViewMode === 'dag' ? (
+          <TaskDag workflowId={selectedWorkflowId} />
+        ) : (
+          <TaskTree workflowId={selectedWorkflowId} />
+        )}
       </Box>
       <Box width="30%">
         {activePanel === 'messages' ? (

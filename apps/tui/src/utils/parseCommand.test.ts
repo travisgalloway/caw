@@ -67,6 +67,9 @@ describe('isValidSlashCommand', () => {
     expect(isValidSlashCommand('quit')).toBe(true);
     expect(isValidSlashCommand('workflows')).toBe(true);
     expect(isValidSlashCommand('lock')).toBe(true);
+    expect(isValidSlashCommand('dashboard')).toBe(true);
+    expect(isValidSlashCommand('all')).toBe(true);
+    expect(isValidSlashCommand('resume')).toBe(true);
   });
 
   test('returns false for invalid commands', () => {
@@ -129,5 +132,25 @@ describe('completeCommand', () => {
     const result = completeCommand('/l');
     expect(result.completed).toBe('/lock');
     expect(result.candidates).toEqual(['lock']);
+  });
+
+  test('handles /da prefix matching dag and dashboard', () => {
+    const result = completeCommand('/da');
+    expect(result.completed).toBe('/da');
+    expect(result.candidates).toContain('dag');
+    expect(result.candidates).toContain('dashboard');
+    expect(result.candidates.length).toBe(2);
+  });
+
+  test('completes /res to /resume', () => {
+    const result = completeCommand('/res');
+    expect(result.completed).toBe('/resume');
+    expect(result.candidates).toEqual(['resume']);
+  });
+
+  test('completes /al to /all', () => {
+    const result = completeCommand('/al');
+    expect(result.completed).toBe('/all');
+    expect(result.candidates).toEqual(['all']);
   });
 });

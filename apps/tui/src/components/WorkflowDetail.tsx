@@ -5,15 +5,17 @@ import { useAppStore } from '../store';
 import { formatTimestamp } from '../utils/format';
 import { ProgressBar } from './ProgressBar';
 import { StatusIndicator } from './StatusIndicator';
+import { TaskDag } from './TaskDag';
 import { TaskTree } from './TaskTree';
 
 export function WorkflowDetail({ workflowId }: { workflowId: string | null }): React.JSX.Element {
   const { setView } = useAppStore();
+  const taskViewMode = useAppStore((s) => s.taskViewMode);
   const { data, error } = useWorkflowDetail(workflowId);
 
   useInput((_input, key) => {
     if (key.escape) {
-      setView('dashboard');
+      setView('active-workflows');
     }
   });
 
@@ -101,7 +103,11 @@ export function WorkflowDetail({ workflowId }: { workflowId: string | null }): R
       </Box>
 
       {/* Tasks section */}
-      <TaskTree workflowId={workflowId} />
+      {taskViewMode === 'dag' ? (
+        <TaskDag workflowId={workflowId} />
+      ) : (
+        <TaskTree workflowId={workflowId} />
+      )}
 
       {/* Workspaces section */}
       <Box flexDirection="column" borderStyle="single" paddingX={1}>
@@ -121,7 +127,7 @@ export function WorkflowDetail({ workflowId }: { workflowId: string | null }): R
 
       {/* Footer hint */}
       <Box paddingX={1}>
-        <Text dimColor>Press Esc to return to dashboard</Text>
+        <Text dimColor>Press Esc to return to workflows</Text>
       </Box>
     </Box>
   );

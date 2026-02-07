@@ -5,7 +5,7 @@ describe('useAppStore', () => {
   afterEach(() => {
     // Reset store to initial state between tests
     useAppStore.setState({
-      view: 'dashboard',
+      view: 'active-workflows',
       activePanel: 'workflows',
       selectedWorkflowId: null,
       selectedAgentId: null,
@@ -13,6 +13,8 @@ describe('useAppStore', () => {
       selectedMessageId: null,
       selectedThreadId: null,
       messageStatusFilter: 'all',
+      showAllWorkflows: false,
+      taskViewMode: 'tree',
       pollInterval: 2000,
       promptValue: '',
       promptFocused: false,
@@ -24,7 +26,7 @@ describe('useAppStore', () => {
 
   test('has correct initial state', () => {
     const state = useAppStore.getState();
-    expect(state.view).toBe('dashboard');
+    expect(state.view).toBe('active-workflows');
     expect(state.activePanel).toBe('workflows');
     expect(state.selectedWorkflowId).toBeNull();
     expect(state.selectedAgentId).toBeNull();
@@ -32,6 +34,8 @@ describe('useAppStore', () => {
     expect(state.selectedMessageId).toBeNull();
     expect(state.selectedThreadId).toBeNull();
     expect(state.messageStatusFilter).toBe('all');
+    expect(state.showAllWorkflows).toBe(false);
+    expect(state.taskViewMode).toBe('tree');
     expect(state.pollInterval).toBe(2000);
     expect(state.promptValue).toBe('');
     expect(state.promptFocused).toBe(false);
@@ -139,10 +143,10 @@ describe('useAppStore', () => {
     // Navigate back
     useAppStore.getState().selectTask(null);
     useAppStore.getState().selectWorkflow(null);
-    useAppStore.getState().setView('dashboard');
+    useAppStore.getState().setView('active-workflows');
 
     state = useAppStore.getState();
-    expect(state.view).toBe('dashboard');
+    expect(state.view).toBe('active-workflows');
     expect(state.selectedWorkflowId).toBeNull();
     expect(state.selectedTaskId).toBeNull();
   });
@@ -210,5 +214,30 @@ describe('useAppStore', () => {
     expect(state.selectedAgentId).toBe('ag_123');
     expect(state.messageStatusFilter).toBe('unread');
     expect(state.selectedMessageId).toBe('msg_456');
+  });
+
+  test('toggleShowAllWorkflows toggles the flag', () => {
+    expect(useAppStore.getState().showAllWorkflows).toBe(false);
+
+    useAppStore.getState().toggleShowAllWorkflows();
+    expect(useAppStore.getState().showAllWorkflows).toBe(true);
+
+    useAppStore.getState().toggleShowAllWorkflows();
+    expect(useAppStore.getState().showAllWorkflows).toBe(false);
+  });
+
+  test('setTaskViewMode updates taskViewMode', () => {
+    expect(useAppStore.getState().taskViewMode).toBe('tree');
+
+    useAppStore.getState().setTaskViewMode('dag');
+    expect(useAppStore.getState().taskViewMode).toBe('dag');
+
+    useAppStore.getState().setTaskViewMode('tree');
+    expect(useAppStore.getState().taskViewMode).toBe('tree');
+  });
+
+  test('active-workflows is in View type union', () => {
+    useAppStore.getState().setView('active-workflows');
+    expect(useAppStore.getState().view).toBe('active-workflows');
   });
 });

@@ -1,4 +1,4 @@
-import { lockService } from '@caw/core';
+import { lockService, workflowService } from '@caw/core';
 import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
@@ -8,7 +8,6 @@ import { useAppStore } from '../store';
 import { isValidSlashCommand, parseCommand } from '../utils/parseCommand';
 
 const panelCommands: Record<string, Panel> = {
-  workflows: 'workflows',
   tasks: 'tasks',
   agents: 'agents',
   messages: 'messages',
@@ -46,9 +45,59 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'workflows') {
+        store.setView('active-workflows');
+        return;
+      }
+
+      if (command === 'dashboard') {
+        store.setView('dashboard');
+        store.setActivePanel('workflows');
+        return;
+      }
+
       if (panelCommands[command]) {
         store.setView('dashboard');
         store.setActivePanel(panelCommands[command]);
+        return;
+      }
+
+      if (command === 'all') {
+        store.toggleShowAllWorkflows();
+        if (store.view !== 'active-workflows') {
+          store.setView('active-workflows');
+        }
+        const next = !store.showAllWorkflows;
+        store.setPromptSuccess(next ? 'Showing all workflows' : 'Showing active workflows only');
+        return;
+      }
+
+      if (command === 'resume') {
+        const wfId = parsed.args ?? store.selectedWorkflowId;
+        if (!wfId) {
+          store.setPromptError('No workflow selected. Usage: /resume <workflow_id>');
+          return;
+        }
+        try {
+          const workflow = workflowService.get(db, wfId);
+          if (!workflow) {
+            store.setPromptError(`Workflow not found: ${wfId}`);
+            return;
+          }
+          if (workflow.status !== 'paused' && workflow.status !== 'failed') {
+            store.setPromptError(
+              `Cannot resume: workflow status is '${workflow.status}' (must be paused or failed)`,
+            );
+            return;
+          }
+          workflowService.updateStatus(db, wfId, 'in_progress');
+          store.setPromptSuccess(`Resumed workflow ${wfId}`);
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(
+            `Resume failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         return;
       }
 
@@ -118,8 +167,15 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
-      if (command === 'dag' || command === 'tree') {
-        store.setPromptError(`/${command} is not yet implemented`);
+      if (command === 'dag') {
+        store.setTaskViewMode('dag');
+        store.setPromptSuccess('Task view: DAG');
+        return;
+      }
+
+      if (command === 'tree') {
+        store.setTaskViewMode('tree');
+        store.setPromptSuccess('Task view: tree');
         return;
       }
     },

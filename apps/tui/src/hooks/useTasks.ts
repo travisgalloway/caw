@@ -224,6 +224,7 @@ export function useTasks(workflowId: string | null) {
 
   return {
     data: treeData,
+    rawDependencies: rawData.data?.dependencies ?? null,
     loading: rawData.loading,
     error: rawData.error,
     refresh: rawData.refresh,

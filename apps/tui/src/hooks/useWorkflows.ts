@@ -1,4 +1,4 @@
-import type { ProgressResult, WorkflowLockInfo, WorkflowSummary } from '@caw/core';
+import type { ProgressResult, WorkflowLockInfo, WorkflowStatus, WorkflowSummary } from '@caw/core';
 import { lockService, orchestrationService, workflowService } from '@caw/core';
 import { useDb } from '../context/db';
 import { useAppStore } from '../store';
@@ -9,14 +9,17 @@ export interface WorkflowListItem extends WorkflowSummary {
   lock: WorkflowLockInfo | null;
 }
 
-export function useWorkflows() {
+export function useWorkflows(statusFilter?: WorkflowStatus[]) {
   const db = useDb();
   const pollInterval = useAppStore((s) => s.pollInterval);
   const lastRefreshAt = useAppStore((s) => s.lastRefreshAt);
 
   return usePolling<WorkflowListItem[]>(
     () => {
-      const { workflows } = workflowService.list(db, { limit: 20 });
+      const { workflows } = workflowService.list(db, {
+        limit: 20,
+        status: statusFilter,
+      });
       return workflows.map((wf) => {
         let progress: ProgressResult | null = null;
         let lock: WorkflowLockInfo | null = null;

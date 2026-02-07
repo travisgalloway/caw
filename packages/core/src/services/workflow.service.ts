@@ -172,7 +172,7 @@ export function list(
 
   const workflows = db
     .prepare(
-      `SELECT id, name, status, created_at, updated_at FROM workflows ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+      `SELECT id, name, status, source_type, created_at, updated_at FROM workflows ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
     )
     .all(...params, limit, offset) as WorkflowSummary[];
 
