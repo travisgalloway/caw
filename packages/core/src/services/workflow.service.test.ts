@@ -823,7 +823,12 @@ describe('workflowService', () => {
       const wf = createBasicWorkflow(db, {
         repository_paths: ['/repo/first'],
       });
-      workflowService.addRepository(db, wf.id, { path: '/repo/second' });
+      // Bump added_at so the second repo has a strictly later timestamp
+      const repo2 = workflowService.addRepository(db, wf.id, { path: '/repo/second' });
+      db.prepare('UPDATE workflow_repositories SET added_at = ? WHERE repository_id = ?').run(
+        repo2.added_at + 1,
+        repo2.repository_id,
+      );
 
       const repos = workflowService.listRepositories(db, wf.id);
       expect(repos).toHaveLength(2);
