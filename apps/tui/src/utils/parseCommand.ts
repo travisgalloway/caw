@@ -20,9 +20,10 @@ export const SLASH_COMMANDS = [
   'unlock',
   'dag',
   'tree',
-  'dashboard',
+  'table',
   'all',
   'resume',
+  'back',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];

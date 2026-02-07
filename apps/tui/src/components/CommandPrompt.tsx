@@ -1,8 +1,9 @@
-import { Box, Text, useInput } from 'ink';
+import { Box, Text, useInput, useStdout } from 'ink';
 import type React from 'react';
 import { useEffect, useRef } from 'react';
 import { useAppStore } from '../store';
 import { completeCommand } from '../utils/parseCommand';
+import { horizontalRule, THEME } from '../utils/theme';
 
 interface CommandPromptProps {
   onSubmit: (input: string) => void;
@@ -14,6 +15,8 @@ export function CommandPrompt({ onSubmit }: CommandPromptProps): React.JSX.Eleme
   const promptError = useAppStore((s) => s.promptError);
   const promptSuccess = useAppStore((s) => s.promptSuccess);
   const { setPromptValue, setPromptFocused, clearPromptFeedback } = useAppStore();
+  const { stdout } = useStdout();
+  const termWidth = stdout?.columns ?? 80;
 
   // Auto-clear feedback after 5s
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -86,10 +89,19 @@ export function CommandPrompt({ onSubmit }: CommandPromptProps): React.JSX.Eleme
 
   return (
     <Box flexDirection="column" paddingX={1}>
-      {promptError && <Text color="red">{promptError}</Text>}
-      {promptSuccess && !promptError && <Text color="green">{promptSuccess}</Text>}
+      <Text dimColor>{horizontalRule(Math.max(0, termWidth - 2))}</Text>
+      {promptError && (
+        <Text>
+          <Text color={THEME.error}>✗</Text> <Text color={THEME.error}>{promptError}</Text>
+        </Text>
+      )}
+      {promptSuccess && !promptError && (
+        <Text>
+          <Text color={THEME.success}>✓</Text> <Text color={THEME.success}>{promptSuccess}</Text>
+        </Text>
+      )}
       <Box>
-        <Text dimColor={!promptFocused}>{'> '}</Text>
+        <Text color={promptFocused ? THEME.accent : THEME.muted}>{'❯ '}</Text>
         {promptValue ? <Text>{promptValue}</Text> : <Text dimColor>Type / for commands</Text>}
       </Box>
     </Box>

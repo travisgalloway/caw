@@ -10,6 +10,7 @@ describe('useAgentDetail', () => {
     const data: AgentDetailData = {
       agent: {
         id: 'ag_123',
+        workflow_id: null,
         name: 'Claude',
         runtime: 'claude-code',
         role: 'worker',
@@ -36,6 +37,7 @@ describe('useAgentDetail', () => {
     const data: AgentDetailData = {
       agent: {
         id: 'ag_123',
+        workflow_id: null,
         name: 'Claude',
         runtime: 'claude-code',
         role: 'worker',

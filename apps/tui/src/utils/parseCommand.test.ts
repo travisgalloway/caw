@@ -67,7 +67,7 @@ describe('isValidSlashCommand', () => {
     expect(isValidSlashCommand('quit')).toBe(true);
     expect(isValidSlashCommand('workflows')).toBe(true);
     expect(isValidSlashCommand('lock')).toBe(true);
-    expect(isValidSlashCommand('dashboard')).toBe(true);
+    expect(isValidSlashCommand('back')).toBe(true);
     expect(isValidSlashCommand('all')).toBe(true);
     expect(isValidSlashCommand('resume')).toBe(true);
   });
@@ -128,18 +128,16 @@ describe('completeCommand', () => {
     expect(result.candidates).toEqual(['quit']);
   });
 
-  test('handles lock/unlock ambiguity with /l prefix', () => {
+  test('handles lock as only /l match', () => {
     const result = completeCommand('/l');
     expect(result.completed).toBe('/lock');
     expect(result.candidates).toEqual(['lock']);
   });
 
-  test('handles /da prefix matching dag and dashboard', () => {
+  test('completes /da to /dag', () => {
     const result = completeCommand('/da');
-    expect(result.completed).toBe('/da');
-    expect(result.candidates).toContain('dag');
-    expect(result.candidates).toContain('dashboard');
-    expect(result.candidates.length).toBe(2);
+    expect(result.completed).toBe('/dag');
+    expect(result.candidates).toEqual(['dag']);
   });
 
   test('completes /res to /resume', () => {

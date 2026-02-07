@@ -118,6 +118,7 @@ if (values.server) {
     sessionId: daemon.sessionId,
     isDaemon: daemon.isDaemon,
     port: daemon.port,
+    dbPath,
   });
 
   daemon.cleanup();

@@ -1,32 +1,18 @@
-import { Box, Text, useInput } from 'ink';
+import { Box, Text } from 'ink';
 import type React from 'react';
 import { useAgentDetail } from '../hooks/useAgentDetail';
-import { useAppStore } from '../store';
 import { formatRelativeTime, formatTimestamp } from '../utils/format';
+import { THEME } from '../utils/theme';
 import { MessageInbox } from './MessageInbox';
 import { StatusIndicator } from './StatusIndicator';
 
 interface AgentDetailProps {
-  agentId: string | null;
+  agentId: string;
+  workflowId: string;
 }
 
 export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
-  const { setView } = useAppStore();
   const { data, error } = useAgentDetail(agentId);
-
-  useInput((_input, key) => {
-    if (key.escape) {
-      setView('dashboard');
-    }
-  });
-
-  if (!agentId) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text dimColor>No agent selected</Text>
-      </Box>
-    );
-  }
 
   if (error) {
     return (
@@ -48,18 +34,19 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
 
   return (
     <Box flexDirection="column">
-      {/* Header */}
-      <Box flexDirection="column" borderStyle="single" paddingX={1}>
-        <Box gap={1}>
-          <Text bold>Agent Detail</Text>
-        </Box>
-        <Box gap={1}>
-          <StatusIndicator kind="agent" status={agent.status} />
-          <Text bold>{agent.name}</Text>
+      <Box flexDirection="column" borderStyle="round" borderColor={THEME.muted} paddingX={1}>
+        <Text bold color={THEME.accent}>
+          Agent Detail
+        </Text>
+        <Text> </Text>
+        <Box justifyContent="space-between">
+          <Box gap={1}>
+            <StatusIndicator kind="agent" status={agent.status} />
+            <Text bold>{agent.name}</Text>
+          </Box>
           <Text dimColor>[{agent.status}]</Text>
         </Box>
 
-        {/* Runtime and role */}
         <Box gap={1}>
           <Text dimColor>Runtime:</Text>
           <Text>{agent.runtime}</Text>
@@ -67,7 +54,6 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
           <Text>{agent.role}</Text>
         </Box>
 
-        {/* Current task */}
         {agent.current_task_id && (
           <Box gap={1}>
             <Text dimColor>Current task:</Text>
@@ -75,7 +61,6 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
           </Box>
         )}
 
-        {/* Workspace */}
         {agent.workspace_path && (
           <Box gap={1}>
             <Text dimColor>Workspace:</Text>
@@ -83,13 +68,11 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
           </Box>
         )}
 
-        {/* Heartbeat */}
         <Box gap={1}>
           <Text dimColor>Last heartbeat:</Text>
           <Text>{formatRelativeTime(agent.last_heartbeat)}</Text>
         </Box>
 
-        {/* Timestamps */}
         <Box gap={1}>
           <Text dimColor>Created:</Text>
           <Text>{formatTimestamp(agent.created_at)}</Text>
@@ -99,7 +82,6 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
           <Text>{formatTimestamp(agent.updated_at)}</Text>
         </Box>
 
-        {/* Capabilities */}
         {capabilities.length > 0 && (
           <Box gap={1}>
             <Text dimColor>Capabilities:</Text>
@@ -108,7 +90,6 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
         )}
       </Box>
 
-      {/* Messages section */}
       <MessageInbox
         messages={messages}
         unreadCount={unreadCount.count}
@@ -116,9 +97,8 @@ export function AgentDetail({ agentId }: AgentDetailProps): React.JSX.Element {
         isFocused
       />
 
-      {/* Footer hint */}
       <Box paddingX={1}>
-        <Text dimColor>Press Esc to return to dashboard</Text>
+        <Text dimColor>Esc back</Text>
       </Box>
     </Box>
   );

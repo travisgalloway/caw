@@ -2,16 +2,15 @@ import { Box, Text, useStdout } from 'ink';
 import type React from 'react';
 import { useMemo } from 'react';
 import { useTasks } from '../hooks/useTasks';
-import { useAppStore } from '../store';
 import type { DagEdge, DagNode, GridCell } from '../utils/dagLayout';
 import { layoutDag } from '../utils/dagLayout';
+import { THEME } from '../utils/theme';
 
 interface TaskDagProps {
   workflowId: string | null;
 }
 
 function renderGridRow(cells: GridCell[]): React.JSX.Element {
-  // Merge consecutive cells with same color/dim for performance
   const segments: { text: string; color: string | null; dim: boolean }[] = [];
 
   for (const cell of cells) {
@@ -36,8 +35,6 @@ function renderGridRow(cells: GridCell[]): React.JSX.Element {
 }
 
 export function TaskDag({ workflowId }: TaskDagProps): React.JSX.Element {
-  const activePanel = useAppStore((s) => s.activePanel);
-  const isFocused = activePanel === 'tasks';
   const { data: tasks, rawDependencies, error } = useTasks(workflowId);
   const { stdout } = useStdout();
   const termWidth = stdout?.columns ?? 80;
@@ -66,19 +63,13 @@ export function TaskDag({ workflowId }: TaskDagProps): React.JSX.Element {
           taskStatusMap.get(dep.depends_on_id) !== 'skipped',
       }));
 
-    // Reserve space for borders (2) and padding (2)
     const availableWidth = Math.max(40, termWidth - 4);
     return layoutDag({ nodes: dagNodes, edges: dagEdges, width: availableWidth });
   }, [tasks, rawDependencies, termWidth]);
 
   if (error) {
     return (
-      <Box
-        flexDirection="column"
-        borderStyle={isFocused ? 'bold' : 'single'}
-        borderColor={isFocused ? 'cyan' : undefined}
-        paddingX={1}
-      >
+      <Box flexDirection="column" borderStyle="round" borderColor={THEME.muted} paddingX={1}>
         <Text bold>Tasks (DAG)</Text>
         <Text color="red">Error: {error.message}</Text>
       </Box>
@@ -86,12 +77,7 @@ export function TaskDag({ workflowId }: TaskDagProps): React.JSX.Element {
   }
 
   return (
-    <Box
-      flexDirection="column"
-      borderStyle={isFocused ? 'bold' : 'single'}
-      borderColor={isFocused ? 'cyan' : undefined}
-      paddingX={1}
-    >
+    <Box flexDirection="column" borderStyle="round" borderColor={THEME.muted} paddingX={1}>
       <Text bold>Tasks (DAG)</Text>
       {!workflowId ? (
         <Text dimColor>Select a workflow</Text>

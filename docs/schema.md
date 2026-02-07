@@ -115,6 +115,7 @@ CREATE TABLE workflow_templates (
 -- Agent registry
 CREATE TABLE agents (
   id TEXT PRIMARY KEY,                    -- ag_xxxxxxxxxxxx
+  workflow_id TEXT REFERENCES workflows(id), -- Workflow this agent belongs to
   name TEXT NOT NULL,                     -- Human-friendly name (e.g., "worker-1", "coordinator")
   runtime TEXT NOT NULL,                  -- 'claude_code', 'codex', 'opencode', etc.
   role TEXT NOT NULL DEFAULT 'worker',    -- 'coordinator', 'worker'

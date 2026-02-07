@@ -3,15 +3,8 @@ import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
 import { useSessionInfo } from '../context/session';
-import type { Panel } from '../store';
-import { useAppStore } from '../store';
+import { currentScreen, getWorkflowId, useAppStore } from '../store';
 import { isValidSlashCommand, parseCommand } from '../utils/parseCommand';
-
-const panelCommands: Record<string, Panel> = {
-  tasks: 'tasks',
-  agents: 'agents',
-  messages: 'messages',
-};
 
 export function useCommandHandler(): (input: string) => void {
   const { exit } = useApp();
@@ -41,31 +34,55 @@ export function useCommandHandler(): (input: string) => void {
       }
 
       if (command === 'help') {
-        store.setView('help');
+        store.push({ screen: 'help' });
         return;
       }
 
       if (command === 'workflows') {
-        store.setView('active-workflows');
+        store.resetTo({ screen: 'workflow-list' });
         return;
       }
 
-      if (command === 'dashboard') {
-        store.setView('dashboard');
-        store.setActivePanel('workflows');
+      if (command === 'back') {
+        store.pop();
         return;
       }
 
-      if (panelCommands[command]) {
-        store.setView('dashboard');
-        store.setActivePanel(panelCommands[command]);
+      if (command === 'tasks') {
+        const screen = currentScreen(store);
+        if (screen.screen === 'workflow-detail') {
+          store.setWorkflowTab('tasks');
+          return;
+        }
+        store.setPromptError('Navigate to a workflow first to view tasks');
+        return;
+      }
+
+      if (command === 'agents') {
+        const screen = currentScreen(store);
+        if (screen.screen === 'workflow-detail') {
+          store.setWorkflowTab('agents');
+          return;
+        }
+        store.setPromptError('Navigate to a workflow first to view agents');
+        return;
+      }
+
+      if (command === 'messages') {
+        const screen = currentScreen(store);
+        if (screen.screen === 'workflow-detail') {
+          store.setWorkflowTab('messages');
+          return;
+        }
+        store.setPromptError('Navigate to a workflow first to view messages');
         return;
       }
 
       if (command === 'all') {
         store.toggleShowAllWorkflows();
-        if (store.view !== 'active-workflows') {
-          store.setView('active-workflows');
+        const screen = currentScreen(store);
+        if (screen.screen !== 'workflow-list') {
+          store.resetTo({ screen: 'workflow-list' });
         }
         const next = !store.showAllWorkflows;
         store.setPromptSuccess(next ? 'Showing all workflows' : 'Showing active workflows only');
@@ -73,7 +90,7 @@ export function useCommandHandler(): (input: string) => void {
       }
 
       if (command === 'resume') {
-        const wfId = parsed.args ?? store.selectedWorkflowId;
+        const wfId = parsed.args ?? getWorkflowId(store);
         if (!wfId) {
           store.setPromptError('No workflow selected. Usage: /resume <workflow_id>');
           return;
@@ -120,7 +137,7 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError('No active session — cannot lock');
           return;
         }
-        const wfId = parsed.args ?? store.selectedWorkflowId;
+        const wfId = parsed.args ?? getWorkflowId(store);
         if (!wfId) {
           store.setPromptError('No workflow selected. Usage: /lock <workflow_id>');
           return;
@@ -146,7 +163,7 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError('No active session — cannot unlock');
           return;
         }
-        const wfId = parsed.args ?? store.selectedWorkflowId;
+        const wfId = parsed.args ?? getWorkflowId(store);
         if (!wfId) {
           store.setPromptError('No workflow selected. Usage: /unlock <workflow_id>');
           return;
@@ -176,6 +193,12 @@ export function useCommandHandler(): (input: string) => void {
       if (command === 'tree') {
         store.setTaskViewMode('tree');
         store.setPromptSuccess('Task view: tree');
+        return;
+      }
+
+      if (command === 'table') {
+        store.setTaskViewMode('table');
+        store.setPromptSuccess('Task view: table');
         return;
       }
     },

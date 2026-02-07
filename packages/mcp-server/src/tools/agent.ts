@@ -71,6 +71,7 @@ export const register: ToolRegistrar = (server, db) => {
         name: z.string().describe('Human-friendly name'),
         runtime: z.enum(['claude_code', 'codex', 'opencode', 'custom']).describe('Agent runtime'),
         role: z.enum(['coordinator', 'worker']).optional().describe("Default 'worker'"),
+        workflow_id: z.string().optional().describe('Workflow this agent belongs to'),
         capabilities: z.array(z.string()).optional().describe('e.g., typescript, python, testing'),
         workspace_path: z.string().optional().describe('Workspace path'),
         metadata: z.record(z.unknown()).optional().describe('Additional metadata'),
@@ -82,6 +83,7 @@ export const register: ToolRegistrar = (server, db) => {
           name: args.name,
           runtime: args.runtime,
           role: args.role as AgentRole | undefined,
+          workflow_id: args.workflow_id,
           capabilities: args.capabilities,
           workspace_path: args.workspace_path,
           metadata: args.metadata,
@@ -182,6 +184,7 @@ export const register: ToolRegistrar = (server, db) => {
           .describe('Filter by status'),
         role: z.enum(['coordinator', 'worker']).optional().describe('Filter by role'),
         runtime: z.string().optional().describe('Filter by runtime'),
+        workflow_id: z.string().optional().describe('Filter by workflow'),
       },
     },
     (args) =>
@@ -190,6 +193,7 @@ export const register: ToolRegistrar = (server, db) => {
           status: args.status as AgentStatus[] | undefined,
           role: args.role as AgentRole | undefined,
           runtime: args.runtime,
+          workflow_id: args.workflow_id,
         });
         return { agents };
       }),

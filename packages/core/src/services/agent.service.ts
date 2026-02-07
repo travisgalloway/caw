@@ -8,6 +8,7 @@ export interface RegisterParams {
   name: string;
   runtime: string;
   role?: AgentRole;
+  workflow_id?: string;
   capabilities?: string[];
   workspace_path?: string;
   metadata?: Record<string, unknown>;
@@ -25,6 +26,7 @@ export interface ListFilters {
   status?: AgentStatus | AgentStatus[];
   role?: AgentRole;
   runtime?: string;
+  workflow_id?: string;
 }
 
 export interface UnregisterResult {
@@ -38,15 +40,17 @@ export function register(db: DatabaseType, params: RegisterParams): Agent {
   const id = agentId();
   const now = Date.now();
   const role = params.role ?? 'worker';
+  const workflowId = params.workflow_id ?? null;
   const capabilities = params.capabilities ? JSON.stringify(params.capabilities) : null;
   const metadata = params.metadata ? JSON.stringify(params.metadata) : null;
   const workspacePath = params.workspace_path ?? null;
 
   db.prepare(
-    `INSERT INTO agents (id, name, runtime, role, status, capabilities, workspace_path, last_heartbeat, metadata, created_at, updated_at)
-     VALUES (?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO agents (id, workflow_id, name, runtime, role, status, capabilities, workspace_path, last_heartbeat, metadata, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, 'online', ?, ?, ?, ?, ?, ?)`,
   ).run(
     id,
+    workflowId,
     params.name,
     params.runtime,
     role,
@@ -60,6 +64,7 @@ export function register(db: DatabaseType, params: RegisterParams): Agent {
 
   return {
     id,
+    workflow_id: workflowId,
     name: params.name,
     runtime: params.runtime,
     role,
@@ -199,6 +204,11 @@ export function list(db: DatabaseType, filters?: ListFilters): Agent[] {
   if (filters?.runtime !== undefined) {
     conditions.push('runtime = ?');
     params.push(filters.runtime);
+  }
+
+  if (filters?.workflow_id !== undefined) {
+    conditions.push('workflow_id = ?');
+    params.push(filters.workflow_id);
   }
 
   let sql = 'SELECT * FROM agents';

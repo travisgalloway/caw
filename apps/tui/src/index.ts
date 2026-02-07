@@ -1,10 +1,7 @@
 export type { TuiOptions } from './app';
 export { runTui } from './app';
-export { AgentList } from './components/AgentList';
-export { Dashboard } from './components/Dashboard';
 export { ProgressBar } from './components/ProgressBar';
 export { StatusIndicator } from './components/StatusIndicator';
-export { WorkflowList } from './components/WorkflowList';
 export { DbContext, useDb } from './context/db';
 export { useAgents } from './hooks/useAgents';
 export { useKeyBindings } from './hooks/useKeyBindings';
@@ -13,5 +10,5 @@ export type { WorkflowListItem } from './hooks/useWorkflows';
 export { useWorkflows } from './hooks/useWorkflows';
 export type { ServerOptions } from './server';
 export { runServer } from './server';
-export type { Panel, View } from './store';
-export { useAppStore } from './store';
+export type { NavScreen, WorkflowTab } from './store';
+export { currentScreen, getWorkflowId, useAppStore } from './store';

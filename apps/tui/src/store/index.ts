@@ -1,40 +1,41 @@
 import { create } from 'zustand';
 
-export type Panel = 'workflows' | 'agents' | 'tasks' | 'messages';
-export type View = 'dashboard' | 'active-workflows' | 'workflow-detail' | 'agent-detail' | 'help';
+export type WorkflowTab = 'tasks' | 'agents' | 'messages' | 'workspaces';
 
-export type TaskViewMode = 'tree' | 'dag';
+export type NavScreen =
+  | { screen: 'workflow-list' }
+  | { screen: 'workflow-detail'; workflowId: string; tab: WorkflowTab }
+  | { screen: 'task-detail'; workflowId: string; taskId: string }
+  | { screen: 'agent-detail'; workflowId: string; agentId: string }
+  | { screen: 'message-detail'; workflowId: string; messageId: string }
+  | { screen: 'help' };
+
+export type TaskViewMode = 'table' | 'tree' | 'dag';
 
 export type MessageStatusFilter = 'all' | 'unread';
 
 interface AppState {
-  view: View;
-  activePanel: Panel;
-  selectedWorkflowId: string | null;
-  selectedAgentId: string | null;
-  selectedTaskId: string | null;
-  selectedMessageId: string | null;
-  selectedThreadId: string | null;
-  messageStatusFilter: MessageStatusFilter;
+  navStack: NavScreen[];
+
   showAllWorkflows: boolean;
   taskViewMode: TaskViewMode;
+  messageStatusFilter: MessageStatusFilter;
   pollInterval: number;
+  lastRefreshAt: number;
   promptValue: string;
   promptFocused: boolean;
   promptError: string | null;
   promptSuccess: string | null;
-  lastRefreshAt: number;
 
-  setView: (view: View) => void;
-  setActivePanel: (panel: Panel) => void;
-  selectWorkflow: (id: string | null) => void;
-  selectAgent: (id: string | null) => void;
-  selectTask: (id: string | null) => void;
-  selectMessage: (id: string | null) => void;
-  selectThread: (id: string | null) => void;
-  setMessageStatusFilter: (filter: MessageStatusFilter) => void;
+  push: (frame: NavScreen) => void;
+  pop: () => void;
+  replaceTop: (frame: NavScreen) => void;
+  resetTo: (frame: NavScreen) => void;
+  setWorkflowTab: (tab: WorkflowTab) => void;
+
   toggleShowAllWorkflows: () => void;
   setTaskViewMode: (mode: TaskViewMode) => void;
+  setMessageStatusFilter: (filter: MessageStatusFilter) => void;
   setPollInterval: (interval: number) => void;
   setPromptValue: (value: string) => void;
   setPromptFocused: (focused: boolean) => void;
@@ -45,33 +46,39 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  view: 'active-workflows',
-  activePanel: 'workflows',
-  selectedWorkflowId: null,
-  selectedAgentId: null,
-  selectedTaskId: null,
-  selectedMessageId: null,
-  selectedThreadId: null,
-  messageStatusFilter: 'all',
+  navStack: [{ screen: 'workflow-list' }],
+
   showAllWorkflows: false,
-  taskViewMode: 'tree',
+  taskViewMode: 'table',
+  messageStatusFilter: 'all',
   pollInterval: 2000,
+  lastRefreshAt: 0,
   promptValue: '',
   promptFocused: false,
   promptError: null,
   promptSuccess: null,
-  lastRefreshAt: 0,
 
-  setView: (view) => set({ view }),
-  setActivePanel: (panel) => set({ activePanel: panel }),
-  selectWorkflow: (id) => set({ selectedWorkflowId: id }),
-  selectAgent: (id) => set({ selectedAgentId: id }),
-  selectTask: (id) => set({ selectedTaskId: id }),
-  selectMessage: (id) => set({ selectedMessageId: id }),
-  selectThread: (id) => set({ selectedThreadId: id }),
-  setMessageStatusFilter: (filter) => set({ messageStatusFilter: filter }),
+  push: (frame) => set((s) => ({ navStack: [...s.navStack, frame] })),
+  pop: () => set((s) => (s.navStack.length > 1 ? { navStack: s.navStack.slice(0, -1) } : s)),
+  replaceTop: (frame) =>
+    set((s) => ({
+      navStack: s.navStack.length > 0 ? [...s.navStack.slice(0, -1), frame] : [frame],
+    })),
+  resetTo: (frame) => set({ navStack: [frame] }),
+  setWorkflowTab: (tab) =>
+    set((s) => {
+      const top = s.navStack[s.navStack.length - 1];
+      if (top?.screen === 'workflow-detail') {
+        return {
+          navStack: [...s.navStack.slice(0, -1), { ...top, tab }],
+        };
+      }
+      return s;
+    }),
+
   toggleShowAllWorkflows: () => set((s) => ({ showAllWorkflows: !s.showAllWorkflows })),
   setTaskViewMode: (mode) => set({ taskViewMode: mode }),
+  setMessageStatusFilter: (filter) => set({ messageStatusFilter: filter }),
   setPollInterval: (interval) => set({ pollInterval: interval }),
   setPromptValue: (value) => set({ promptValue: value }),
   setPromptFocused: (focused) => set({ promptFocused: focused }),
@@ -80,3 +87,17 @@ export const useAppStore = create<AppState>((set) => ({
   triggerRefresh: () => set({ lastRefreshAt: Date.now() }),
   clearPromptFeedback: () => set({ promptError: null, promptSuccess: null }),
 }));
+
+export function currentScreen(state: { navStack: NavScreen[] }): NavScreen {
+  return state.navStack[state.navStack.length - 1] ?? { screen: 'workflow-list' };
+}
+
+export function getWorkflowId(state: { navStack: NavScreen[] }): string | null {
+  for (let i = state.navStack.length - 1; i >= 0; i--) {
+    const frame = state.navStack[i];
+    if (frame && 'workflowId' in frame) {
+      return frame.workflowId;
+    }
+  }
+  return null;
+}

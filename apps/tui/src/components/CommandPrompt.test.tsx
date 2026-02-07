@@ -16,22 +16,31 @@ describe('CommandPrompt', () => {
     useAppStore.setState({ promptValue: '' });
   });
 
-  test('renders error feedback', () => {
+  test('renders error feedback with icon', () => {
     useAppStore.setState({ promptError: 'Unknown command' });
     const { lastFrame } = render(<CommandPrompt onSubmit={() => {}} />);
-    expect(lastFrame() ?? '').toContain('Unknown command');
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Unknown command');
+    expect(frame).toContain('✗');
     useAppStore.setState({ promptError: null });
   });
 
-  test('renders success feedback', () => {
+  test('renders success feedback with icon', () => {
     useAppStore.setState({ promptSuccess: 'Data refreshed' });
     const { lastFrame } = render(<CommandPrompt onSubmit={() => {}} />);
-    expect(lastFrame() ?? '').toContain('Data refreshed');
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Data refreshed');
+    expect(frame).toContain('✓');
     useAppStore.setState({ promptSuccess: null });
   });
 
-  test('renders > prefix', () => {
+  test('renders prompt character', () => {
     const { lastFrame } = render(<CommandPrompt onSubmit={() => {}} />);
-    expect(lastFrame() ?? '').toContain('>');
+    expect(lastFrame() ?? '').toContain('❯');
+  });
+
+  test('renders separator line', () => {
+    const { lastFrame } = render(<CommandPrompt onSubmit={() => {}} />);
+    expect(lastFrame() ?? '').toContain('─');
   });
 });
