@@ -112,8 +112,11 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
     const insertWR = db.prepare(
       'INSERT INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
     );
+    const seen = new Set<string>();
     for (const path of params.repository_paths) {
       const repo = repositoryService.register(db, { path });
+      if (seen.has(repo.id)) continue;
+      seen.add(repo.id);
       insertWR.run(workflow.id, repo.id, now);
     }
   }
@@ -454,7 +457,7 @@ export function addRepository(
 
   const existing = db
     .prepare(
-      'SELECT workflow_id, repository_id FROM workflow_repositories WHERE workflow_id = ? AND repository_id = ?',
+      'SELECT workflow_id, repository_id, added_at FROM workflow_repositories WHERE workflow_id = ? AND repository_id = ?',
     )
     .get(workflowId, repo.id) as WorkflowRepository | null;
 

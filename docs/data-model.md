@@ -63,7 +63,7 @@ A single workflow can coordinate work across multiple repositories via the `work
 - **Workflow → Repositories**: Many-to-many via `workflow_repositories` join table
 - **Tasks**: Optionally declare their `repository_id` to scope work to a specific repo
 - **Workspaces**: Optionally declare their `repository_id` to associate with a specific repo
-- **No inheritance**: In multi-repo workflows, tasks must explicitly declare their repository
+- **No inheritance**: In multi-repo workflows, tasks and workspaces do not inherit a repository; when scoped, they must set `repository_id` explicitly (it may otherwise be null/unset)
 - **Per-repo mode**: Continues as single-repo isolation (no join table needed)
 
 ## ID Generation
