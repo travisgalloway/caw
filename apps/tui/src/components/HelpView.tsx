@@ -84,6 +84,10 @@ export function HelpView(): React.JSX.Element {
         </Box>
       </Section>
 
+      <Section title="Setup">
+        <Cmd name="/setup" desc="Show setup guide" />
+      </Section>
+
       <Section title="Actions">
         <Box gap={4}>
           <Box flexDirection="column">

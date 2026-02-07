@@ -7,6 +7,7 @@ import { Breadcrumb } from './components/Breadcrumb';
 import { CommandPrompt } from './components/CommandPrompt';
 import { HelpView } from './components/HelpView';
 import { MessageDetailScreen } from './components/MessageDetailScreen';
+import { SetupGuide } from './components/SetupGuide';
 import { TaskDetailScreen } from './components/TaskDetailScreen';
 import { WorkflowDetailScreen } from './components/WorkflowDetailScreen';
 import { WorkflowListScreen } from './components/WorkflowListScreen';
@@ -47,6 +48,8 @@ function buildBreadcrumbs(screen: ReturnType<typeof currentScreen>): BreadcrumbS
       ];
     case 'help':
       return [{ label: 'Help' }];
+    case 'setup':
+      return [{ label: 'Setup' }];
   }
 }
 
@@ -77,6 +80,9 @@ function App(): React.JSX.Element {
       break;
     case 'help':
       content = <HelpView />;
+      break;
+    case 'setup':
+      content = <SetupGuide />;
       break;
   }
 

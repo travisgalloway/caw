@@ -1,3 +1,5 @@
+import { loadConfig } from '@caw/core';
+
 export type TransportType = 'stdio' | 'http';
 export type DbMode = 'global' | 'repository';
 
@@ -18,9 +20,21 @@ export function resolveConfig(args: {
   repoPath?: string;
   dbPath?: string;
 }): ServerConfig {
-  const transport = parseTransport(args.transport ?? process.env.CAW_TRANSPORT ?? 'stdio');
-  const port = parsePort(args.port ?? process.env.CAW_PORT);
-  const dbMode = parseDbMode(args.mode ?? process.env.CAW_DB_MODE ?? 'repository');
+  // Load file-based config (global → repo, lowest priority)
+  const fileConfig = loadConfig(args.repoPath ?? process.env.CAW_REPO_PATH ?? process.cwd());
+  for (const w of fileConfig.warnings) {
+    console.warn(`[caw config] ${w}`);
+  }
+  const fc = fileConfig.config;
+
+  // Resolution order: CLI args > env vars > file config > defaults
+  const transport = parseTransport(
+    args.transport ?? process.env.CAW_TRANSPORT ?? fc.transport ?? 'stdio',
+  );
+  const port = parsePort(
+    args.port ?? process.env.CAW_PORT ?? (fc.port !== undefined ? String(fc.port) : undefined),
+  );
+  const dbMode = parseDbMode(args.mode ?? process.env.CAW_DB_MODE ?? fc.dbMode ?? 'repository');
   const repoPath =
     args.repoPath ??
     process.env.CAW_REPO_PATH ??

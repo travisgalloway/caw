@@ -38,6 +38,11 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'setup') {
+        store.push({ screen: 'setup' });
+        return;
+      }
+
       if (command === 'workflows') {
         store.resetTo({ screen: 'workflow-list' });
         return;

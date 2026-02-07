@@ -24,6 +24,7 @@ export const SLASH_COMMANDS = [
   'all',
   'resume',
   'back',
+  'setup',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];

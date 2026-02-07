@@ -8,7 +8,8 @@ export type NavScreen =
   | { screen: 'task-detail'; workflowId: string; taskId: string }
   | { screen: 'agent-detail'; workflowId: string; agentId: string }
   | { screen: 'message-detail'; workflowId: string; messageId: string }
-  | { screen: 'help' };
+  | { screen: 'help' }
+  | { screen: 'setup' };
 
 export type TaskViewMode = 'table' | 'tree' | 'dag';
 

@@ -1,3 +1,20 @@
+export type {
+  AgentConfig,
+  CawConfig,
+  DbMode,
+  LoadConfigResult,
+  TransportType as ConfigTransportType,
+  ValidationResult,
+} from './config/index';
+export {
+  ensureGitignore,
+  getConfigPaths,
+  loadConfig,
+  mergeConfigs,
+  readConfigFile,
+  validateConfig,
+  writeConfig,
+} from './config/index';
 export type { DatabaseType, SQLParam } from './db/index';
 export { createConnection, getAppliedVersions, getDbPath, runMigrations } from './db/index';
 export type {
