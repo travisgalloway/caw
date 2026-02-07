@@ -72,6 +72,10 @@ describe('isValidSlashCommand', () => {
     expect(isValidSlashCommand('resume')).toBe(true);
   });
 
+  test('returns true for setup command', () => {
+    expect(isValidSlashCommand('setup')).toBe(true);
+  });
+
   test('returns false for invalid commands', () => {
     expect(isValidSlashCommand('foo')).toBe(false);
     expect(isValidSlashCommand('')).toBe(false);

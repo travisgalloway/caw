@@ -177,6 +177,11 @@ describe('currentScreen', () => {
     useAppStore.getState().push({ screen: 'help' });
     expect(currentScreen(useAppStore.getState()).screen).toBe('help');
   });
+
+  test('returns setup screen after push', () => {
+    useAppStore.getState().push({ screen: 'setup' });
+    expect(currentScreen(useAppStore.getState()).screen).toBe('setup');
+  });
 });
 
 describe('getWorkflowId', () => {
