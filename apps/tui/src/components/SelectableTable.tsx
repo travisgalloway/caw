@@ -7,6 +7,8 @@ export interface Column<T> {
   header: string;
   width?: number;
   render?: (value: T[keyof T], row: T) => React.JSX.Element | string;
+  /** Unique identifier for React key when multiple columns share the same data key */
+  id?: string;
 }
 
 interface SelectableTableProps<T extends { id: string }> {
@@ -74,7 +76,7 @@ export function SelectableTable<T extends { id: string }>({
       {/* Header row */}
       <Box>
         {columns.map((col) => (
-          <Box key={col.key} width={col.width}>
+          <Box key={col.id ?? col.key} width={col.width}>
             <Text bold dimColor>
               {col.header}
             </Text>
@@ -88,7 +90,7 @@ export function SelectableTable<T extends { id: string }>({
         return (
           <Box key={row.id}>
             {columns.map((col) => (
-              <Box key={col.key} width={col.width}>
+              <Box key={col.id ?? col.key} width={col.width}>
                 {col.render ? (
                   <Text inverse={isSelected}>{col.render(row[col.key], row)}</Text>
                 ) : (

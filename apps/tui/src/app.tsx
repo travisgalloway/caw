@@ -33,19 +33,23 @@ function buildBreadcrumbs(screen: ReturnType<typeof currentScreen>): BreadcrumbS
         { label: screen.taskId },
       ];
     case 'agent-detail':
-      return [
-        { label: 'Workflows' },
-        { label: screen.workflowId },
-        { label: 'Agents' },
-        { label: screen.agentId },
-      ];
+      return screen.workflowId
+        ? [
+            { label: 'Workflows' },
+            { label: screen.workflowId },
+            { label: 'Agents' },
+            { label: screen.agentId },
+          ]
+        : [{ label: 'Agents' }, { label: screen.agentId }];
     case 'message-detail':
-      return [
-        { label: 'Workflows' },
-        { label: screen.workflowId },
-        { label: 'Messages' },
-        { label: screen.messageId },
-      ];
+      return screen.workflowId
+        ? [
+            { label: 'Workflows' },
+            { label: screen.workflowId },
+            { label: 'Messages' },
+            { label: screen.messageId },
+          ]
+        : [{ label: 'Messages' }, { label: screen.messageId }];
     case 'help':
       return [{ label: 'Help' }];
     case 'setup':
@@ -73,10 +77,12 @@ function App(): React.JSX.Element {
       content = <TaskDetailScreen workflowId={screen.workflowId} taskId={screen.taskId} />;
       break;
     case 'agent-detail':
-      content = <AgentDetail workflowId={screen.workflowId} agentId={screen.agentId} />;
+      content = <AgentDetail workflowId={screen.workflowId ?? ''} agentId={screen.agentId} />;
       break;
     case 'message-detail':
-      content = <MessageDetailScreen workflowId={screen.workflowId} messageId={screen.messageId} />;
+      content = (
+        <MessageDetailScreen workflowId={screen.workflowId ?? ''} messageId={screen.messageId} />
+      );
       break;
     case 'help':
       content = <HelpView />;

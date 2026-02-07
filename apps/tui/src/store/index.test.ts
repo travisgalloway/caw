@@ -3,6 +3,7 @@ import { currentScreen, getWorkflowId, useAppStore } from './index';
 
 const INITIAL_STATE = {
   navStack: [{ screen: 'workflow-list' as const }],
+  mainTab: 'workflows' as const,
   showAllWorkflows: false,
   taskViewMode: 'table' as const,
   messageStatusFilter: 'all' as const,
@@ -22,6 +23,7 @@ describe('useAppStore', () => {
   test('has correct initial state', () => {
     const state = useAppStore.getState();
     expect(state.navStack).toEqual([{ screen: 'workflow-list' }]);
+    expect(state.mainTab).toBe('workflows');
     expect(state.showAllWorkflows).toBe(false);
     expect(state.taskViewMode).toBe('table');
     expect(state.messageStatusFilter).toBe('all');
@@ -162,6 +164,16 @@ describe('useAppStore', () => {
     useAppStore.getState().setMessageStatusFilter('all');
     expect(useAppStore.getState().messageStatusFilter).toBe('all');
   });
+
+  test('setMainTab updates mainTab', () => {
+    expect(useAppStore.getState().mainTab).toBe('workflows');
+    useAppStore.getState().setMainTab('agents');
+    expect(useAppStore.getState().mainTab).toBe('agents');
+    useAppStore.getState().setMainTab('messages');
+    expect(useAppStore.getState().mainTab).toBe('messages');
+    useAppStore.getState().setMainTab('workflows');
+    expect(useAppStore.getState().mainTab).toBe('workflows');
+  });
 });
 
 describe('currentScreen', () => {
@@ -202,5 +214,10 @@ describe('getWorkflowId', () => {
     useAppStore.getState().push({ screen: 'workflow-detail', workflowId: 'wf_123', tab: 'tasks' });
     useAppStore.getState().push({ screen: 'task-detail', workflowId: 'wf_123', taskId: 'tk_456' });
     expect(getWorkflowId(useAppStore.getState())).toBe('wf_123');
+  });
+
+  test('returns null for agent-detail with null workflowId', () => {
+    useAppStore.getState().push({ screen: 'agent-detail', workflowId: null, agentId: 'ag_123' });
+    expect(getWorkflowId(useAppStore.getState())).toBeNull();
   });
 });

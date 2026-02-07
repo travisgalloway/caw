@@ -42,6 +42,8 @@ export async function startServer(server: McpServer, config: ServerConfig): Prom
       },
     });
 
-    console.error(`caw MCP server listening on http://localhost:${config.port}/mcp`);
+    if (!config.quiet) {
+      console.error(`caw MCP server listening on http://localhost:${config.port}/mcp`);
+    }
   }
 }

@@ -2,12 +2,14 @@ import { create } from 'zustand';
 
 export type WorkflowTab = 'tasks' | 'agents' | 'messages' | 'workspaces';
 
+export type MainTab = 'workflows' | 'agents' | 'messages';
+
 export type NavScreen =
   | { screen: 'workflow-list' }
   | { screen: 'workflow-detail'; workflowId: string; tab: WorkflowTab }
   | { screen: 'task-detail'; workflowId: string; taskId: string }
-  | { screen: 'agent-detail'; workflowId: string; agentId: string }
-  | { screen: 'message-detail'; workflowId: string; messageId: string }
+  | { screen: 'agent-detail'; workflowId: string | null; agentId: string }
+  | { screen: 'message-detail'; workflowId: string | null; messageId: string }
   | { screen: 'help' }
   | { screen: 'setup' };
 
@@ -18,6 +20,7 @@ export type MessageStatusFilter = 'all' | 'unread';
 interface AppState {
   navStack: NavScreen[];
 
+  mainTab: MainTab;
   showAllWorkflows: boolean;
   taskViewMode: TaskViewMode;
   messageStatusFilter: MessageStatusFilter;
@@ -33,6 +36,7 @@ interface AppState {
   replaceTop: (frame: NavScreen) => void;
   resetTo: (frame: NavScreen) => void;
   setWorkflowTab: (tab: WorkflowTab) => void;
+  setMainTab: (tab: MainTab) => void;
 
   toggleShowAllWorkflows: () => void;
   setTaskViewMode: (mode: TaskViewMode) => void;
@@ -49,6 +53,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   navStack: [{ screen: 'workflow-list' }],
 
+  mainTab: 'workflows',
   showAllWorkflows: false,
   taskViewMode: 'table',
   messageStatusFilter: 'all',
@@ -76,6 +81,8 @@ export const useAppStore = create<AppState>((set) => ({
       }
       return s;
     }),
+
+  setMainTab: (tab) => set({ mainTab: tab }),
 
   toggleShowAllWorkflows: () => set((s) => ({ showAllWorkflows: !s.showAllWorkflows })),
   setTaskViewMode: (mode) => set({ taskViewMode: mode }),

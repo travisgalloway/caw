@@ -29,6 +29,26 @@ export const SLASH_COMMANDS = [
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];
 
+export const COMMAND_DESCRIPTIONS: Record<SlashCommand, string> = {
+  quit: 'Exit caw',
+  help: 'Show help screen',
+  workflows: 'Go to workflow list',
+  tasks: 'Switch to tasks tab',
+  agents: 'Switch to agents tab',
+  messages: 'Switch to messages tab',
+  refresh: 'Refresh data',
+  unread: 'Toggle unread filter',
+  lock: 'Lock a workflow',
+  unlock: 'Unlock a workflow',
+  dag: 'DAG task view',
+  tree: 'Tree task view',
+  table: 'Table task view',
+  all: 'Toggle all/active workflows',
+  resume: 'Resume paused workflow',
+  back: 'Go back',
+  setup: 'Configuration setup',
+};
+
 export function isValidSlashCommand(command: string): command is SlashCommand {
   return SLASH_COMMANDS.includes(command as SlashCommand);
 }

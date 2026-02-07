@@ -9,6 +9,7 @@ export interface ServerConfig {
   dbMode: DbMode;
   repoPath?: string;
   dbPath?: string;
+  quiet?: boolean;
 }
 
 export const DEFAULT_PORT = 3100;

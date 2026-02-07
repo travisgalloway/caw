@@ -69,6 +69,10 @@ export function useCommandHandler(): (input: string) => void {
           store.setWorkflowTab('agents');
           return;
         }
+        if (screen.screen === 'workflow-list') {
+          store.setMainTab('agents');
+          return;
+        }
         store.setPromptError('Navigate to a workflow first to view agents');
         return;
       }
@@ -77,6 +81,10 @@ export function useCommandHandler(): (input: string) => void {
         const screen = currentScreen(store);
         if (screen.screen === 'workflow-detail') {
           store.setWorkflowTab('messages');
+          return;
+        }
+        if (screen.screen === 'workflow-list') {
+          store.setMainTab('messages');
           return;
         }
         store.setPromptError('Navigate to a workflow first to view messages');

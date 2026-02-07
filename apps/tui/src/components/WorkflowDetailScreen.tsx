@@ -8,6 +8,8 @@ import { useWorkflowDetail } from '../hooks/useWorkflowDetail';
 import type { WorkflowTab } from '../store';
 import { useAppStore } from '../store';
 import { formatRelativeTime } from '../utils/format';
+import type { HintItem } from './HintBar';
+import { HintBar } from './HintBar';
 import type { Column } from './SelectableTable';
 import { SelectableTable } from './SelectableTable';
 import { StatusIndicator } from './StatusIndicator';
@@ -56,6 +58,7 @@ interface WorkspaceRow {
 
 const taskColumns: Column<TaskRow>[] = [
   {
+    id: 'status-icon',
     key: 'status',
     header: '',
     width: 3,
@@ -73,6 +76,7 @@ const taskColumns: Column<TaskRow>[] = [
 
 const agentColumns: Column<AgentRow>[] = [
   {
+    id: 'status-icon',
     key: 'status',
     header: '',
     width: 3,
@@ -108,6 +112,7 @@ const messageColumns: Column<MessageRow>[] = [
 
 const workspaceColumns: Column<WorkspaceRow>[] = [
   {
+    id: 'status-icon',
     key: 'status',
     header: '',
     width: 3,
@@ -119,6 +124,19 @@ const workspaceColumns: Column<WorkspaceRow>[] = [
 ];
 
 const TAB_NAMES: WorkflowTab[] = ['tasks', 'agents', 'messages', 'workspaces'];
+
+function detailHints(tab: WorkflowTab): HintItem[] {
+  const base: HintItem[] = [
+    { key: 'Esc', desc: 'back' },
+    { key: 'Tab', desc: 'switch tabs' },
+    { key: '↑↓', desc: 'navigate' },
+    { key: 'Enter', desc: 'select' },
+  ];
+  if (tab === 'tasks') {
+    return [...base, { key: '/dag /tree /table', desc: 'switch view' }];
+  }
+  return base;
+}
 
 export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps): React.JSX.Element {
   const { data, error } = useWorkflowDetail(workflowId);
@@ -229,7 +247,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
 
       <Tabs
         onChange={handleTabChange}
-        keyMap={{ useNumbers: true, useTab: true, previous: [], next: [] }}
+        keyMap={{ useNumbers: false, useTab: true, previous: [], next: [] }}
       >
         <Tab name="tasks">Tasks ({tasks.length})</Tab>
         <Tab name="agents">Agents ({agents.length})</Tab>
@@ -299,12 +317,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
         )}
       </Box>
 
-      <Box paddingX={1}>
-        <Text dimColor>
-          Esc back | Tab/1-4 switch tabs | ↑↓ navigate | Enter select
-          {tab === 'tasks' && ' | /dag /tree /table switch view'}
-        </Text>
-      </Box>
+      <HintBar hints={detailHints(tab)} />
     </Box>
   );
 }
