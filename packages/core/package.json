@@ -14,7 +14,8 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "nanoid": "^5.0.9"
+    "nanoid": "^5.0.9",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",

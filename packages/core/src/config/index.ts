@@ -1,5 +1,7 @@
-export type { LoadConfigResult } from './resolve';
-export { getConfigPaths, loadConfig, mergeConfigs, readConfigFile } from './resolve';
-export type { AgentConfig, CawConfig, DbMode, TransportType, ValidationResult } from './schema';
-export { validateConfig } from './schema';
-export { ensureGitignore, writeConfig } from './write';
+export { ensureGitignore } from './gitignore';
+export type { LoadConfigResult } from './loader';
+export { getConfigPaths, loadConfig, mergeConfigs, readConfigFile, writeConfig } from './loader';
+export type { AgentConfig, CawConfig, DbMode, TransportType } from './schema';
+export { cawConfigSchema } from './schema';
+export type { ValidationResult } from './validate';
+export { validateConfig } from './validate';

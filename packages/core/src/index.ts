@@ -7,6 +7,7 @@ export type {
   ValidationResult,
 } from './config/index';
 export {
+  cawConfigSchema,
   ensureGitignore,
   getConfigPaths,
   loadConfig,

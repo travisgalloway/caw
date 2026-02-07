@@ -9,7 +9,7 @@ function printUsage(): void {
 
 Options:
   --server              Run as headless MCP server (no TUI)
-  --transport <type>    MCP transport: stdio | http (default: stdio)
+  --transport <type>    MCP transport: stdio | sse (default: stdio)
   --port <number>       HTTP port (default: 3100)
   --db <path>           Database file path
   --workflow <id>       Focus on a specific workflow
@@ -112,7 +112,7 @@ if (values.help) {
   process.exit(0);
 }
 
-const dbPath = values.db ?? getDbPath('repository', process.cwd());
+const dbPath = values.db ?? getDbPath('per-repo', process.cwd());
 const db = createConnection(dbPath);
 runMigrations(db);
 

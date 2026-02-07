@@ -1,17 +1,8 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
-import type { CawConfig } from './schema';
-
-export function writeConfig(filePath: string, config: CawConfig): void {
-  const dir = dirname(filePath);
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
-  }
-  writeFileSync(filePath, `${JSON.stringify(config, null, 2)}\n`);
-}
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 export function ensureGitignore(repoPath: string, entry: string): boolean {
-  const gitignorePath = `${repoPath}/.gitignore`;
+  const gitignorePath = join(repoPath, '.gitignore');
 
   if (existsSync(gitignorePath)) {
     const content = readFileSync(gitignorePath, 'utf-8');

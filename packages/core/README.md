@@ -64,7 +64,7 @@ src/
 `createConnection(dbPath)` creates a SQLite connection with WAL mode, foreign keys, and 5-second busy timeout.
 
 `getDbPath(mode, repoPath?)` resolves the database path:
-- `repository` mode → `{repoPath}/.caw/workflows.db`
+- `per-repo` mode → `{repoPath}/.caw/workflows.db`
 - `global` mode → `~/.caw/workflows.db`
 
 ### Migrations

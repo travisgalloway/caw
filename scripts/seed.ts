@@ -26,7 +26,7 @@ import {
   workspaceService,
 } from '../packages/core/src/index';
 
-const dbPath = getDbPath('repository', process.cwd());
+const dbPath = getDbPath('per-repo', process.cwd());
 console.log(`Seeding database at: ${dbPath}`);
 
 const db = createConnection(dbPath);

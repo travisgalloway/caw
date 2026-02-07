@@ -45,12 +45,7 @@ export interface SetupClaudeCodeResult {
 }
 
 function getMcpConfig(): { command: string; args: string[] } {
-  // Detect if running from source (bun with a .ts entry)
-  const entry = process.argv[1];
-  if (entry?.endsWith('.ts')) {
-    return { command: 'bun', args: [entry, '--server'] };
-  }
-  return { command: 'caw', args: ['--server'] };
+  return { command: 'bunx', args: ['@caw/tui', '--server'] };
 }
 
 function configureMcpServer(

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { validateConfig } from './schema';
+import { validateConfig } from './validate';
 
 describe('validateConfig', () => {
   test('returns empty config for empty object', () => {
@@ -11,14 +11,14 @@ describe('validateConfig', () => {
 
   test('accepts valid full config', () => {
     const result = validateConfig({
-      transport: 'http',
+      transport: 'sse',
       port: 3100,
       dbMode: 'global',
       agent: { runtime: 'claude_code', autoSetup: true },
     });
     expect(result.valid).toBe(true);
     expect(result.config).toEqual({
-      transport: 'http',
+      transport: 'sse',
       port: 3100,
       dbMode: 'global',
       agent: { runtime: 'claude_code', autoSetup: true },
@@ -70,9 +70,9 @@ describe('validateConfig', () => {
   });
 
   test('accepts valid dbMode', () => {
-    const result = validateConfig({ dbMode: 'repository' });
+    const result = validateConfig({ dbMode: 'per-repo' });
     expect(result.valid).toBe(true);
-    expect(result.config.dbMode).toBe('repository');
+    expect(result.config.dbMode).toBe('per-repo');
   });
 
   test('warns on invalid dbMode', () => {

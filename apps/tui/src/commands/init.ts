@@ -47,8 +47,8 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
     }
 
     // Database mode
-    const modeAnswer = await prompt(rl, 'Database mode? (repository/global) [repository] ');
-    const dbMode: DbMode = modeAnswer.trim().toLowerCase() === 'global' ? 'global' : 'repository';
+    const modeAnswer = await prompt(rl, 'Database mode? (per-repo/global) [per-repo] ');
+    const dbMode: DbMode = modeAnswer.trim().toLowerCase() === 'global' ? 'global' : 'per-repo';
 
     // Claude Code setup
     const setupAnswer = await prompt(rl, 'Set up Claude Code integration? (Y/n) ');
@@ -65,7 +65,7 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
 
     // Gitignore (only for per-repo)
     let gitignoreUpdated = false;
-    if (dbMode === 'repository') {
+    if (dbMode === 'per-repo') {
       gitignoreUpdated = ensureGitignore(repoPath, '.caw/');
       if (gitignoreUpdated) {
         messages.push('Added .caw/ to .gitignore');
@@ -90,7 +90,7 @@ function runNonInteractive(repoPath: string, configDir: string, isGlobal: boolea
   const messages: string[] = [];
   const configPath = join(configDir, 'config.json');
   const config: CawConfig = {
-    dbMode: isGlobal ? 'global' : 'repository',
+    dbMode: isGlobal ? 'global' : 'per-repo',
     agent: { runtime: 'claude_code', autoSetup: true },
   };
 

@@ -123,7 +123,7 @@ caw
 caw --server
 
 # Run as MCP server over HTTP on port 8080
-caw --server --transport http --port 8080
+caw --server --transport sse --port 8080
 
 # Create a workflow from a template
 caw --template oauth-setup "Add OAuth to billing service"
@@ -138,17 +138,17 @@ caw --list-templates
 
 | Mode | Path | Description |
 |---|---|---|
-| `repository` (default) | `{repo}/.caw/workflows.db` | Per-repository database |
+| `per-repo` (default) | `{repo}/.caw/workflows.db` | Per-repository database |
 | `global` | `~/.caw/workflows.db` | Shared across all repositories |
 
 ### Environment Variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `CAW_TRANSPORT` | `stdio` | MCP transport: `stdio` or `http` |
-| `CAW_PORT` | `3100` | HTTP port (when transport is `http`) |
-| `CAW_DB_MODE` | `repository` | Database mode: `repository` or `global` |
-| `CAW_REPO_PATH` | `cwd` | Repository path (repository mode) |
+| `CAW_TRANSPORT` | `stdio` | MCP transport: `stdio` or `sse` |
+| `CAW_PORT` | `3100` | HTTP port (when transport is `sse`) |
+| `CAW_DB_MODE` | `per-repo` | Database mode: `per-repo` or `global` |
+| `CAW_REPO_PATH` | `cwd` | Repository path (per-repo mode) |
 | `CAW_DB_PATH` | — | Explicit database file path (overrides mode) |
 
 ## MCP Tools
