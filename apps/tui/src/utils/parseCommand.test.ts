@@ -153,6 +153,24 @@ describe('completeCommand', () => {
     expect(result.candidates).toEqual(['quit']);
   });
 
+  test('completes /res to /resume', () => {
+    const result = completeCommand('/res');
+    expect(result.completed).toBe('/resume');
+    expect(result.candidates).toEqual(['resume']);
+  });
+
+  test('parses /resume without args', () => {
+    expect(parseCommand('/resume')).toEqual({ type: 'slash', command: 'resume' });
+  });
+
+  test('parses /resume with optional workflow ID', () => {
+    expect(parseCommand('/resume wf_abc123')).toEqual({
+      type: 'slash',
+      command: 'resume',
+      args: 'wf_abc123',
+    });
+  });
+
   test('handles lock as only /l match', () => {
     const result = completeCommand('/l');
     expect(result.completed).toBe('/lock');
@@ -163,12 +181,6 @@ describe('completeCommand', () => {
     const result = completeCommand('/da');
     expect(result.completed).toBe('/dag');
     expect(result.candidates).toEqual(['dag']);
-  });
-
-  test('completes /res to /resume', () => {
-    const result = completeCommand('/res');
-    expect(result.completed).toBe('/resume');
-    expect(result.candidates).toEqual(['resume']);
   });
 
   test('completes /al to /all', () => {

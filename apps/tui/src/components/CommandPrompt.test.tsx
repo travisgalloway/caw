@@ -43,4 +43,12 @@ describe('CommandPrompt', () => {
     const { lastFrame } = render(<CommandPrompt onSubmit={() => {}} />);
     expect(lastFrame() ?? '').toContain('─');
   });
+
+  test('clears feedback when clearPromptFeedback is called', () => {
+    useAppStore.setState({ promptError: 'error', promptSuccess: 'success' });
+    useAppStore.getState().clearPromptFeedback();
+    const state = useAppStore.getState();
+    expect(state.promptError).toBeNull();
+    expect(state.promptSuccess).toBeNull();
+  });
 });

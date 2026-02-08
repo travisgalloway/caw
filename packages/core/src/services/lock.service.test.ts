@@ -206,6 +206,16 @@ describe('lockService', () => {
       expect(check.holder_pid).toBe(1000);
     });
 
+    it('returns false with no holder when not locked', () => {
+      const wfId = createWorkflow(db);
+      const sessionId = createSession(db);
+
+      const check = lockService.isLockedByOther(db, wfId, sessionId);
+
+      expect(check.locked).toBe(false);
+      expect(check.holder_session_id).toBeUndefined();
+    });
+
     it('throws for workflow not found', () => {
       const sessionId = createSession(db);
 

@@ -13,6 +13,20 @@ describe('createMcpServer', () => {
     expect(Object.keys(tools).length).toBe(52);
   });
 
+  test('all tool names follow entity_action naming convention', () => {
+    const db = createConnection(':memory:');
+    runMigrations(db);
+    const server = createMcpServer(db);
+
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
+    const tools = (server as any)._registeredTools as Record<string, unknown>;
+    const names = Object.keys(tools);
+
+    for (const name of names) {
+      expect(name).toMatch(/^[a-z]+(_[a-z]+)+$/);
+    }
+  });
+
   test('registered tool names match expected set', () => {
     const db = createConnection(':memory:');
     runMigrations(db);

@@ -18,6 +18,34 @@ describe('createConnection', () => {
     expect(result.foreign_keys).toBe(1);
     db.close();
   });
+
+  it('enables WAL mode on file-backed databases', () => {
+    const tmpPath = join(import.meta.dir, `__test_wal_${Date.now()}.db`);
+    try {
+      const db = createConnection(tmpPath);
+      const result = db.prepare('PRAGMA journal_mode').get() as { journal_mode: string };
+      expect(result.journal_mode).toBe('wal');
+      db.close();
+    } finally {
+      const { unlinkSync } = require('node:fs');
+      try {
+        unlinkSync(tmpPath);
+      } catch {}
+      try {
+        unlinkSync(`${tmpPath}-wal`);
+      } catch {}
+      try {
+        unlinkSync(`${tmpPath}-shm`);
+      } catch {}
+    }
+  });
+
+  it('sets busy timeout to 5000ms', () => {
+    const db = createConnection(':memory:');
+    const result = db.prepare('PRAGMA busy_timeout').get() as { timeout: number };
+    expect(result.timeout).toBe(5000);
+    db.close();
+  });
 });
 
 describe('getDbPath', () => {

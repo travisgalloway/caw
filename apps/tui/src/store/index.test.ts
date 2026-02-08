@@ -165,6 +165,24 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().messageStatusFilter).toBe('all');
   });
 
+  test('taskViewMode cycling: table → tree → dag', () => {
+    expect(useAppStore.getState().taskViewMode).toBe('table');
+    useAppStore.getState().setTaskViewMode('tree');
+    expect(useAppStore.getState().taskViewMode).toBe('tree');
+    useAppStore.getState().setTaskViewMode('dag');
+    expect(useAppStore.getState().taskViewMode).toBe('dag');
+    useAppStore.getState().setTaskViewMode('table');
+    expect(useAppStore.getState().taskViewMode).toBe('table');
+  });
+
+  test('messageStatusFilter toggle: all ↔ unread', () => {
+    expect(useAppStore.getState().messageStatusFilter).toBe('all');
+    useAppStore.getState().setMessageStatusFilter('unread');
+    expect(useAppStore.getState().messageStatusFilter).toBe('unread');
+    useAppStore.getState().setMessageStatusFilter('all');
+    expect(useAppStore.getState().messageStatusFilter).toBe('all');
+  });
+
   test('setMainTab updates mainTab', () => {
     expect(useAppStore.getState().mainTab).toBe('workflows');
     useAppStore.getState().setMainTab('agents');

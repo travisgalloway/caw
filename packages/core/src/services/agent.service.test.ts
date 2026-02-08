@@ -525,5 +525,35 @@ describe('agentService', () => {
       const stale = agentService.getStale(db, 5 * 60 * 1000);
       expect(stale).toHaveLength(2);
     });
+
+    it('respects varying timeout thresholds', () => {
+      const agent = agentService.register(db, { name: 'a', runtime: 'claude_code' });
+
+      const threeMinutesAgo = Date.now() - 3 * 60 * 1000;
+      db.prepare('UPDATE agents SET last_heartbeat = ? WHERE id = ?').run(
+        threeMinutesAgo,
+        agent.id,
+      );
+
+      // 5 min timeout — agent is NOT stale (only 3 min old)
+      expect(agentService.getStale(db, 5 * 60 * 1000)).toHaveLength(0);
+
+      // 2 min timeout — agent IS stale (3 min > 2 min)
+      expect(agentService.getStale(db, 2 * 60 * 1000)).toHaveLength(1);
+    });
+  });
+
+  // --- list with workflow_id filter ---
+
+  describe('list with workflow_id', () => {
+    it('filters by workflow_id', () => {
+      const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+      agentService.register(db, { name: 'a', runtime: 'claude_code', workflow_id: wf.id });
+      agentService.register(db, { name: 'b', runtime: 'claude_code' });
+
+      const filtered = agentService.list(db, { workflow_id: wf.id });
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].name).toBe('a');
+    });
   });
 });

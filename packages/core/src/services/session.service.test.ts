@@ -194,6 +194,38 @@ describe('sessionService', () => {
     });
   });
 
+  // --- promoteToDaemon edge cases ---
+
+  describe('promoteToDaemon edge cases', () => {
+    it('is idempotent when already daemon', () => {
+      const session = sessionService.register(db, { pid: 1234, is_daemon: true });
+      expect(session.is_daemon).toBe(1);
+
+      const promoted = sessionService.promoteToDaemon(db, session.id);
+      expect(promoted.is_daemon).toBe(1);
+    });
+
+    it('cleanupStale deletes only sessions exceeding timeout', () => {
+      const fresh = sessionService.register(db, { pid: 1111 });
+      const stale1 = sessionService.register(db, { pid: 2222 });
+      const stale2 = sessionService.register(db, { pid: 3333 });
+
+      const tenMinutesAgo = Date.now() - 10 * 60 * 1000;
+      db.prepare('UPDATE sessions SET last_heartbeat = ? WHERE id IN (?, ?)').run(
+        tenMinutesAgo,
+        stale1.id,
+        stale2.id,
+      );
+
+      const cleaned = sessionService.cleanupStale(db, 5 * 60 * 1000);
+      expect(cleaned).toBe(2);
+
+      const remaining = sessionService.list(db);
+      expect(remaining).toHaveLength(1);
+      expect(remaining[0].id).toBe(fresh.id);
+    });
+  });
+
   // --- cleanupStale ---
 
   describe('cleanupStale', () => {

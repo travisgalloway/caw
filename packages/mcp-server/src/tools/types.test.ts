@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'bun:test';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
-import { handleToolCall, handleToolCallAsync, ToolCallError } from './types';
+import { handleToolCall, handleToolCallAsync, ToolCallError, toolResult } from './types';
 
 function parseContent(result: CallToolResult): unknown {
   const item = result.content[0];
@@ -53,6 +53,29 @@ describe('handleToolCall', () => {
     expect(parsed.code).toBe('INTERNAL_ERROR');
     expect(parsed.message).toBe('string error');
     expect(parsed.recoverable).toBe(false);
+  });
+});
+
+describe('toolResult', () => {
+  it('formats data as JSON text content', () => {
+    const result = toolResult({ foo: 'bar' });
+    expect(result.isError).toBeUndefined();
+    expect(parseContent(result)).toEqual({ foo: 'bar' });
+  });
+
+  it('handles null values', () => {
+    const result = toolResult(null);
+    expect(parseContent(result)).toBeNull();
+  });
+
+  it('handles primitives', () => {
+    const result = toolResult(42);
+    expect(parseContent(result)).toBe(42);
+  });
+
+  it('handles arrays', () => {
+    const result = toolResult([1, 2, 3]);
+    expect(parseContent(result)).toEqual([1, 2, 3]);
   });
 });
 
