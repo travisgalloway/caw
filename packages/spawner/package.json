@@ -1,5 +1,5 @@
 {
-  "name": "@caw/mcp-server",
+  "name": "@caw/spawner",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,10 +14,8 @@
     "test:watch": "bun test --watch"
   },
   "dependencies": {
-    "@caw/core": "workspace:*",
-    "@caw/spawner": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.25.3",
-    "zod": "^3.25"
+    "@anthropic-ai/claude-agent-sdk": "^0.1.0",
+    "@caw/core": "workspace:*"
   },
   "devDependencies": {
     "@caw/tsconfig": "workspace:*",

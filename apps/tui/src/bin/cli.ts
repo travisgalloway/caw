@@ -6,6 +6,8 @@ function printUsage(): void {
   console.log(`Usage: caw [options] [description]
        caw init [--yes] [--global]
        caw setup claude-code [--print] [--mcp-only] [--claude-md-only]
+       caw run <workflow_id> [options]
+       caw run --prompt "..." [options]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -26,6 +28,12 @@ Commands:
     --print             Print what would be added without modifying files
     --mcp-only          Only configure MCP server, skip CLAUDE.md
     --claude-md-only    Only update CLAUDE.md, skip MCP config
+
+  run                   Execute a workflow by spawning Claude Code agents
+    --prompt <text>     Create workflow from prompt, plan it, then run
+    --max-agents <n>    Override max_parallel_tasks
+    --model <name>      Claude model (default: claude-sonnet-4-5)
+    --detach            Start and run in background
 `);
 }
 
@@ -86,6 +94,86 @@ if (subcommand === 'setup') {
     mcpOnly: setupValues['mcp-only'],
     claudeMdOnly: setupValues['claude-md-only'],
   });
+  process.exit(0);
+}
+
+if (subcommand === 'run') {
+  const { values: runValues, positionals: runPositionals } = parseArgs({
+    args: process.argv.slice(3),
+    options: {
+      prompt: { type: 'string' },
+      'max-agents': { type: 'string' },
+      model: { type: 'string' },
+      'permission-mode': { type: 'string' },
+      'max-turns': { type: 'string' },
+      'max-budget': { type: 'string' },
+      watch: { type: 'boolean', default: true },
+      detach: { type: 'boolean', default: false },
+      port: { type: 'string' },
+      db: { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+
+  if (runValues.help) {
+    console.log(`Usage: caw run <workflow_id> [options]
+       caw run --prompt "..." [options]
+
+Options:
+  --prompt <text>           Create workflow from prompt, plan it, then run
+  --max-agents <n>          Override max_parallel_tasks
+  --model <name>            Claude model (default: claude-sonnet-4-5)
+  --permission-mode <mode>  acceptEdits | bypassPermissions (default: bypassPermissions)
+  --max-turns <n>           Max turns per task (default: 50)
+  --max-budget <usd>        Max budget per task in USD
+  --watch                   Show progress (default: true)
+  --detach                  Start and run in background
+  --port <number>           Daemon port (default: 3100)
+  --db <path>               Database file path
+  -h, --help                Show this help message
+`);
+    process.exit(0);
+  }
+
+  const runDbPath = runValues.db ?? getDbPath('per-repo', process.cwd());
+  const runDb = createConnection(runDbPath);
+  runMigrations(runDb);
+
+  // Ensure daemon is running
+  const { initDaemon } = await import('../daemon');
+  const daemon = await initDaemon(
+    runDb,
+    runDbPath,
+    runValues.port ? Number(runValues.port) : undefined,
+  );
+
+  const shutdownRun = () => {
+    daemon.cleanup();
+    runDb.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdownRun);
+  process.on('SIGTERM', shutdownRun);
+
+  const { runWorkflow } = await import('../commands/run');
+  await runWorkflow(runDb, {
+    workflowId: runPositionals[0],
+    prompt: runValues.prompt,
+    maxAgents: runValues['max-agents'] ? Number(runValues['max-agents']) : undefined,
+    model: runValues.model,
+    permissionMode: runValues['permission-mode'],
+    maxTurns: runValues['max-turns'] ? Number(runValues['max-turns']) : undefined,
+    maxBudgetUsd: runValues['max-budget'] ? Number(runValues['max-budget']) : undefined,
+    watch: runValues.watch,
+    detach: runValues.detach,
+    port: daemon.port,
+    cwd: process.cwd(),
+  });
+
+  daemon.cleanup();
+  runDb.close();
   process.exit(0);
 }
 
