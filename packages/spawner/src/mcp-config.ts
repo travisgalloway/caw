@@ -1,10 +1,27 @@
-import type { McpSSEServerConfig } from '@anthropic-ai/claude-agent-sdk';
+import { unlinkSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { generateId } from '@caw/core';
 
-export function buildMcpConfig(mcpServerUrl: string): Record<string, McpSSEServerConfig> {
-  return {
-    caw: {
-      type: 'sse',
-      url: mcpServerUrl,
+export function buildMcpConfigFile(mcpServerUrl: string): string {
+  const config = {
+    mcpServers: {
+      caw: {
+        type: 'sse',
+        url: mcpServerUrl,
+      },
     },
   };
+
+  const filePath = join(tmpdir(), `caw-mcp-${generateId('mc')}.json`);
+  writeFileSync(filePath, JSON.stringify(config, null, 2));
+  return filePath;
+}
+
+export function cleanupMcpConfigFile(filePath: string): void {
+  try {
+    unlinkSync(filePath);
+  } catch {
+    // File may already be cleaned up
+  }
 }

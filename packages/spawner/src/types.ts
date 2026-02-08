@@ -1,4 +1,4 @@
-import type { PermissionMode } from '@anthropic-ai/claude-agent-sdk';
+export type PermissionMode = 'bypassPermissions' | 'acceptEdits';
 
 export interface SpawnerConfig {
   workflowId: string;

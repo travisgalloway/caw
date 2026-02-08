@@ -1,7 +1,15 @@
+import { spawn } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import type { DatabaseType } from '@caw/core';
 import { workflowService } from '@caw/core';
 import { DEFAULT_PORT } from '@caw/mcp-server';
-import { WorkflowSpawner } from '@caw/spawner';
+import {
+  buildMcpConfigFile,
+  buildPlannerSystemPrompt,
+  type ClaudeMessage,
+  cleanupMcpConfigFile,
+  WorkflowSpawner,
+} from '@caw/spawner';
 
 export interface RunOptions {
   workflowId?: string;
@@ -44,47 +52,65 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
 
     // Spawn a planner agent to create the plan
     console.log('Spawning planner agent...');
-    const { buildPlannerSystemPrompt } = await import('@caw/spawner');
-    const { query } = await import('@anthropic-ai/claude-agent-sdk');
-
     const plannerPrompt = buildPlannerSystemPrompt(workflow.id, options.prompt);
     const mcpServerUrl = `http://localhost:${port}/mcp`;
+    const mcpConfigPath = buildMcpConfigFile(mcpServerUrl);
 
-    const planner = query({
-      prompt: `Plan this workflow. The workflow ID is ${workflow.id}. User request: ${options.prompt}`,
-      options: {
-        systemPrompt: plannerPrompt,
-        model: options.model ?? 'claude-sonnet-4-5',
-        permissionMode: 'bypassPermissions',
-        allowDangerouslySkipPermissions: true,
-        maxTurns: 30,
-        mcpServers: {
-          caw: { type: 'sse', url: mcpServerUrl },
-        },
-        cwd,
-      },
-    });
+    const args = [
+      '-p',
+      `Plan this workflow. The workflow ID is ${workflow.id}. User request: ${options.prompt}`,
+      '--append-system-prompt',
+      plannerPrompt,
+      '--mcp-config',
+      mcpConfigPath,
+      '--output-format',
+      'stream-json',
+      '--verbose',
+      '--no-session-persistence',
+      '--model',
+      options.model ?? 'claude-sonnet-4-5',
+      '--max-turns',
+      '30',
+      '--dangerously-skip-permissions',
+    ];
 
-    for await (const message of planner) {
-      if (message.type === 'assistant' && message.message?.content) {
-        for (const block of message.message.content) {
-          if ('text' in block) {
+    try {
+      const proc = spawn('claude', args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+      const rl = createInterface({ input: proc.stdout });
+
+      for await (const line of rl) {
+        try {
+          const msg: ClaudeMessage = JSON.parse(line);
+          if (msg.type === 'assistant') {
             process.stdout.write('.');
           }
+          if (msg.type === 'result') {
+            console.log();
+            if (msg.subtype === 'success') {
+              console.log('Planning complete.');
+            } else {
+              const errors = msg.errors as string[] | undefined;
+              console.error(
+                `Planning failed: ${errors ? errors.join('; ') : (msg.subtype ?? 'unknown')}`,
+              );
+              process.exit(1);
+            }
+          }
+        } catch {
+          // Skip non-JSON lines
         }
       }
-      if (message.type === 'result') {
-        console.log();
-        if (message.subtype === 'success') {
-          console.log('Planning complete.');
-        } else {
-          const errMsg = message as { errors?: string[]; subtype: string };
-          console.error(
-            `Planning failed: ${errMsg.errors ? errMsg.errors.join('; ') : errMsg.subtype}`,
-          );
-          process.exit(1);
-        }
+
+      const exitCode = await new Promise<number>((resolve) => {
+        proc.on('close', (code) => resolve(code ?? 1));
+      });
+
+      if (exitCode !== 0) {
+        console.error(`Planner exited with code ${exitCode}`);
+        process.exit(1);
       }
+    } finally {
+      cleanupMcpConfigFile(mcpConfigPath);
     }
 
     // Verify the workflow is ready

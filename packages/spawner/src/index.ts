@@ -1,6 +1,6 @@
-export type { AgentSessionOptions } from './agent-session';
+export type { AgentSessionOptions, ClaudeMessage } from './agent-session';
 export { AgentSession } from './agent-session';
-export { buildMcpConfig } from './mcp-config';
+export { buildMcpConfigFile, cleanupMcpConfigFile } from './mcp-config';
 export type { EventListener } from './pool';
 export { AgentPool } from './pool';
 export type { PromptContext } from './prompt';
@@ -16,6 +16,7 @@ export { WorkflowSpawner } from './spawner.service';
 export type {
   AgentHandle,
   ExecutionStatus,
+  PermissionMode,
   ResumeResult,
   SpawnerConfig,
   SpawnerEvent,

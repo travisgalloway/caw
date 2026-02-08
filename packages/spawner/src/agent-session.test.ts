@@ -53,4 +53,12 @@ describe('AgentSession', () => {
     const session = new AgentSession(defaultOptions);
     expect(() => session.abort()).not.toThrow();
   });
+
+  test('abort sets status to aborted', () => {
+    const session = new AgentSession(defaultOptions);
+    session.abort();
+    const handle = session.getHandle();
+    expect(handle.status).toBe('aborted');
+    expect(handle.error).toBe('Aborted');
+  });
 });

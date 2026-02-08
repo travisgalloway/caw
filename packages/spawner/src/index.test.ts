@@ -22,8 +22,9 @@ describe('spawner barrel exports', () => {
     expect(typeof spawner.buildPlannerSystemPrompt).toBe('function');
   });
 
-  test('exports MCP config builder', () => {
-    expect(typeof spawner.buildMcpConfig).toBe('function');
+  test('exports MCP config file builder', () => {
+    expect(typeof spawner.buildMcpConfigFile).toBe('function');
+    expect(typeof spawner.cleanupMcpConfigFile).toBe('function');
   });
 
   test('exports registry functions', () => {
