@@ -53,7 +53,7 @@ function toToolCallError(err: unknown): never {
       code: 'TASK_NOT_FOUND',
       message: msg,
       recoverable: false,
-      suggestion: 'Check the task ID and try again',
+      suggestion: 'Check the task name or ID and try again',
     });
   }
   if (msg.includes('Cannot remove task')) {

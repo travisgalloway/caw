@@ -670,11 +670,12 @@ export function addTask(
       now,
     );
 
-    // Insert dependencies
+    // Insert dependencies (de-dup to avoid UNIQUE constraint errors)
     if (params.depends_on && params.depends_on.length > 0) {
       const insertDep = db.prepare(
         'INSERT INTO task_dependencies (task_id, depends_on_id, dependency_type) VALUES (?, ?, ?)',
       );
+      const seenDepIds = new Set<string>();
       for (const depRef of params.depends_on) {
         if (depRef === params.name) {
           throw new Error(`Task '${params.name}' cannot depend on itself`);
@@ -683,6 +684,8 @@ export function addTask(
         if (!depId) {
           throw new Error(`Unknown dependency '${depRef}' in task '${params.name}'`);
         }
+        if (seenDepIds.has(depId)) continue;
+        seenDepIds.add(depId);
         insertDep.run(tId, depId, 'blocks');
       }
     }
@@ -887,13 +890,14 @@ export function replan(
       );
     }
 
-    // Wire dependencies for new tasks
+    // Wire dependencies for new tasks (de-dup to avoid UNIQUE constraint errors)
     const insertDep = db.prepare(
       'INSERT INTO task_dependencies (task_id, depends_on_id, dependency_type) VALUES (?, ?, ?)',
     );
     for (const t of params.tasks) {
       if (!t.depends_on || t.depends_on.length === 0) continue;
       const tId = nameToIdMap.get(t.name) as string;
+      const seenDepIds = new Set<string>();
       for (const depRef of t.depends_on) {
         if (depRef === t.name) {
           throw new Error(`Task '${t.name}' cannot depend on itself`);
@@ -902,6 +906,8 @@ export function replan(
         if (!depId) {
           throw new Error(`Unknown dependency '${depRef}' in task '${t.name}'`);
         }
+        if (seenDepIds.has(depId)) continue;
+        seenDepIds.add(depId);
         insertDep.run(tId, depId, 'blocks');
       }
     }
