@@ -5,6 +5,7 @@ import { register as registerCheckpoint } from './checkpoint';
 import { register as registerContext } from './context';
 import { register as registerMessaging } from './messaging';
 import { register as registerOrchestration } from './orchestration';
+import { register as registerReplanning } from './replanning';
 import { register as registerRepository } from './repository';
 import { register as registerTask } from './task';
 import { register as registerTemplate } from './template';
@@ -22,4 +23,5 @@ export function registerAllTools(server: McpServer, db: DatabaseType): void {
   registerTemplate(server, db);
   registerAgent(server, db);
   registerMessaging(server, db);
+  registerReplanning(server, db);
 }

@@ -59,6 +59,22 @@ describe('parseCommand', () => {
       expect(result.command).toBe(cmd);
     }
   });
+
+  test('parses add-task with task name', () => {
+    expect(parseCommand('/add-task My New Task')).toEqual({
+      type: 'slash',
+      command: 'add-task',
+      args: 'My New Task',
+    });
+  });
+
+  test('parses remove-task with task id', () => {
+    expect(parseCommand('/remove-task tk_abc123')).toEqual({
+      type: 'slash',
+      command: 'remove-task',
+      args: 'tk_abc123',
+    });
+  });
 });
 
 describe('isValidSlashCommand', () => {
@@ -74,6 +90,11 @@ describe('isValidSlashCommand', () => {
 
   test('returns true for setup command', () => {
     expect(isValidSlashCommand('setup')).toBe(true);
+  });
+
+  test('returns true for add-task and remove-task commands', () => {
+    expect(isValidSlashCommand('add-task')).toBe(true);
+    expect(isValidSlashCommand('remove-task')).toBe(true);
   });
 
   test('returns false for invalid commands', () => {
