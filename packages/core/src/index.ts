@@ -95,12 +95,17 @@ export type {
   TemplateTaskDefinition,
 } from './services/template.service';
 export type {
+  AddTaskParams,
+  AddTaskResult,
   CreateParams,
   GetOptions,
   ListFilters,
   PlanTask,
+  RemoveTaskResult,
+  ReplanParams,
   SetPlanParams,
   SetPlanResult,
+  WorkflowReplanResult,
   WorkflowWithTasks,
 } from './services/workflow.service';
 export type {

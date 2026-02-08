@@ -3,6 +3,7 @@ import type { DatabaseType } from '../db/connection';
 import { createConnection } from '../db/connection';
 import { runMigrations } from '../db/migrations';
 import type { Task } from '../types/task';
+import * as agentService from './agent.service';
 import * as repositoryService from './repository.service';
 import * as workflowService from './workflow.service';
 
@@ -834,6 +835,466 @@ describe('workflowService', () => {
       expect(repos).toHaveLength(2);
       expect(repos[0].path).toBe('/repo/first');
       expect(repos[1].path).toBe('/repo/second');
+    });
+  });
+
+  // --- addTask ---
+
+  describe('addTask', () => {
+    function createReadyWorkflow(
+      database: DatabaseType,
+      tasks: workflowService.PlanTask[] = [{ name: 'Task A' }, { name: 'Task B' }],
+    ) {
+      const wf = createBasicWorkflow(database);
+      workflowService.setPlan(database, wf.id, { summary: 'Plan', tasks });
+      return wf;
+    }
+
+    it('adds a task to a ready workflow', () => {
+      const wf = createReadyWorkflow(db);
+      const result = workflowService.addTask(db, wf.id, { name: 'Task C' });
+
+      expect(result.task_id).toMatch(/^tk_/);
+      expect(result.sequence).toBe(3);
+      expect(result.workflow_id).toBe(wf.id);
+
+      const fetched = workflowService.get(db, wf.id, { includeTasks: true });
+      expect(fetched?.tasks).toHaveLength(3);
+      expect(fetched?.tasks[2].name).toBe('Task C');
+    });
+
+    it('adds a task to an in_progress workflow', () => {
+      const wf = createReadyWorkflow(db);
+      workflowService.updateStatus(db, wf.id, 'in_progress');
+
+      const result = workflowService.addTask(db, wf.id, { name: 'Task C' });
+      expect(result.task_id).toMatch(/^tk_/);
+    });
+
+    it('adds a task to a paused workflow', () => {
+      const wf = createReadyWorkflow(db);
+      workflowService.updateStatus(db, wf.id, 'in_progress');
+      workflowService.updateStatus(db, wf.id, 'paused');
+
+      const result = workflowService.addTask(db, wf.id, { name: 'Task C' });
+      expect(result.task_id).toMatch(/^tk_/);
+    });
+
+    it('inserts after specified task with sequence shift', () => {
+      const wf = createReadyWorkflow(db, [
+        { name: 'First' },
+        { name: 'Second' },
+        { name: 'Third' },
+      ]);
+
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const firstTask = tasks.find((t) => t.name === 'First');
+
+      const result = workflowService.addTask(db, wf.id, {
+        name: 'Inserted',
+        after_task: firstTask?.id,
+      });
+      expect(result.sequence).toBe(2);
+
+      const updated = workflowService.get(db, wf.id, { includeTasks: true });
+      const names = updated?.tasks.map((t) => t.name) ?? [];
+      expect(names).toEqual(['First', 'Inserted', 'Second', 'Third']);
+    });
+
+    it('inserts after task by name', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Alpha' }, { name: 'Beta' }]);
+
+      const result = workflowService.addTask(db, wf.id, {
+        name: 'Gamma',
+        after_task: 'Alpha',
+      });
+      expect(result.sequence).toBe(2);
+    });
+
+    it('creates dependencies on existing tasks', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Setup' }, { name: 'Build' }]);
+
+      const result = workflowService.addTask(db, wf.id, {
+        name: 'Deploy',
+        depends_on: ['Build'],
+      });
+
+      const deps = db
+        .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
+        .all(result.task_id) as { depends_on_id: string }[];
+      expect(deps).toHaveLength(1);
+
+      const buildTask = workflowService
+        .get(db, wf.id, { includeTasks: true })
+        ?.tasks.find((t) => t.name === 'Build');
+      expect(deps[0].depends_on_id).toBe(buildTask?.id ?? '');
+    });
+
+    it('creates dependencies using task ID (tk_ prefix)', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Setup' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+
+      const result = workflowService.addTask(db, wf.id, {
+        name: 'Build',
+        depends_on: [tasks[0].id],
+      });
+
+      const deps = db
+        .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
+        .all(result.task_id) as { depends_on_id: string }[];
+      expect(deps).toHaveLength(1);
+      expect(deps[0].depends_on_id).toBe(tasks[0].id);
+    });
+
+    it('rejects duplicate name', () => {
+      const wf = createReadyWorkflow(db);
+      expect(() => {
+        workflowService.addTask(db, wf.id, { name: 'Task A' });
+      }).toThrow("Duplicate task name 'Task A' in workflow");
+    });
+
+    it('rejects terminal workflow status', () => {
+      const wf = createBasicWorkflow(db);
+      workflowService.updateStatus(db, wf.id, 'abandoned');
+      expect(() => {
+        workflowService.addTask(db, wf.id, { name: 'New' });
+      }).toThrow('Cannot modify plan');
+    });
+
+    it('rejects self-dependency', () => {
+      const wf = createReadyWorkflow(db);
+      expect(() => {
+        workflowService.addTask(db, wf.id, { name: 'Loop', depends_on: ['Loop'] });
+      }).toThrow("Task 'Loop' cannot depend on itself");
+    });
+
+    it('rejects unknown dependency', () => {
+      const wf = createReadyWorkflow(db);
+      expect(() => {
+        workflowService.addTask(db, wf.id, { name: 'New', depends_on: ['Nonexistent'] });
+      }).toThrow("Unknown dependency 'Nonexistent'");
+    });
+
+    it('rejects unknown after_task', () => {
+      const wf = createReadyWorkflow(db);
+      expect(() => {
+        workflowService.addTask(db, wf.id, { name: 'New', after_task: 'ghost' });
+      }).toThrow("Task not found for after_task: 'ghost'");
+    });
+
+    it('updates workflow.updated_at', () => {
+      const wf = createReadyWorkflow(db);
+      const before = workflowService.get(db, wf.id)?.updated_at ?? 0;
+      workflowService.addTask(db, wf.id, { name: 'Task C' });
+      const after = workflowService.get(db, wf.id)?.updated_at ?? 0;
+      expect(after).toBeGreaterThanOrEqual(before);
+    });
+  });
+
+  // --- removeTask ---
+
+  describe('removeTask', () => {
+    function createReadyWorkflow(
+      database: DatabaseType,
+      tasks: workflowService.PlanTask[] = [
+        { name: 'A' },
+        { name: 'B', depends_on: ['A'] },
+        { name: 'C', depends_on: ['B'] },
+      ],
+    ) {
+      const wf = createBasicWorkflow(database);
+      workflowService.setPlan(database, wf.id, { summary: 'Plan', tasks });
+      return wf;
+    }
+
+    it('removes a pending task', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Solo' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+
+      const result = workflowService.removeTask(db, wf.id, tasks[0].id);
+      expect(result.removed_task_id).toBe(tasks[0].id);
+
+      const remaining = workflowService.get(db, wf.id, { includeTasks: true });
+      expect(remaining?.tasks).toHaveLength(0);
+    });
+
+    it('re-wires dependencies: A→B→C becomes A→C when B removed', () => {
+      const wf = createReadyWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const taskA = tasks.find((t) => t.name === 'A');
+      const taskB = tasks.find((t) => t.name === 'B');
+      const taskC = tasks.find((t) => t.name === 'C');
+
+      const result = workflowService.removeTask(db, wf.id, taskB?.id ?? '');
+      expect(result.dependencies_rewired).toBe(1);
+
+      // C should now depend on A
+      const deps = db
+        .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
+        .all(taskC?.id ?? '') as { depends_on_id: string }[];
+      expect(deps).toHaveLength(1);
+      expect(deps[0].depends_on_id).toBe(taskA?.id ?? '');
+    });
+
+    it('renumbers sequences after removal', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'A' }, { name: 'B' }, { name: 'C' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const taskA = tasks.find((t) => t.name === 'A');
+
+      const result = workflowService.removeTask(db, wf.id, taskA?.id ?? '');
+      expect(result.tasks_renumbered).toBe(2);
+
+      const updated = workflowService.get(db, wf.id, { includeTasks: true });
+      expect(updated?.tasks[0].sequence).toBe(1);
+      expect(updated?.tasks[0].name).toBe('B');
+      expect(updated?.tasks[1].sequence).toBe(2);
+      expect(updated?.tasks[1].name).toBe('C');
+    });
+
+    it('rejects removal of in_progress task', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Active' }]);
+      workflowService.updateStatus(db, wf.id, 'in_progress');
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      db.prepare("UPDATE tasks SET status = 'in_progress' WHERE id = ?").run(tasks[0].id);
+
+      expect(() => {
+        workflowService.removeTask(db, wf.id, tasks[0].id);
+      }).toThrow("Cannot remove task: status is 'in_progress'");
+    });
+
+    it('rejects removal of completed task', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Done' }]);
+      workflowService.updateStatus(db, wf.id, 'in_progress');
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(tasks[0].id);
+
+      expect(() => {
+        workflowService.removeTask(db, wf.id, tasks[0].id);
+      }).toThrow("Cannot remove task: status is 'completed'");
+    });
+
+    it('rejects removal of claimed task', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'Claimed' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const agent = agentService.register(db, {
+        name: 'test-agent',
+        runtime: 'claude-code',
+        workflow_id: wf.id,
+      });
+      db.prepare('UPDATE tasks SET assigned_agent_id = ? WHERE id = ?').run(agent.id, tasks[0].id);
+
+      expect(() => {
+        workflowService.removeTask(db, wf.id, tasks[0].id);
+      }).toThrow('Cannot remove task: task is claimed by agent');
+    });
+
+    it('rejects removal from wrong workflow', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'A' }]);
+      expect(() => {
+        workflowService.removeTask(db, wf.id, 'tk_nonexistent');
+      }).toThrow('Task not found');
+    });
+
+    it('rejects removal from terminal workflow status', () => {
+      const wf = createBasicWorkflow(db);
+      workflowService.updateStatus(db, wf.id, 'abandoned');
+      expect(() => {
+        workflowService.removeTask(db, wf.id, 'tk_anything');
+      }).toThrow('Cannot modify plan');
+    });
+
+    it('updates workflow.updated_at', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'X' }]);
+      const before = workflowService.get(db, wf.id)?.updated_at ?? 0;
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      workflowService.removeTask(db, wf.id, tasks[0].id);
+      const after = workflowService.get(db, wf.id)?.updated_at ?? 0;
+      expect(after).toBeGreaterThanOrEqual(before);
+    });
+
+    it('cleans up checkpoints for removed task', () => {
+      const wf = createReadyWorkflow(db, [{ name: 'A' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+
+      // Add a checkpoint directly
+      db.prepare(
+        "INSERT INTO checkpoints (id, task_id, sequence, checkpoint_type, summary, created_at) VALUES ('cp_test12345678', ?, 1, 'progress', 'test', ?)",
+      ).run(tasks[0].id, Date.now());
+
+      workflowService.removeTask(db, wf.id, tasks[0].id);
+
+      const cps = db.prepare('SELECT * FROM checkpoints WHERE task_id = ?').all(tasks[0].id);
+      expect(cps).toHaveLength(0);
+    });
+  });
+
+  // --- replan ---
+
+  describe('replan', () => {
+    function createInProgressWorkflow(
+      database: DatabaseType,
+      tasks: workflowService.PlanTask[] = [
+        { name: 'Setup' },
+        { name: 'Build', depends_on: ['Setup'] },
+        { name: 'Test', depends_on: ['Build'] },
+        { name: 'Deploy', depends_on: ['Test'] },
+      ],
+    ) {
+      const wf = createBasicWorkflow(database);
+      workflowService.setPlan(database, wf.id, { summary: 'Original plan', tasks });
+      workflowService.updateStatus(database, wf.id, 'in_progress');
+      return wf;
+    }
+
+    it('replans in_progress workflow: removes pending, adds new, preserves completed', () => {
+      const wf = createInProgressWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+
+      // Mark Setup as completed
+      const setupTask = tasks.find((t) => t.name === 'Setup');
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(setupTask?.id ?? '');
+
+      const result = workflowService.replan(db, wf.id, {
+        summary: 'Revised plan',
+        reason: 'Requirements changed',
+        tasks: [
+          { name: 'New Build', depends_on: ['Setup'] },
+          { name: 'New Test', depends_on: ['New Build'] },
+        ],
+      });
+
+      expect(result.workflow_id).toBe(wf.id);
+      expect(result.tasks_preserved).toBe(1); // Setup
+      expect(result.tasks_removed).toBe(3); // Build, Test, Deploy
+      expect(result.tasks_added).toBe(2); // New Build, New Test
+      expect(result.new_status).toBe('in_progress');
+
+      const updated = workflowService.get(db, wf.id, { includeTasks: true });
+      expect(updated?.tasks).toHaveLength(3);
+      expect(updated?.plan_summary).toBe('Revised plan');
+    });
+
+    it('new tasks can depend on preserved tasks by name', () => {
+      const wf = createInProgressWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const setupTask = tasks.find((t) => t.name === 'Setup');
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(setupTask?.id ?? '');
+
+      workflowService.replan(db, wf.id, {
+        summary: 'Depends on preserved',
+        reason: 'test',
+        tasks: [{ name: 'Rebuild', depends_on: ['Setup'] }],
+      });
+
+      const updatedTasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const rebuild = updatedTasks.find((t) => t.name === 'Rebuild');
+
+      const deps = db
+        .prepare('SELECT * FROM task_dependencies WHERE task_id = ?')
+        .all(rebuild?.id ?? '') as { depends_on_id: string }[];
+      expect(deps).toHaveLength(1);
+      expect(deps[0].depends_on_id).toBe(setupTask?.id ?? '');
+    });
+
+    it('rejects name collision with preserved task', () => {
+      const wf = createInProgressWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const setupTask = tasks.find((t) => t.name === 'Setup');
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(setupTask?.id ?? '');
+
+      expect(() => {
+        workflowService.replan(db, wf.id, {
+          summary: 'Collision',
+          reason: 'test',
+          tasks: [{ name: 'Setup' }], // collides with preserved
+        });
+      }).toThrow("Task name 'Setup' conflicts with a preserved task");
+    });
+
+    it('rejects unknown dependency', () => {
+      const wf = createInProgressWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(tasks[0].id);
+
+      expect(() => {
+        workflowService.replan(db, wf.id, {
+          summary: 'Bad dep',
+          reason: 'test',
+          tasks: [{ name: 'New', depends_on: ['Ghost'] }],
+        });
+      }).toThrow("Unknown dependency 'Ghost'");
+    });
+
+    it('rejects terminal workflow status', () => {
+      const wf = createBasicWorkflow(db);
+      workflowService.updateStatus(db, wf.id, 'abandoned');
+
+      expect(() => {
+        workflowService.replan(db, wf.id, {
+          summary: 'x',
+          reason: 'x',
+          tasks: [],
+        });
+      }).toThrow('Cannot modify plan');
+    });
+
+    it('empty new task list removes all pending tasks', () => {
+      const wf = createInProgressWorkflow(db);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const setupTask = tasks.find((t) => t.name === 'Setup');
+      db.prepare("UPDATE tasks SET status = 'completed' WHERE id = ?").run(setupTask?.id ?? '');
+
+      const result = workflowService.replan(db, wf.id, {
+        summary: 'Cleared',
+        reason: 'test',
+        tasks: [],
+      });
+
+      expect(result.tasks_removed).toBe(3);
+      expect(result.tasks_added).toBe(0);
+      expect(result.tasks_preserved).toBe(1);
+
+      const updated = workflowService.get(db, wf.id, { includeTasks: true });
+      expect(updated?.tasks).toHaveLength(1);
+      expect(updated?.tasks[0].name).toBe('Setup');
+    });
+
+    it('updates plan_summary and appends to config.replan_history', () => {
+      const wf = createInProgressWorkflow(db);
+
+      workflowService.replan(db, wf.id, {
+        summary: 'New direction',
+        reason: 'Customer feedback',
+        tasks: [],
+      });
+
+      const updated = workflowService.get(db, wf.id);
+      expect(updated?.plan_summary).toBe('New direction');
+
+      const config = JSON.parse(updated?.config as string);
+      expect(config.replan_history).toHaveLength(1);
+      expect(config.replan_history[0].summary).toBe('New direction');
+      expect(config.replan_history[0].reason).toBe('Customer feedback');
+    });
+
+    it('preserves tasks claimed by agent regardless of status', () => {
+      const wf = createInProgressWorkflow(db, [{ name: 'ClaimedPending' }]);
+      const tasks = workflowService.get(db, wf.id, { includeTasks: true })?.tasks ?? [];
+      const agent = agentService.register(db, {
+        name: 'test-agent',
+        runtime: 'claude-code',
+        workflow_id: wf.id,
+      });
+      db.prepare('UPDATE tasks SET assigned_agent_id = ? WHERE id = ?').run(agent.id, tasks[0].id);
+
+      const result = workflowService.replan(db, wf.id, {
+        summary: 'Replan around claimed',
+        reason: 'test',
+        tasks: [],
+      });
+
+      expect(result.tasks_preserved).toBe(1);
+      expect(result.tasks_removed).toBe(0);
     });
   });
 });

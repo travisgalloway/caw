@@ -25,6 +25,8 @@ export const SLASH_COMMANDS = [
   'resume',
   'back',
   'setup',
+  'add-task',
+  'remove-task',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];
@@ -47,6 +49,8 @@ export const COMMAND_DESCRIPTIONS: Record<SlashCommand, string> = {
   resume: 'Resume paused workflow',
   back: 'Go back',
   setup: 'Configuration setup',
+  'add-task': 'Add a task to current workflow',
+  'remove-task': 'Remove a task from current workflow',
 };
 
 export function isValidSlashCommand(command: string): command is SlashCommand {
