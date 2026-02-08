@@ -214,6 +214,52 @@ export function useCommandHandler(): (input: string) => void {
         store.setPromptSuccess('Task view: table');
         return;
       }
+
+      if (command === 'add-task') {
+        const wfId = getWorkflowId(store);
+        if (!wfId) {
+          store.setPromptError('No workflow selected. Navigate to a workflow first.');
+          return;
+        }
+        if (!parsed.args) {
+          store.setPromptError('Usage: /add-task <task name>');
+          return;
+        }
+        try {
+          const result = workflowService.addTask(db, wfId, { name: parsed.args });
+          store.setPromptSuccess(`Added task ${result.task_id} (seq ${result.sequence})`);
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(
+            `Add task failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        return;
+      }
+
+      if (command === 'remove-task') {
+        const wfId = getWorkflowId(store);
+        if (!wfId) {
+          store.setPromptError('No workflow selected. Navigate to a workflow first.');
+          return;
+        }
+        if (!parsed.args) {
+          store.setPromptError('Usage: /remove-task <task_id>');
+          return;
+        }
+        try {
+          const result = workflowService.removeTask(db, wfId, parsed.args);
+          store.setPromptSuccess(
+            `Removed task ${result.removed_task_id} (${result.dependencies_rewired} deps rewired)`,
+          );
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(
+            `Remove task failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        return;
+      }
     },
     [exit, db, sessionInfo],
   );
