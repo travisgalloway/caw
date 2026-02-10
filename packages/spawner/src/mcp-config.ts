@@ -7,7 +7,7 @@ export function buildMcpConfigFile(mcpServerUrl: string): string {
   const config = {
     mcpServers: {
       caw: {
-        type: 'sse',
+        type: 'http',
         url: mcpServerUrl,
       },
     },

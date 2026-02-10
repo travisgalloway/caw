@@ -1,6 +1,6 @@
 import { loadConfig } from '@caw/core';
 
-export type TransportType = 'stdio' | 'sse';
+export type TransportType = 'stdio' | 'http';
 export type DbMode = 'global' | 'per-repo';
 
 export interface ServerConfig {
@@ -46,8 +46,8 @@ export function resolveConfig(args: {
 }
 
 function parseTransport(value: string): TransportType {
-  if (value === 'stdio' || value === 'sse') return value;
-  throw new Error(`Invalid transport: '${value}'. Must be 'stdio' or 'sse'.`);
+  if (value === 'stdio' || value === 'http') return value;
+  throw new Error(`Invalid transport: '${value}'. Must be 'stdio' or 'http'.`);
 }
 
 function parsePort(value: string | undefined): number {

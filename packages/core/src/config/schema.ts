@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const transportTypeSchema = z.enum(['stdio', 'sse']);
+export const transportTypeSchema = z.enum(['stdio', 'http']);
 export const dbModeSchema = z.enum(['global', 'per-repo']);
 
 export const agentConfigSchema = z.object({

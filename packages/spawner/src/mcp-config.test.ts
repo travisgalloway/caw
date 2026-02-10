@@ -14,7 +14,7 @@ describe('buildMcpConfigFile', () => {
     expect(content).toEqual({
       mcpServers: {
         caw: {
-          type: 'sse',
+          type: 'http',
           url: 'http://localhost:3100/mcp',
         },
       },

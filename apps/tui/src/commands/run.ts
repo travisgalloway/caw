@@ -75,7 +75,7 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
     ];
 
     try {
-      const proc = spawn('claude', args, { cwd, stdio: ['pipe', 'pipe', 'pipe'] });
+      const proc = spawn('claude', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
       const rl = createInterface({ input: proc.stdout });
 
       for await (const line of rl) {

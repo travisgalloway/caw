@@ -42,8 +42,8 @@ Add the caw MCP server to your Claude Code settings (`.claude/settings.json` or 
 
 | Variable | Default | Description |
 |---|---|---|
-| `CAW_TRANSPORT` | `stdio` | MCP transport: `stdio` or `sse` |
-| `CAW_PORT` | `3100` | HTTP port (when transport is `sse`) |
+| `CAW_TRANSPORT` | `stdio` | MCP transport: `stdio` or `http` |
+| `CAW_PORT` | `3100` | HTTP port (when transport is `http`) |
 | `CAW_DB_MODE` | `per-repo` | Database mode: `per-repo` or `global` |
 | `CAW_REPO_PATH` | `cwd` | Repository path (used in per-repo mode) |
 | `CAW_DB_PATH` | — | Explicit database file path (overrides mode) |

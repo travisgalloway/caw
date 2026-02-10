@@ -11,7 +11,7 @@ function printUsage(): void {
 
 Options:
   --server              Run as headless MCP server (no TUI)
-  --transport <type>    MCP transport: stdio | sse (default: stdio)
+  --transport <type>    MCP transport: stdio | http (default: stdio)
   --port <number>       HTTP port (default: 3100)
   --db <path>           Database file path
   --workflow <id>       Focus on a specific workflow

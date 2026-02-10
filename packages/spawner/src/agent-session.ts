@@ -87,7 +87,7 @@ export class AgentSession {
     try {
       const proc = spawn('claude', args, {
         cwd: config.cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
       this.childProcess = proc;
 

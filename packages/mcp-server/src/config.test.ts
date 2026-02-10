@@ -41,8 +41,8 @@ describe('resolveConfig', () => {
 
   describe('parseTransport', () => {
     it('rejects invalid transport', () => {
-      expect(() => resolveConfig({ transport: 'http' })).toThrow(
-        "Invalid transport: 'http'. Must be 'stdio' or 'sse'.",
+      expect(() => resolveConfig({ transport: 'sse' })).toThrow(
+        "Invalid transport: 'sse'. Must be 'stdio' or 'http'.",
       );
     });
   });
