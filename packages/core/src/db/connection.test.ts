@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { homedir } from 'node:os';
+import { rmSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createConnection, getDbPath } from './connection';
 
@@ -20,23 +21,16 @@ describe('createConnection', () => {
   });
 
   it('enables WAL mode on file-backed databases', () => {
-    const tmpPath = join(import.meta.dir, `__test_wal_${Date.now()}.db`);
+    const tmpPath = join(tmpdir(), `caw-test-wal-${crypto.randomUUID()}.db`);
     try {
       const db = createConnection(tmpPath);
       const result = db.prepare('PRAGMA journal_mode').get() as { journal_mode: string };
       expect(result.journal_mode).toBe('wal');
       db.close();
     } finally {
-      const { unlinkSync } = require('node:fs');
-      try {
-        unlinkSync(tmpPath);
-      } catch {}
-      try {
-        unlinkSync(`${tmpPath}-wal`);
-      } catch {}
-      try {
-        unlinkSync(`${tmpPath}-shm`);
-      } catch {}
+      rmSync(tmpPath, { force: true });
+      rmSync(`${tmpPath}-wal`, { force: true });
+      rmSync(`${tmpPath}-shm`, { force: true });
     }
   });
 

@@ -261,15 +261,16 @@ describe('messaging tools', () => {
   // --- message_broadcast edge cases ---
 
   describe('message_broadcast edge cases', () => {
-    it('returns empty result when no agents match filter', () => {
+    it('returns zero sent_count when no agents match recipient_filter', () => {
       const sender = registerAgent('Broadcaster');
-      // No other agents exist — broadcast goes to nobody
+      // Another agent exists but does not match the recipient_filter
+      registerAgent('NonMatching');
 
       const result = call('message_broadcast', {
         sender_id: sender,
         message_type: 'broadcast',
         body: 'Echo',
-        filter: { role: 'coordinator' },
+        recipient_filter: { role: 'coordinator' },
       });
       expect(result.isError).toBeUndefined();
       const data = parseContent(result) as { sent_count: number };
@@ -280,6 +281,28 @@ describe('messaging tools', () => {
   // --- message_get edge cases ---
 
   describe('message_get edge cases', () => {
+    it('message stays unread when mark_read is false', () => {
+      const sender = registerAgent('Sender');
+      const recipient = registerAgent('Recipient');
+
+      const sent = parseContent(
+        call('message_send', {
+          sender_id: sender,
+          recipient_id: recipient,
+          message_type: 'query',
+          body: 'Stay-unread test',
+        }),
+      ) as { id: string };
+
+      // Get with mark_read: false — should NOT mark as read
+      call('message_get', { id: sent.id, mark_read: false });
+
+      // Unread count should still be 1
+      const countResult = call('message_count_unread', { agent_id: recipient });
+      const countData = parseContent(countResult) as { count: number };
+      expect(countData.count).toBe(1);
+    });
+
     it('auto-marks as read when mark_read is true', () => {
       const sender = registerAgent('Sender');
       const recipient = registerAgent('Recipient');
@@ -293,13 +316,20 @@ describe('messaging tools', () => {
         }),
       ) as { id: string };
 
-      // Get with mark_read
+      // Confirm starts unread
+      const before = parseContent(call('message_count_unread', { agent_id: recipient })) as {
+        count: number;
+      };
+      expect(before.count).toBe(1);
+
+      // Get with mark_read: true
       call('message_get', { id: sent.id, mark_read: true });
 
-      // Check unread count is now 0
-      const countResult = call('message_count_unread', { agent_id: recipient });
-      const countData = parseContent(countResult) as { count: number };
-      expect(countData.count).toBe(0);
+      // Now unread count should be 0
+      const after = parseContent(call('message_count_unread', { agent_id: recipient })) as {
+        count: number;
+      };
+      expect(after.count).toBe(0);
     });
   });
 
@@ -347,7 +377,7 @@ describe('messaging tools', () => {
       expect(result.isError).toBeUndefined();
       const data = parseContent(result) as { count: number; by_priority: Record<string, number> };
       expect(data.count).toBe(2);
-      expect(data.by_priority).toBeDefined();
+      expect(data.by_priority).toEqual({ normal: 1, high: 1 });
     });
   });
 
