@@ -1,3 +1,5 @@
+import type { ChildProcess, SpawnOptions } from 'node:child_process';
+
 export type PermissionMode = 'bypassPermissions' | 'acceptEdits';
 
 export interface SpawnerConfig {
@@ -9,6 +11,7 @@ export interface SpawnerConfig {
   maxBudgetUsd?: number;
   mcpServerUrl: string;
   cwd: string;
+  spawnFn?: (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 }
 
 export interface AgentHandle {

@@ -85,12 +85,16 @@ export class AgentSession {
     }
 
     try {
-      const proc = spawn('claude', args, {
+      const spawnFn = config.spawnFn ?? spawn;
+      const proc = spawnFn('claude', args, {
         cwd: config.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
       });
       this.childProcess = proc;
 
+      if (!proc.stdout) {
+        throw new Error('Failed to open stdout on spawned process');
+      }
       const rl = createInterface({ input: proc.stdout });
 
       for await (const line of rl) {

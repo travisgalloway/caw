@@ -1,11 +1,15 @@
-import { afterEach, beforeEach, describe, expect, it, mock } from 'bun:test';
+import { afterEach, beforeEach, describe, expect, it } from 'bun:test';
+import type { ChildProcess } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
 import type { DatabaseType } from '@caw/core';
 import { createConnection, runMigrations, taskService, workflowService } from '@caw/core';
+import { clearRegistry } from './registry';
+import { WorkflowSpawner } from './spawner.service';
+import type { SpawnerConfig } from './types';
 
 /**
- * Shared DB reference that the mock child_process reads/writes.
+ * Shared DB reference that the mock spawn reads/writes.
  * Set in beforeEach, cleared in afterEach.
  */
 let mockDb: DatabaseType | null = null;
@@ -30,99 +34,85 @@ let suppressAutoComplete = false;
  */
 const startedTaskIds = new Set<string>();
 
-// ---- Mock child_process.spawn ----
+// ---- Mock spawn function (injected via config.spawnFn) ----
 
-mock.module('node:child_process', () => ({
-  spawn: (_cmd: string, args: string[]) => {
-    spawnCount++;
+function mockSpawn(_cmd: string, args: string[]) {
+  spawnCount++;
 
-    const stdout = new PassThrough();
-    const stderr = new PassThrough();
-    const stdin = new PassThrough();
-    const proc = Object.assign(new EventEmitter(), {
-      stdout,
-      stderr,
-      stdin,
-      pid: 10000 + spawnCount,
-      killed: false,
-      kill(_signal?: string) {
-        this.killed = true;
-        stdout.end();
-        // Delay close so AgentSession's readline loop finishes and attaches the listener
-        setTimeout(() => proc.emit('close', 1), 10);
-      },
-    });
+  const stdout = new PassThrough();
+  const stderr = new PassThrough();
+  const stdin = new PassThrough();
+  const proc = Object.assign(new EventEmitter(), {
+    stdout,
+    stderr,
+    stdin,
+    pid: 10000 + spawnCount,
+    killed: false,
+    kill(_signal?: string) {
+      this.killed = true;
+      stdout.end();
+      // Delay close so AgentSession's readline loop finishes and attaches the listener
+      setTimeout(() => proc.emit('close', 1), 10);
+    },
+  });
 
-    // Extract taskId from the -p prompt argument
-    const promptIdx = args.indexOf('-p');
-    const promptArg = promptIdx >= 0 ? args[promptIdx + 1] : '';
-    const taskIdMatch = promptArg.match(/tk_[0-9a-z]{12}/);
-    const taskId = taskIdMatch?.[0] ?? null;
+  // Extract taskId from the -p prompt argument
+  const promptIdx = args.indexOf('-p');
+  const promptArg = promptIdx >= 0 ? args[promptIdx + 1] : '';
+  const taskIdMatch = promptArg.match(/tk_[0-9a-z]{12}/);
+  const taskId = taskIdMatch?.[0] ?? null;
 
-    if (taskId) {
-      startedTaskIds.add(taskId);
+  if (taskId) {
+    startedTaskIds.add(taskId);
+  }
+
+  const sessionId = `sess_${spawnCount}`;
+
+  // Simulate async agent work
+  setTimeout(() => {
+    // Emit init message
+    stdout.write(`${JSON.stringify({ type: 'system', subtype: 'init', session_id: sessionId })}\n`);
+
+    if (suppressAutoComplete || !taskId || !mockDb) {
+      // Don't auto-complete; wait for abort/kill
+      return;
     }
 
-    const sessionId = `sess_${spawnCount}`;
-
-    // Simulate async agent work
+    // Simulate task completion in DB: pending → planning → completed
     setTimeout(() => {
-      // Emit init message
-      stdout.write(
-        `${JSON.stringify({ type: 'system', subtype: 'init', session_id: sessionId })}\n`,
-      );
+      try {
+        const task = mockDb?.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as {
+          status: string;
+        } | null;
+        if (!task || task.status === 'completed') return;
 
-      if (suppressAutoComplete || !taskId || !mockDb) {
-        // Don't auto-complete; wait for abort/kill
-        return;
-      }
-
-      // Simulate task completion in DB: pending → planning → completed
-      setTimeout(() => {
-        try {
-          const task = mockDb?.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as {
-            status: string;
-          } | null;
-          if (!task || task.status === 'completed') return;
-
-          if (task.status === 'pending') {
-            taskService.updateStatus(mockDb as DatabaseType, taskId, 'planning');
-          }
-
-          const refreshed = mockDb?.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as {
-            status: string;
-          } | null;
-          if (refreshed?.status === 'planning') {
-            taskService.updateStatus(mockDb as DatabaseType, taskId, 'completed', {
-              outcome: `Mock completed ${taskId}`,
-            });
-          }
-        } catch {
-          // Task may have been already transitioned
+        if (task.status === 'pending') {
+          taskService.updateStatus(mockDb as DatabaseType, taskId, 'planning');
         }
 
-        // Emit result message, then end stdout. Delay close so the readline
-        // async iterator in AgentSession.run() finishes and attaches the
-        // proc.on('close') listener before we emit.
-        stdout.write(`${JSON.stringify({ type: 'result', subtype: 'success' })}\n`);
-        stdout.end();
-        setTimeout(() => proc.emit('close', 0), 10);
-      }, mockDelay);
-    }, 5);
+        const refreshed = mockDb?.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId) as {
+          status: string;
+        } | null;
+        if (refreshed?.status === 'planning') {
+          taskService.updateStatus(mockDb as DatabaseType, taskId, 'completed', {
+            outcome: `Mock completed ${taskId}`,
+          });
+        }
+      } catch {
+        // Task may have been already transitioned
+      }
 
-    return proc;
-  },
-}));
+      // Emit result message, then end stdout. Delay close so the readline
+      // async iterator in AgentSession.run() finishes and attaches the
+      // proc.on('close') listener before we emit.
+      stdout.write(`${JSON.stringify({ type: 'result', subtype: 'success' })}\n`);
+      stdout.end();
+      setTimeout(() => proc.emit('close', 0), 10);
+    }, mockDelay);
+  }, 5);
 
-// ---- Mock mcp-config to avoid real file I/O ----
-mock.module('./mcp-config', () => ({
-  buildMcpConfigFile: () => '/tmp/mock-mcp-config.json',
-  cleanupMcpConfigFile: () => {},
-}));
-
-// Import after mocks so they pick up the mocked modules
-const { WorkflowSpawner } = await import('./spawner.service');
-const { clearRegistry } = await import('./registry');
+  return proc as unknown as ChildProcess;
+}
 
 function createTestDb(): DatabaseType {
   const db = createConnection(':memory:');
@@ -130,7 +120,10 @@ function createTestDb(): DatabaseType {
   return db;
 }
 
-function createSpawnerConfig(workflowId: string, overrides?: Record<string, unknown>) {
+function createSpawnerConfig(
+  workflowId: string,
+  overrides?: Partial<SpawnerConfig>,
+): SpawnerConfig {
   return {
     workflowId,
     maxAgents: 1,
@@ -139,6 +132,7 @@ function createSpawnerConfig(workflowId: string, overrides?: Record<string, unkn
     maxTurns: 10,
     mcpServerUrl: 'http://localhost:3100/mcp',
     cwd: '/tmp',
+    spawnFn: mockSpawn,
     ...overrides,
   };
 }
