@@ -95,12 +95,17 @@ bun ./apps/tui/src/bin/cli.ts --server
 |---|---|---|
 | `@caw/core` | [`packages/core`](packages/core) | Core library — DB, services, types |
 | `@caw/mcp-server` | [`packages/mcp-server`](packages/mcp-server) | MCP server library (tools, transport, config) |
+| `@caw/spawner` | [`packages/spawner`](packages/spawner) | Agent spawning via `claude -p` CLI |
 | `@caw/tui` | [`apps/tui`](apps/tui) | Unified `caw` binary — TUI (default) or headless MCP server (`--server`) |
 
 ## CLI Reference
 
 ```
 Usage: caw [options] [description]
+       caw init [--yes] [--global]
+       caw setup claude-code [--print] [--mcp-only] [--claude-md-only]
+       caw run <workflow_id> [options]
+       caw run --prompt "..." [options]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -111,6 +116,22 @@ Options:
   --template <name>     Create workflow from named template (requires description)
   --list-templates      List available workflow templates
   -h, --help            Show this help message
+
+Commands:
+  init                  Initialize caw in the current repository
+    --yes, -y           Skip prompts, use defaults
+    --global            Initialize global config (~/.caw/) instead of per-repo
+
+  setup claude-code     Configure Claude Code to use caw
+    --print             Print what would be added without modifying files
+    --mcp-only          Only configure MCP server, skip CLAUDE.md
+    --claude-md-only    Only update CLAUDE.md, skip MCP config
+
+  run                   Execute a workflow by spawning Claude Code agents
+    --prompt <text>     Create workflow from prompt, plan it, then run
+    --max-agents <n>    Override max_parallel_tasks
+    --model <name>      Claude model (default: claude-sonnet-4-5)
+    --detach            Start and run in background
 ```
 
 **Examples:**
@@ -124,6 +145,18 @@ caw --server
 
 # Run as MCP server over HTTP on port 8080
 caw --server --transport http --port 8080
+
+# Initialize caw in the current repository
+caw init
+
+# Configure Claude Code integration
+caw setup claude-code
+
+# Execute a workflow with spawned agents
+caw run wf_abc123
+
+# Create a workflow from a prompt and execute it
+caw run --prompt "Add OAuth to billing service"
 
 # Create a workflow from a template
 caw --template oauth-setup "Add OAuth to billing service"
@@ -153,11 +186,11 @@ caw --list-templates
 
 ## MCP Tools
 
-43 tools across 10 categories:
+56 tools across 12 categories:
 
 | Category | Tools | Count |
 |---|---|---|
-| Workflow Lifecycle | `workflow_create`, `workflow_get`, `workflow_list`, `workflow_set_plan`, `workflow_update_status`, `workflow_set_parallelism`, `workflow_get_summary` | 7 |
+| Workflow Lifecycle | `workflow_create`, `workflow_get`, `workflow_list`, `workflow_set_plan`, `workflow_update_status`, `workflow_set_parallelism`, `workflow_get_summary`, `workflow_lock`, `workflow_unlock`, `workflow_lock_info`, `workflow_add_repository`, `workflow_remove_repository`, `workflow_list_repositories` | 13 |
 | Task Management | `task_get`, `task_set_plan`, `task_update_status`, `task_replan` | 4 |
 | Checkpoint Recording | `checkpoint_add`, `checkpoint_list` | 2 |
 | Context Loading | `task_load_context` | 1 |
@@ -167,6 +200,8 @@ caw --list-templates
 | Template Management | `template_create`, `template_list`, `template_apply` | 3 |
 | Agent Management | `agent_register`, `agent_heartbeat`, `agent_update`, `agent_get`, `agent_list`, `agent_unregister`, `task_claim`, `task_release`, `task_get_available` | 9 |
 | Messaging | `message_send`, `message_broadcast`, `message_list`, `message_get`, `message_mark_read`, `message_archive`, `message_count_unread` | 7 |
+| Replanning | `workflow_add_task`, `workflow_remove_task`, `workflow_replan` | 3 |
+| Execution | `workflow_start`, `workflow_suspend`, `workflow_resume`, `workflow_execution_status` | 4 |
 
 See [MCP Tools](docs/mcp-tools.md) for full tool definitions with parameters and return types.
 
@@ -236,6 +271,7 @@ Full documentation lives in [`docs/`](docs/):
 | [CLAUDE.md Integration](docs/claude-md-integration.md) | CLAUDE.md integration instructions |
 | [Implementation](docs/implementation.md) | Implementation priorities and phases |
 | [Future](docs/future.md) | Future considerations |
+| [Testing](TESTING.md) | End-to-end manual test guide |
 
 ## License
 

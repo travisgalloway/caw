@@ -9,4 +9,3 @@ dist/
 .turbo/
 coverage/
 .DS_Store
-examples/spawner-test/example-project/.caw/

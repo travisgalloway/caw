@@ -50,11 +50,12 @@ bun run clean
 
 ## Monorepo Structure
 
-Three workspace packages managed by Bun workspaces + Turbo:
+Four workspace packages managed by Bun workspaces + Turbo:
 
 - **`packages/core`** (`@caw/core`) — Database layer, types, services, utilities. All other packages depend on this.
 - **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library (tools, transport, config). Imported by the TUI app. Depends on core.
-- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary — TUI (default) or headless MCP server (`--server`). Depends on core and mcp-server.
+- **`packages/spawner`** (`@caw/spawner`) — Agent spawning via `claude -p` CLI. Depends on core.
+- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary — TUI (default) or headless MCP server (`--server`). Depends on core, mcp-server, and spawner.
 - **`tooling/tsconfig`** (`@caw/tsconfig`) — Shared TypeScript configs (`base.json` and `library.json`).
 
 ## TypeScript Conventions

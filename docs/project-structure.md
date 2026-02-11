@@ -60,28 +60,44 @@ caw/
 │   │       ├── agent.test.ts
 │   │       └── message.test.ts
 │   │
-│   └── mcp-server/                 # @caw/mcp-server (library)
+│   ├── mcp-server/                 # @caw/mcp-server (library)
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── index.ts            # Library exports
+│   │       ├── config.ts           # Server configuration
+│   │       ├── server.ts           # MCP server factory + transport
+│   │       ├── bin/
+│   │       │   └── cli.ts          # Dev-only entry (bun run)
+│   │       └── tools/
+│   │           ├── index.ts        # registerAllTools aggregator
+│   │           ├── types.ts        # ToolRegistrar, defineTool, result helpers
+│   │           ├── workflow.ts
+│   │           ├── task.ts
+│   │           ├── checkpoint.ts
+│   │           ├── context.ts
+│   │           ├── orchestration.ts
+│   │           ├── workspace.ts
+│   │           ├── repository.ts
+│   │           ├── template.ts
+│   │           ├── agent.ts
+│   │           ├── messaging.ts
+│   │           ├── replanning.ts
+│   │           ├── spawner.ts
+│   │           └── lock-guard.ts
+│   │
+│   └── spawner/                    # @caw/spawner
 │       ├── package.json
 │       ├── tsconfig.json
 │       └── src/
-│           ├── index.ts            # Library exports
-│           ├── config.ts           # Server configuration
-│           ├── server.ts           # MCP server factory + transport
-│           ├── bin/
-│           │   └── cli.ts          # Dev-only entry (bun run)
-│           └── tools/
-│               ├── index.ts        # registerAllTools aggregator
-│               ├── types.ts        # ToolRegistrar, defineTool, result helpers
-│               ├── workflow.ts
-│               ├── task.ts
-│               ├── checkpoint.ts
-│               ├── context.ts
-│               ├── orchestration.ts
-│               ├── workspace.ts
-│               ├── repository.ts
-│               ├── template.ts
-│               ├── agent.ts
-│               └── messaging.ts
+│           ├── index.ts
+│           ├── types.ts
+│           ├── agent-session.ts
+│           ├── pool.ts
+│           ├── spawner.service.ts
+│           ├── registry.ts
+│           ├── mcp-config.ts
+│           └── prompt.ts
 │
 ├── apps/
 │   └── tui/                        # @caw/tui
@@ -118,11 +134,9 @@ caw/
 │           └── cli.ts              # caw binary entry point
 │
 └── tooling/
-    ├── tsconfig/                   # Shared TS configs
-    │   ├── base.json
-    │   └── library.json
-    └── eslint/                     # Shared ESLint configs
-        └── library.js
+    └── tsconfig/                   # Shared TS configs
+        ├── base.json
+        └── library.json
 ```
 
 ## Package Dependencies
@@ -164,6 +178,19 @@ caw/
 }
 ```
 
+**@caw/spawner**
+
+```json
+{
+  "name": "@caw/spawner",
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "@caw/core": "workspace:*"
+  }
+}
+```
+
 **@caw/tui** (unified `caw` binary — TUI default, or headless MCP server with `--server`)
 
 ```json
@@ -177,16 +204,15 @@ caw/
   "dependencies": {
     "@caw/core": "workspace:*",
     "@caw/mcp-server": "workspace:*",
-    "ink": "^5.0.0",
-    "ink-spinner": "^5.0.0",
-    "ink-table": "^3.1.0",
-    "react": "^18.2.0",
-    "zustand": "^4.5.0",
-    "cli-boxes": "^3.0.0",
-    "figures": "^6.0.0"
+    "@caw/spawner": "workspace:*",
+    "ink": "^6.6.0",
+    "ink-scroll-view": "^0.3.5",
+    "ink-tab": "^5.1.0",
+    "react": "^19.0.0",
+    "zustand": "^5.0.0"
   },
   "devDependencies": {
-    "@types/react": "^18.2.0",
+    "@types/react": "^19.0.0",
     "typescript": "^5.4.0"
   }
 }
