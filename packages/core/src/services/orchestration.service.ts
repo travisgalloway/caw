@@ -58,6 +58,7 @@ export function getNextTasks(
   db: DatabaseType,
   workflowId: string,
   includeFailed = false,
+  includePaused = false,
 ): NextTasksResult {
   const workflow = db
     .prepare('SELECT * FROM workflows WHERE id = ?')
@@ -76,10 +77,13 @@ export function getNextTasks(
     allTasks.length > 0 &&
     allTasks.every((t) => t.status === 'completed' || t.status === 'skipped');
 
-  // Find eligible tasks: pending + unblocked, optionally failed
+  // Find eligible tasks: pending + unblocked, optionally failed/paused
   const statusConditions = ["'pending'"];
   if (includeFailed) {
     statusConditions.push("'failed'");
+  }
+  if (includePaused) {
+    statusConditions.push("'paused'");
   }
 
   const candidateTasks = db

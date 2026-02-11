@@ -10,8 +10,8 @@ describe('mergeConfigs', () => {
   });
 
   test('merges transport from later config', () => {
-    const result = mergeConfigs({ transport: 'stdio' }, { transport: 'sse' });
-    expect(result.transport).toBe('sse');
+    const result = mergeConfigs({ transport: 'stdio' }, { transport: 'http' });
+    expect(result.transport).toBe('http');
   });
 
   test('later config overrides port', () => {
@@ -20,8 +20,8 @@ describe('mergeConfigs', () => {
   });
 
   test('preserves earlier values when later config omits them', () => {
-    const result = mergeConfigs({ transport: 'sse', port: 8080 }, { dbMode: 'global' });
-    expect(result.transport).toBe('sse');
+    const result = mergeConfigs({ transport: 'http', port: 8080 }, { dbMode: 'global' });
+    expect(result.transport).toBe('http');
     expect(result.port).toBe(8080);
     expect(result.dbMode).toBe('global');
   });
@@ -69,9 +69,9 @@ describe('readConfigFile', () => {
 
   test('reads valid config file', () => {
     const configPath = join(tmpDir, 'config.json');
-    writeFileSync(configPath, JSON.stringify({ transport: 'sse', port: 8080 }));
+    writeFileSync(configPath, JSON.stringify({ transport: 'http', port: 8080 }));
     const result = readConfigFile(configPath);
-    expect(result.config.transport).toBe('sse');
+    expect(result.config.transport).toBe('http');
     expect(result.config.port).toBe(8080);
     expect(result.warnings).toEqual([]);
   });
@@ -115,9 +115,9 @@ describe('loadConfig', () => {
 
   test('reads repo config', () => {
     const configPath = join(tmpDir, '.caw', 'config.json');
-    writeFileSync(configPath, JSON.stringify({ transport: 'sse' }));
+    writeFileSync(configPath, JSON.stringify({ transport: 'http' }));
     const result = loadConfig(tmpDir);
-    expect(result.config.transport).toBe('sse');
+    expect(result.config.transport).toBe('http');
   });
 });
 
@@ -135,10 +135,10 @@ describe('writeConfig', () => {
 
   test('writes config to file', () => {
     const configPath = join(tmpDir, 'config.json');
-    writeConfig(configPath, { transport: 'sse', port: 8080 });
+    writeConfig(configPath, { transport: 'http', port: 8080 });
     const content = readFileSync(configPath, 'utf-8');
     const parsed = JSON.parse(content);
-    expect(parsed.transport).toBe('sse');
+    expect(parsed.transport).toBe('http');
     expect(parsed.port).toBe(8080);
   });
 

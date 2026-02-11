@@ -21,6 +21,7 @@
       "dependencies": {
         "@caw/core": "workspace:*",
         "@caw/mcp-server": "workspace:*",
+        "@caw/spawner": "workspace:*",
         "ink": "^6.6.0",
         "ink-scroll-view": "^0.3.5",
         "ink-tab": "^5.1.0",
@@ -51,8 +52,20 @@
       "version": "0.1.0",
       "dependencies": {
         "@caw/core": "workspace:*",
+        "@caw/spawner": "workspace:*",
         "@modelcontextprotocol/sdk": "^1.25.3",
         "zod": "^3.25",
+      },
+      "devDependencies": {
+        "@caw/tsconfig": "workspace:*",
+        "@types/bun": "^1.2.0",
+      },
+    },
+    "packages/spawner": {
+      "name": "@caw/spawner",
+      "version": "0.1.0",
+      "dependencies": {
+        "@caw/core": "workspace:*",
       },
       "devDependencies": {
         "@caw/tsconfig": "workspace:*",
@@ -88,6 +101,8 @@
     "@caw/core": ["@caw/core@workspace:packages/core"],
 
     "@caw/mcp-server": ["@caw/mcp-server@workspace:packages/mcp-server"],
+
+    "@caw/spawner": ["@caw/spawner@workspace:packages/spawner"],
 
     "@caw/tsconfig": ["@caw/tsconfig@workspace:tooling/tsconfig"],
 

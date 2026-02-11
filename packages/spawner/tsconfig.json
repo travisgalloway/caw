@@ -1,0 +1,4 @@
+{
+  "extends": "@caw/tsconfig/library.json",
+  "include": ["src"]
+}

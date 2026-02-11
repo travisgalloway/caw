@@ -67,4 +67,37 @@ describe('SelectableTable', () => {
     const output = lastFrame() ?? '';
     expect(output).toContain('No data');
   });
+
+  test('renders column headers', () => {
+    const { lastFrame } = render(
+      <SelectableTable
+        data={data}
+        columns={columns}
+        selectedIndex={0}
+        onSelectIndex={() => {}}
+        onConfirm={() => {}}
+      />,
+    );
+    const output = lastFrame() ?? '';
+    expect(output).toContain('Name');
+    expect(output).toContain('Status');
+  });
+
+  test('truncates long values to column width', () => {
+    const longData: TestRow[] = [
+      { id: '1', name: 'A very long name that exceeds twenty characters', status: 'active' },
+    ];
+    const { lastFrame } = render(
+      <SelectableTable
+        data={longData}
+        columns={columns}
+        selectedIndex={0}
+        onSelectIndex={() => {}}
+        onConfirm={() => {}}
+      />,
+    );
+    const output = lastFrame() ?? '';
+    // The full string should not appear since column width is 20
+    expect(output).not.toContain('A very long name that exceeds twenty characters');
+  });
 });

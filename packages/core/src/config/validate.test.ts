@@ -11,14 +11,14 @@ describe('validateConfig', () => {
 
   test('accepts valid full config', () => {
     const result = validateConfig({
-      transport: 'sse',
+      transport: 'http',
       port: 3100,
       dbMode: 'global',
       agent: { runtime: 'claude_code', autoSetup: true },
     });
     expect(result.valid).toBe(true);
     expect(result.config).toEqual({
-      transport: 'sse',
+      transport: 'http',
       port: 3100,
       dbMode: 'global',
       agent: { runtime: 'claude_code', autoSetup: true },

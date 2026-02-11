@@ -3,14 +3,28 @@ import { createConnection, runMigrations } from '@caw/core';
 import { createMcpServer } from './server';
 
 describe('createMcpServer', () => {
-  test('registers all 52 tools', () => {
+  test('registers all 56 tools', () => {
     const db = createConnection(':memory:');
     runMigrations(db);
     const server = createMcpServer(db);
 
     // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
     const tools = (server as any)._registeredTools as Record<string, unknown>;
-    expect(Object.keys(tools).length).toBe(52);
+    expect(Object.keys(tools).length).toBe(56);
+  });
+
+  test('all tool names follow entity_action naming convention', () => {
+    const db = createConnection(':memory:');
+    runMigrations(db);
+    const server = createMcpServer(db);
+
+    // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
+    const tools = (server as any)._registeredTools as Record<string, unknown>;
+    const names = Object.keys(tools);
+
+    for (const name of names) {
+      expect(name).toMatch(/^[a-z]+(_[a-z]+)+$/);
+    }
   });
 
   test('registered tool names match expected set', () => {
@@ -40,5 +54,9 @@ describe('createMcpServer', () => {
     expect(names).toContain('workflow_add_task');
     expect(names).toContain('workflow_remove_task');
     expect(names).toContain('workflow_replan');
+    expect(names).toContain('workflow_start');
+    expect(names).toContain('workflow_suspend');
+    expect(names).toContain('workflow_resume');
+    expect(names).toContain('workflow_execution_status');
   });
 });

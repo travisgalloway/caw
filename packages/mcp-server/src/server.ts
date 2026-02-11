@@ -27,6 +27,7 @@ export async function startServer(server: McpServer, config: ServerConfig): Prom
 
     Bun.serve({
       port: config.port,
+      idleTimeout: 255,
       async fetch(req) {
         const url = new URL(req.url);
 

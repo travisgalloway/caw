@@ -144,7 +144,7 @@ async function startAsDaemon(
   }
 
   // Start embedded MCP HTTP server
-  const config = resolveConfig({ transport: 'sse', port: String(port) });
+  const config = resolveConfig({ transport: 'http', port: String(port) });
   config.quiet = true;
   const server = createMcpServer(db);
   await startServer(server, config);
@@ -244,7 +244,7 @@ function joinAsClient(db: DatabaseType, lockPath: string, daemonPort: number): D
       currentPort = port;
 
       // Start embedded MCP server
-      const config = resolveConfig({ transport: 'sse', port: String(port) });
+      const config = resolveConfig({ transport: 'http', port: String(port) });
       config.quiet = true;
       const server = createMcpServer(db);
       await startServer(server, config);

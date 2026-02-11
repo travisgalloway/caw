@@ -258,6 +258,81 @@ describe('messaging tools', () => {
     });
   });
 
+  // --- message_broadcast edge cases ---
+
+  describe('message_broadcast edge cases', () => {
+    it('returns zero sent_count when no agents match recipient_filter', () => {
+      const sender = registerAgent('Broadcaster');
+      // Another agent exists but does not match the recipient_filter
+      registerAgent('NonMatching');
+
+      const result = call('message_broadcast', {
+        sender_id: sender,
+        message_type: 'broadcast',
+        body: 'Echo',
+        recipient_filter: { role: 'coordinator' },
+      });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as { sent_count: number };
+      expect(data.sent_count).toBe(0);
+    });
+  });
+
+  // --- message_get edge cases ---
+
+  describe('message_get edge cases', () => {
+    it('message stays unread when mark_read is false', () => {
+      const sender = registerAgent('Sender');
+      const recipient = registerAgent('Recipient');
+
+      const sent = parseContent(
+        call('message_send', {
+          sender_id: sender,
+          recipient_id: recipient,
+          message_type: 'query',
+          body: 'Stay-unread test',
+        }),
+      ) as { id: string };
+
+      // Get with mark_read: false — should NOT mark as read
+      call('message_get', { id: sent.id, mark_read: false });
+
+      // Unread count should still be 1
+      const countResult = call('message_count_unread', { agent_id: recipient });
+      const countData = parseContent(countResult) as { count: number };
+      expect(countData.count).toBe(1);
+    });
+
+    it('auto-marks as read when mark_read is true', () => {
+      const sender = registerAgent('Sender');
+      const recipient = registerAgent('Recipient');
+
+      const sent = parseContent(
+        call('message_send', {
+          sender_id: sender,
+          recipient_id: recipient,
+          message_type: 'query',
+          body: 'Auto-read test',
+        }),
+      ) as { id: string };
+
+      // Confirm starts unread
+      const before = parseContent(call('message_count_unread', { agent_id: recipient })) as {
+        count: number;
+      };
+      expect(before.count).toBe(1);
+
+      // Get with mark_read: true
+      call('message_get', { id: sent.id, mark_read: true });
+
+      // Now unread count should be 0
+      const after = parseContent(call('message_count_unread', { agent_id: recipient })) as {
+        count: number;
+      };
+      expect(after.count).toBe(0);
+    });
+  });
+
   // --- message_count_unread ---
 
   describe('message_count_unread', () => {
@@ -276,6 +351,33 @@ describe('messaging tools', () => {
       expect(result.isError).toBeUndefined();
       const data = parseContent(result) as { count: number };
       expect(data.count).toBe(1);
+    });
+
+    it('returns breakdown by priority', () => {
+      const sender = registerAgent('Sender');
+      const recipient = registerAgent('Recipient');
+
+      call('message_send', {
+        sender_id: sender,
+        recipient_id: recipient,
+        message_type: 'query',
+        body: 'Normal msg',
+        priority: 'normal',
+      });
+
+      call('message_send', {
+        sender_id: sender,
+        recipient_id: recipient,
+        message_type: 'query',
+        body: 'Urgent msg',
+        priority: 'high',
+      });
+
+      const result = call('message_count_unread', { agent_id: recipient });
+      expect(result.isError).toBeUndefined();
+      const data = parseContent(result) as { count: number; by_priority: Record<string, number> };
+      expect(data.count).toBe(2);
+      expect(data.by_priority).toEqual({ normal: 1, high: 1 });
     });
   });
 

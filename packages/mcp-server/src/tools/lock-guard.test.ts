@@ -98,6 +98,8 @@ describe('lock-guard', () => {
         const toolErr = err as ToolCallError;
         expect(toolErr.code).toBe('WORKFLOW_LOCKED');
         expect(toolErr.recoverable).toBe(true);
+        expect(toolErr.suggestion).toBeDefined();
+        expect(toolErr.suggestion.length).toBeGreaterThan(0);
       }
     });
   });

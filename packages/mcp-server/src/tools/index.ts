@@ -7,6 +7,7 @@ import { register as registerMessaging } from './messaging';
 import { register as registerOrchestration } from './orchestration';
 import { register as registerReplanning } from './replanning';
 import { register as registerRepository } from './repository';
+import { register as registerSpawner } from './spawner';
 import { register as registerTask } from './task';
 import { register as registerTemplate } from './template';
 import { register as registerWorkflow } from './workflow';
@@ -24,4 +25,5 @@ export function registerAllTools(server: McpServer, db: DatabaseType): void {
   registerAgent(server, db);
   registerMessaging(server, db);
   registerReplanning(server, db);
+  registerSpawner(server, db);
 }

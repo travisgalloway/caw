@@ -2,7 +2,7 @@
 
 ## Tool Categories
 
-1. **Workflow Lifecycle** - Create, read, update workflows
+1. **Workflow Lifecycle** - Create, read, update workflows; locking; multi-repo management
 2. **Task Management** - CRUD operations on tasks
 3. **Checkpoint Recording** - Fine-grained progress tracking
 4. **Context Loading** - Optimized context retrieval for recovery
@@ -12,6 +12,8 @@
 8. **Template Management** - Reusable workflow patterns
 9. **Agent Management** - Registration, heartbeat, task claiming
 10. **Messaging** - Inter-agent communication
+11. **Replanning** - Add, remove, and replace tasks in a live workflow
+12. **Execution** - Start, suspend, resume workflow execution via agent spawning
 
 ## Tool Definitions
 
@@ -103,6 +105,33 @@ workflow_set_parallelism(params: {
   max_parallel_tasks: number;    // 1 = sequential, >1 = parallel
   auto_create_workspaces?: boolean;
 }): Promise<{ success: boolean }>
+
+/**
+ * Acquire a write lock on a workflow for the given session
+ */
+workflow_lock(params: {
+  id: string;
+  session_id: string;
+}): Promise<{ success: boolean; locked_at: number }>
+
+/**
+ * Release a write lock on a workflow
+ */
+workflow_unlock(params: {
+  id: string;
+  session_id: string;             // Session ID that holds the lock
+}): Promise<{ success: boolean }>
+
+/**
+ * Get lock information for a workflow
+ */
+workflow_lock_info(params: {
+  id: string;
+}): Promise<{
+  locked: boolean;
+  session_id: string | null;
+  locked_at: number | null;
+}>
 
 /**
  * Add a repository to a workflow (multi-repo support)
@@ -646,4 +675,135 @@ message_count_unread(params: {
   agent_id: string;
   priority?: string[];                    // Filter by priority
 }): Promise<{ count: number; by_priority: Record<string, number> }>
+```
+
+### Replanning
+
+```typescript
+/**
+ * Add a single task to an existing workflow plan
+ */
+workflow_add_task(params: {
+  workflow_id: string;
+  session_id?: string;             // Lock enforcement
+  name: string;                    // Must be unique within workflow
+  description?: string;
+  depends_on?: string[];           // Task names or IDs this task depends on
+  parallel_group?: string;
+  estimated_complexity?: 'low' | 'medium' | 'high';
+  files_likely_affected?: string[];
+  repository_path?: string;
+  after_task?: string;             // Insert after this task (name or ID). Default: append at end
+}): Promise<{
+  task_id: string;
+  sequence: number;
+}>
+
+/**
+ * Remove a pending/blocked/planning task from a workflow, re-wiring its dependencies
+ */
+workflow_remove_task(params: {
+  workflow_id: string;
+  session_id?: string;             // Lock enforcement
+  task_id: string;                 // Task ID to remove
+}): Promise<{
+  removed_task_id: string;
+  rewired_dependencies: number;
+}>
+
+/**
+ * Replace removable tasks with a new plan while preserving completed/in_progress/claimed tasks
+ */
+workflow_replan(params: {
+  workflow_id: string;
+  session_id?: string;             // Lock enforcement
+  plan: {
+    summary: string;               // New plan summary
+    reason: string;                // Reason for replanning
+    tasks: Array<{
+      name: string;
+      description?: string;
+      parallel_group?: string;
+      depends_on?: string[];
+      estimated_complexity?: 'low' | 'medium' | 'high';
+      files_likely_affected?: string[];
+      repository_path?: string;
+    }>;
+  };
+}): Promise<{
+  preserved_tasks: number;
+  removed_tasks: number;
+  added_tasks: number;
+  checkpoint_id: string;
+}>
+```
+
+### Execution
+
+```typescript
+/**
+ * Start executing a workflow by spawning Claude Code agents
+ * Agents automatically claim and work on tasks, reporting progress through checkpoints
+ */
+workflow_start(params: {
+  workflow_id: string;
+  max_agents?: number;             // Max concurrent agents (default: from workflow max_parallel_tasks)
+  model?: string;                  // Claude model (default: claude-sonnet-4-5)
+  permission_mode?: 'acceptEdits' | 'bypassPermissions';  // Default: bypassPermissions
+  max_turns?: number;              // Max turns per task agent (default: 50)
+  max_budget_usd?: number;         // Max budget per task in USD
+  cwd?: string;                    // Working directory for agents
+}): Promise<{
+  workflowId: string;
+  status: 'running';
+  agents: Array<{ agentId: string; taskId: string }>;
+}>
+
+/**
+ * Gracefully stop all agents working on a workflow
+ * In-progress tasks are paused, agents are unregistered, workflow transitions to paused
+ */
+workflow_suspend(params: {
+  workflow_id: string;
+}): Promise<{
+  workflowId: string;
+  status: 'suspended';
+  pausedTasks: number;
+}>
+
+/**
+ * Resume a suspended workflow by re-spawning agents for available and paused tasks
+ */
+workflow_resume(params: {
+  workflow_id: string;
+}): Promise<{
+  workflowId: string;
+  status: 'running';
+  agents: Array<{ agentId: string; taskId: string }>;
+}>
+
+/**
+ * Get the current execution status of a workflow
+ * Including agent handles, progress, and spawner state
+ */
+workflow_execution_status(params: {
+  workflow_id: string;
+}): Promise<{
+  workflowId: string;
+  status: 'running' | 'suspended' | 'idle' | 'completed';
+  agents: Array<{
+    agentId: string;
+    taskId: string | null;
+    status: string;
+  }>;
+  progress: {
+    totalTasks: number;
+    completed: number;
+    inProgress: number;
+    failed: number;
+    remaining: number;
+  };
+  startedAt: number | null;
+  suspendedAt: number | null;
+}>
 ```
