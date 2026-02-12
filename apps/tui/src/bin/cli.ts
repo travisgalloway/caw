@@ -1,4 +1,6 @@
 #!/usr/bin/env bun
+process.title = 'caw';
+
 import { parseArgs } from 'node:util';
 import { createConnection, getDbPath, runMigrations, templateService } from '@caw/core';
 
