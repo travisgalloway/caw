@@ -1,12 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import { parseContent } from './__test-utils';
 import { handleToolCall, handleToolCallAsync, ToolCallError, toolResult } from './types';
-
-function parseContent(result: CallToolResult): unknown {
-  const item = result.content[0];
-  if (item.type !== 'text') throw new Error('Expected text content');
-  return JSON.parse(item.text);
-}
 
 describe('handleToolCall', () => {
   it('returns result on success', () => {

@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'bun:test';
 import { createConnection, runMigrations } from '@caw/core';
 import { createMcpServer } from './server';
+import { getRegisteredTools } from './tools/__test-utils';
 
 describe('createMcpServer', () => {
   test('registers all 56 tools', () => {
@@ -8,8 +9,7 @@ describe('createMcpServer', () => {
     runMigrations(db);
     const server = createMcpServer(db);
 
-    // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
-    const tools = (server as any)._registeredTools as Record<string, unknown>;
+    const tools = getRegisteredTools(server);
     expect(Object.keys(tools).length).toBe(56);
   });
 
@@ -18,8 +18,7 @@ describe('createMcpServer', () => {
     runMigrations(db);
     const server = createMcpServer(db);
 
-    // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
-    const tools = (server as any)._registeredTools as Record<string, unknown>;
+    const tools = getRegisteredTools(server);
     const names = Object.keys(tools);
 
     for (const name of names) {
@@ -32,8 +31,7 @@ describe('createMcpServer', () => {
     runMigrations(db);
     const server = createMcpServer(db);
 
-    // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
-    const tools = (server as any)._registeredTools as Record<string, unknown>;
+    const tools = getRegisteredTools(server);
     const names = Object.keys(tools).sort();
 
     expect(names).toContain('workflow_create');

@@ -3,26 +3,7 @@ import type { DatabaseType } from '@caw/core';
 import { agentService, createConnection, runMigrations } from '@caw/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../server';
-import type { ToolErrorInfo } from './types';
-
-type ToolHandler = (args: Record<string, unknown>) => CallToolResult | Promise<CallToolResult>;
-
-function getToolHandler(server: unknown, name: string): ToolHandler {
-  // biome-ignore lint/suspicious/noExplicitAny: accessing private for test
-  const tools = (server as any)._registeredTools as Record<string, { handler: ToolHandler }>;
-  return tools[name].handler;
-}
-
-function parseContent(result: CallToolResult): unknown {
-  const text = result.content[0];
-  if (text.type !== 'text') throw new Error('Expected text content');
-  return JSON.parse(text.text);
-}
-
-function parseError(result: CallToolResult): ToolErrorInfo {
-  expect(result.isError).toBe(true);
-  return parseContent(result) as ToolErrorInfo;
-}
+import { getToolHandler, parseContent, parseError } from './__test-utils';
 
 describe('messaging tools', () => {
   let db: DatabaseType;
@@ -386,9 +367,7 @@ describe('messaging tools', () => {
   describe('structured error format', () => {
     it('includes all required fields in error responses', () => {
       const result = call('message_get', { id: 'msg_missing' });
-      expect(result.isError).toBe(true);
-
-      const err = parseContent(result) as ToolErrorInfo;
+      const err = parseError(result);
       expect(err).toHaveProperty('code');
       expect(err).toHaveProperty('message');
       expect(err).toHaveProperty('recoverable');
