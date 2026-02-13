@@ -4,7 +4,6 @@ import { createConnection, runMigrations, taskService, workflowService } from '@
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../server';
 import { getToolHandler, parseContent, parseError } from './__test-utils';
-import type { ToolErrorInfo } from './types';
 
 describe('task tools', () => {
   let db: DatabaseType;
@@ -242,9 +241,7 @@ describe('task tools', () => {
   describe('structured error format', () => {
     it('includes all required fields in error responses', () => {
       const result = call('task_get', { id: 'tk_missing' });
-      expect(result.isError).toBe(true);
-
-      const err = parseContent(result) as ToolErrorInfo;
+      const err = parseError(result);
       expect(err).toHaveProperty('code');
       expect(err).toHaveProperty('message');
       expect(err).toHaveProperty('recoverable');

@@ -4,7 +4,6 @@ import { agentService, createConnection, runMigrations } from '@caw/core';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import { createMcpServer } from '../server';
 import { getToolHandler, parseContent, parseError } from './__test-utils';
-import type { ToolErrorInfo } from './types';
 
 describe('messaging tools', () => {
   let db: DatabaseType;
@@ -368,9 +367,7 @@ describe('messaging tools', () => {
   describe('structured error format', () => {
     it('includes all required fields in error responses', () => {
       const result = call('message_get', { id: 'msg_missing' });
-      expect(result.isError).toBe(true);
-
-      const err = parseContent(result) as ToolErrorInfo;
+      const err = parseError(result);
       expect(err).toHaveProperty('code');
       expect(err).toHaveProperty('message');
       expect(err).toHaveProperty('recoverable');
