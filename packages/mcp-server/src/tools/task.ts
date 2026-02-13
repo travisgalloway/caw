@@ -113,7 +113,10 @@ export const register: ToolRegistrar = (server, db) => {
           files_to_create: z.array(z.string()).optional(),
           context_needed: z.array(z.string()).optional(),
         }),
-        context: z.record(z.unknown()).optional().describe('Additional context to store'),
+        context: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Additional context to store'),
       },
     },
     (args) =>
@@ -141,7 +144,10 @@ export const register: ToolRegistrar = (server, db) => {
         session_id: z.string().optional().describe('Session ID for lock enforcement'),
         status: z.string().describe('New status'),
         outcome: z.string().optional().describe('Required for completed'),
-        outcome_detail: z.record(z.unknown()).optional().describe('Additional outcome detail'),
+        outcome_detail: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Additional outcome detail'),
         error: z.string().optional().describe('Required for failed'),
       },
     },

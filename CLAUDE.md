@@ -318,15 +318,12 @@ Agents are spawned via `claude -p` with appropriate flags: `--model`, `--permiss
 |-----------|---------|---------|
 | `bun:sqlite` | core | Built-in synchronous SQLite driver |
 | `nanoid` ^5.0.9 | core | ESM-native ID generation |
-| `zod` ^4.3.6 | core | Config schema validation |
-| `zod` ^3.25 | mcp-server | MCP tool input schemas |
+| `zod` ^4.3.6 | core, mcp-server | Schema validation |
 | `@modelcontextprotocol/sdk` ^1.25.3 | mcp-server | MCP protocol implementation |
 | `ink` ^6.6.0 | tui | Terminal UI framework |
 | `react` ^19.0.0 | tui | Component model |
 | `zustand` ^5.0.0 | tui | State management |
 | `ink-testing-library` ^4.0.0 | tui (dev) | Component testing |
-
-Note: `zod` versions differ between core (v4) and mcp-server (v3) due to `@modelcontextprotocol/sdk` peer dependency requirements.
 
 ---
 
