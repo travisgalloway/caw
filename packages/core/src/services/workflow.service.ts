@@ -422,6 +422,6 @@ export function getSummary(
   };
 }
 
-export * from './workflow-replanning.service';
 // Re-export extracted modules to preserve the workflowService.* namespace
+export * from './workflow-replanning.service';
 export * from './workflow-repository.service';
