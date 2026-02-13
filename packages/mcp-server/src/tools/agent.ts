@@ -74,7 +74,7 @@ export const register: ToolRegistrar = (server, db) => {
         workflow_id: z.string().optional().describe('Workflow this agent belongs to'),
         capabilities: z.array(z.string()).optional().describe('e.g., typescript, python, testing'),
         workspace_path: z.string().optional().describe('Workspace path'),
-        metadata: z.record(z.unknown()).optional().describe('Additional metadata'),
+        metadata: z.record(z.string(), z.unknown()).optional().describe('Additional metadata'),
       },
     },
     (args) =>
@@ -129,7 +129,7 @@ export const register: ToolRegistrar = (server, db) => {
         status: z.enum(['online', 'offline', 'busy']).optional().describe('New status'),
         current_task_id: z.string().nullable().optional().describe('Current task ID or null'),
         workspace_path: z.string().optional().describe('Workspace path'),
-        metadata: z.record(z.unknown()).optional().describe('Metadata to merge'),
+        metadata: z.record(z.string(), z.unknown()).optional().describe('Metadata to merge'),
       },
     },
     (args) =>

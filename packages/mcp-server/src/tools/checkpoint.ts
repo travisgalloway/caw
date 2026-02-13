@@ -34,7 +34,7 @@ export const register: ToolRegistrar = (server, db) => {
           .enum(['plan', 'progress', 'decision', 'error', 'recovery', 'complete', 'replan'])
           .describe('Checkpoint type'),
         summary: z.string().describe('Checkpoint summary'),
-        detail: z.record(z.unknown()).optional().describe('Additional detail'),
+        detail: z.record(z.string(), z.unknown()).optional().describe('Additional detail'),
         files_changed: z.array(z.string()).optional().describe('Files changed'),
       },
     },

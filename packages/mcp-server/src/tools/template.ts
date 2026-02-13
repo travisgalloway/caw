@@ -122,7 +122,7 @@ export const register: ToolRegistrar = (server, db) => {
       inputSchema: {
         template_id: z.string().describe('Template ID'),
         workflow_name: z.string().describe('Name for the new workflow'),
-        variables: z.record(z.string()).optional().describe('Template variables'),
+        variables: z.record(z.string(), z.string()).optional().describe('Template variables'),
         repository_paths: z.array(z.string()).optional().describe('Repository paths to associate'),
         max_parallel_tasks: z.number().int().optional().describe('Max parallel tasks'),
       },

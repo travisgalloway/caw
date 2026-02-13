@@ -50,7 +50,7 @@ export const register: ToolRegistrar = (server, db) => {
           .describe('Message type'),
         subject: z.string().optional().describe('Message subject'),
         body: z
-          .union([z.string(), z.record(z.unknown())])
+          .union([z.string(), z.record(z.string(), z.unknown())])
           .describe('Message body (string or object)'),
         priority: z
           .enum(['low', 'normal', 'high', 'urgent'])
@@ -99,7 +99,7 @@ export const register: ToolRegistrar = (server, db) => {
           .describe('Filter recipients'),
         message_type: z.enum(['broadcast', 'status_update']).describe('Message type'),
         subject: z.string().optional().describe('Message subject'),
-        body: z.union([z.string(), z.record(z.unknown())]).describe('Message body'),
+        body: z.union([z.string(), z.record(z.string(), z.unknown())]).describe('Message body'),
         priority: z.enum(['low', 'normal', 'high', 'urgent']).optional(),
         workflow_id: z.string().optional(),
       },
