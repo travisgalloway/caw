@@ -120,19 +120,20 @@ caw/
 ### Dependency graph
 
 ```
-@caw/tui → @caw/mcp-server → @caw/spawner → @caw/core
-              ↑                    ↑              ↑
-              └────────────────────┴──── @caw/tui ┘
+@caw/core         (no dependencies)
+@caw/spawner    → @caw/core
+@caw/mcp-server → @caw/core, @caw/spawner
+@caw/tui        → @caw/core, @caw/spawner, @caw/mcp-server
 ```
 
 All packages depend on `@caw/core`. The TUI app depends on all three library packages.
 
 ### Package details
 
-- **`packages/core`** (`@caw/core`) — Database layer (SQLite via `bun:sqlite`), entity types, 14 service modules, ID generation, token estimation, git worktree utilities. All other packages depend on this.
+- **`packages/core`** (`@caw/core`) — Database layer (SQLite via `bun:sqlite`), entity types, 13 service modules, ID generation, token estimation, git worktree utilities. All other packages depend on this.
 - **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library. 12 tool categories (30+ tools), stdio and HTTP transports. Depends on core and spawner.
 - **`packages/spawner`** (`@caw/spawner`) — Agent spawning via `claude -p` CLI. Includes `WorkflowSpawner`, `AgentSession`, `AgentPool`, prompt builders, and MCP config management. Depends on core.
-- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary. TUI mode (default, Ink/React) or headless MCP server (`--server`). Includes CLI commands (`init`, `setup`, `run`), 34 React components, 11 hooks, Zustand store. Depends on core, mcp-server, and spawner.
+- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary. TUI mode (default, Ink/React) or headless MCP server (`--server`). Includes CLI commands (`init`, `setup`, `run`), 24 React components, 11 hooks, Zustand store. Depends on core, mcp-server, and spawner.
 - **`tooling/tsconfig`** (`@caw/tsconfig`) — Shared TypeScript configs: `base.json` (ES2022, ESM, strict, noEmit) and `library.json` (extends base).
 
 ---
@@ -206,7 +207,7 @@ Nanoid with charset `[0-9a-z]`, 12 chars. Each entity type has a prefixed helper
 
 ### Services (`packages/core/src/services/`)
 
-14 service modules, each exporting a singleton service object with methods that take a `db` connection as the first argument:
+13 service modules, each exporting a singleton service object with methods that take a `db` connection as the first argument:
 
 | Service | Responsibility |
 |---------|---------------|
@@ -228,7 +229,7 @@ Nanoid with charset `[0-9a-z]`, 12 chars. Each entity type has a prefixed helper
 
 **Workflow states**: `planning` → `ready` → `in_progress` → `completed` | `failed` | `paused` | `abandoned`
 
-**Task states**: `pending` → `blocked` → `planning` → `in_progress` → `completed` | `failed` | `paused` | `skipped`
+**Task states**: `pending` | `blocked` → `planning` → `in_progress` → `completed` | `failed` | `paused` | `skipped`
 
 See `docs/state-machines.md` for full transition diagrams.
 
