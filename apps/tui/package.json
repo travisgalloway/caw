@@ -19,6 +19,7 @@
   "dependencies": {
     "@caw/core": "workspace:*",
     "@caw/mcp-server": "workspace:*",
+    "@caw/rest-api": "workspace:*",
     "@caw/spawner": "workspace:*",
     "ink": "^6.6.0",
     "ink-scroll-view": "^0.3.5",

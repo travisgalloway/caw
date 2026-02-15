@@ -10,6 +10,26 @@ export function createMcpServer(db: DatabaseType): McpServer {
   return server;
 }
 
+export interface McpHttpHandler {
+  handleRequest: (req: Request) => Response | Promise<Response>;
+}
+
+export async function createHttpHandler(server: McpServer): Promise<McpHttpHandler> {
+  const { WebStandardStreamableHTTPServerTransport } = await import(
+    '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
+  );
+
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: () => crypto.randomUUID(),
+  });
+
+  await server.connect(transport);
+
+  return {
+    handleRequest: (req: Request) => transport.handleRequest(req),
+  };
+}
+
 export async function startServer(server: McpServer, config: ServerConfig): Promise<void> {
   if (config.transport === 'stdio') {
     const transport = new StdioServerTransport();

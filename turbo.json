@@ -10,6 +10,9 @@
     },
     "lint": {
       "outputs": []
+    },
+    "build:web": {
+      "outputs": ["build/**"]
     }
   }
 }

@@ -13,6 +13,7 @@ function printUsage(): void {
 
 Options:
   --server              Run as headless MCP server (no TUI)
+  --web-ui              Run combined server: MCP + REST API + WebSocket + Web UI
   --transport <type>    MCP transport: stdio | http (default: stdio)
   --port <number>       HTTP port (default: 3100)
   --db <path>           Database file path
@@ -185,6 +186,7 @@ const { values, positionals } = parseArgs({
   args: process.argv.slice(2),
   options: {
     server: { type: 'boolean', default: false },
+    'web-ui': { type: 'boolean', default: false },
     transport: { type: 'string' },
     port: { type: 'string' },
     db: { type: 'string' },
@@ -256,9 +258,13 @@ if (values.template) {
   process.exit(0);
 }
 
-// --- Server or TUI ---
+// --- Server, Web UI, or TUI ---
 
-if (values.server) {
+if (values['web-ui']) {
+  const { runWebServer } = await import('../web-server');
+  const port = values.port ? Number(values.port) : 3100;
+  await runWebServer(db, { port });
+} else if (values.server) {
   const { runServer } = await import('../server');
   await runServer(db, {
     transport: values.transport,
