@@ -1,5 +1,9 @@
 #!/usr/bin/env bun
 
+import { resolve, dirname } from 'node:path';
+
+const rootDir = resolve(dirname(import.meta.filename), '..');
+
 const targets = [
   { target: 'bun-darwin-arm64', outfile: 'dist/caw-darwin-arm64' },
   { target: 'bun-darwin-x64', outfile: 'dist/caw-darwin-x64' },
@@ -13,6 +17,7 @@ for (const { target, outfile } of targets) {
   console.log(`\nBuilding ${outfile} (${target})...`);
 
   const proc = Bun.spawn(['bun', 'build', entrypoint, '--compile', `--target=${target}`, `--outfile=${outfile}`], {
+    cwd: rootDir,
     stdout: 'inherit',
     stderr: 'inherit',
   });
