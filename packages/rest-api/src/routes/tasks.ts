@@ -84,10 +84,12 @@ export function registerTaskRoutes(router: Router, db: DatabaseType, broadcaster
     try {
       const result = taskService.claim(db, params.id, body.agent_id);
       if (result.success) {
+        const task = taskService.get(db, params.id);
         broadcaster?.emit('task:updated', {
           id: params.id,
           action: 'claimed',
           agent_id: body.agent_id,
+          workflow_id: task?.workflow_id,
         });
       }
       return ok(result);
@@ -105,11 +107,13 @@ export function registerTaskRoutes(router: Router, db: DatabaseType, broadcaster
     if (!body.agent_id) return badRequest('agent_id is required');
 
     try {
+      const task = taskService.get(db, params.id);
       taskService.release(db, params.id, body.agent_id, body.reason);
       broadcaster?.emit('task:updated', {
         id: params.id,
         action: 'released',
         agent_id: body.agent_id,
+        workflow_id: task?.workflow_id,
       });
       return ok({ success: true });
     } catch (err) {

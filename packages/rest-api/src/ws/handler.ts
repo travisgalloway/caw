@@ -8,6 +8,11 @@ interface WsData {
 export interface WsHandler {
   // biome-ignore lint/suspicious/noExplicitAny: Bun's Server type is generic and varies by context
   upgrade: (req: Request, server: any) => boolean;
+  websocket: {
+    open: (ws: ServerWebSocket<WsData>) => void;
+    message: (ws: ServerWebSocket<WsData>, message: string | Buffer) => void;
+    close: (ws: ServerWebSocket<WsData>) => void;
+  };
   broadcaster: Broadcaster;
 }
 
@@ -59,31 +64,30 @@ export function createWsHandler(broadcaster: Broadcaster): WsHandler {
 
       return !!upgraded;
     },
+    websocket: {
+      open(ws: ServerWebSocket<WsData>) {
+        clients.add(ws);
+      },
+      message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
+        try {
+          const msg = JSON.parse(typeof message === 'string' ? message : message.toString());
+
+          if (msg.type === 'subscribe' && typeof msg.channel === 'string') {
+            ws.data.channels.add(msg.channel);
+            ws.send(JSON.stringify({ type: 'subscribed', channel: msg.channel }));
+          } else if (msg.type === 'unsubscribe' && typeof msg.channel === 'string') {
+            ws.data.channels.delete(msg.channel);
+            ws.send(JSON.stringify({ type: 'unsubscribed', channel: msg.channel }));
+          } else if (msg.type === 'ping') {
+            ws.send(JSON.stringify({ type: 'pong' }));
+          }
+        } catch {
+          // Ignore malformed messages
+        }
+      },
+      close(ws: ServerWebSocket<WsData>) {
+        clients.delete(ws);
+      },
+    },
   };
 }
-
-export const websocket = {
-  open(_ws: ServerWebSocket<WsData>) {
-    // Client is connected, default subscribed to 'global'
-  },
-  message(ws: ServerWebSocket<WsData>, message: string | Buffer) {
-    try {
-      const msg = JSON.parse(typeof message === 'string' ? message : message.toString());
-
-      if (msg.type === 'subscribe' && typeof msg.channel === 'string') {
-        ws.data.channels.add(msg.channel);
-        ws.send(JSON.stringify({ type: 'subscribed', channel: msg.channel }));
-      } else if (msg.type === 'unsubscribe' && typeof msg.channel === 'string') {
-        ws.data.channels.delete(msg.channel);
-        ws.send(JSON.stringify({ type: 'unsubscribed', channel: msg.channel }));
-      } else if (msg.type === 'ping') {
-        ws.send(JSON.stringify({ type: 'pong' }));
-      }
-    } catch {
-      // Ignore malformed messages
-    }
-  },
-  close(_ws: ServerWebSocket<WsData>) {
-    // Cleanup handled automatically by Bun
-  },
-};

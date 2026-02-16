@@ -18,10 +18,12 @@ function createWsStore() {
 
   let ws: WebSocket | null = null;
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  let closedByUser = false;
   const subscriptions = new Set<string>();
 
   function connect() {
     if (ws?.readyState === WebSocket.OPEN) return;
+    closedByUser = false;
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.host;
@@ -46,8 +48,10 @@ function createWsStore() {
 
     ws.onclose = () => {
       update((s) => ({ ...s, connected: false }));
-      // Auto-reconnect after 3 seconds
-      reconnectTimer = setTimeout(connect, 3000);
+      if (!closedByUser) {
+        // Auto-reconnect after 3 seconds
+        reconnectTimer = setTimeout(connect, 3000);
+      }
     };
 
     ws.onerror = () => {
@@ -56,6 +60,7 @@ function createWsStore() {
   }
 
   function disconnect() {
+    closedByUser = true;
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
       reconnectTimer = null;

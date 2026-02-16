@@ -146,8 +146,8 @@ async function startAsDaemon(
   // Start embedded MCP HTTP server
   const config = resolveConfig({ transport: 'http', port: String(port) });
   config.quiet = true;
-  const server = createMcpServer(db);
-  await startServer(server, config);
+  const mcpServer = createMcpServer(db);
+  const serverHandle = await startServer(mcpServer, config);
 
   // Start heartbeat
   const heartbeatTimer = setInterval(() => {
@@ -163,6 +163,7 @@ async function startAsDaemon(
     if (cleaned) return;
     cleaned = true;
     clearInterval(heartbeatTimer);
+    serverHandle.stop();
     try {
       const current = readLockFile(lockPath);
       if (current && current.session_id === session.id) {
@@ -246,8 +247,8 @@ function joinAsClient(db: DatabaseType, lockPath: string, daemonPort: number): D
       // Start embedded MCP server
       const config = resolveConfig({ transport: 'http', port: String(port) });
       config.quiet = true;
-      const server = createMcpServer(db);
-      await startServer(server, config);
+      const mcpServer = createMcpServer(db);
+      await startServer(mcpServer, config);
     } else {
       // Another client won — re-read lock to find new daemon port
       const otherLock = readLockFile(lockPath);

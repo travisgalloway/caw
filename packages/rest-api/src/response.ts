@@ -1,6 +1,9 @@
 const JSON_HEADERS = { 'Content-Type': 'application/json' };
 
-export function ok<T>(data: T, meta?: { total?: number; page?: number; limit?: number }): Response {
+export function ok<T>(
+  data: T,
+  meta?: { total?: number; offset?: number; limit?: number },
+): Response {
   const body: { data: T; meta?: typeof meta } = { data };
   if (meta) body.meta = meta;
   return new Response(JSON.stringify(body), { status: 200, headers: JSON_HEADERS });

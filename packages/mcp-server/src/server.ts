@@ -30,10 +30,18 @@ export async function createHttpHandler(server: McpServer): Promise<McpHttpHandl
   };
 }
 
-export async function startServer(server: McpServer, config: ServerConfig): Promise<void> {
+export interface StartServerResult {
+  stop: () => void;
+}
+
+export async function startServer(
+  server: McpServer,
+  config: ServerConfig,
+): Promise<StartServerResult> {
   if (config.transport === 'stdio') {
     const transport = new StdioServerTransport();
     await server.connect(transport);
+    return { stop() {} };
   } else {
     const { WebStandardStreamableHTTPServerTransport } = await import(
       '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
@@ -45,7 +53,7 @@ export async function startServer(server: McpServer, config: ServerConfig): Prom
 
     await server.connect(transport);
 
-    Bun.serve({
+    const httpServer = Bun.serve({
       port: config.port,
       idleTimeout: 255,
       async fetch(req) {
@@ -66,5 +74,11 @@ export async function startServer(server: McpServer, config: ServerConfig): Prom
     if (!config.quiet) {
       console.error(`caw MCP server listening on http://localhost:${config.port}/mcp`);
     }
+
+    return {
+      stop() {
+        httpServer.stop();
+      },
+    };
   }
 }

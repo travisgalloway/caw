@@ -5,8 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function relativeTime(timestamp: number): string {
-  const now = Date.now();
+export function relativeTime(timestamp: number, now = Date.now()): string {
   const diff = now - timestamp;
 
   if (diff < 1000) return 'just now';

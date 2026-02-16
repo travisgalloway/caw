@@ -31,14 +31,22 @@ export function registerWorkflowRoutes(
         ? (status.split(',') as WorkflowStatus[])
         : (status as WorkflowStatus);
     }
-    if (limit) filters.limit = Number(limit);
-    if (offset) filters.offset = Number(offset);
+    if (limit) {
+      const n = Number(limit);
+      if (!Number.isFinite(n) || n < 0) return badRequest('limit must be a non-negative number');
+      filters.limit = n;
+    }
+    if (offset) {
+      const n = Number(offset);
+      if (!Number.isFinite(n) || n < 0) return badRequest('offset must be a non-negative number');
+      filters.offset = n;
+    }
 
     const result = workflowService.list(db, filters);
     return ok(result.workflows, {
       total: result.total,
       limit: filters.limit,
-      page: filters.offset,
+      offset: filters.offset,
     });
   });
 

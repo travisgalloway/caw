@@ -45,7 +45,7 @@ REST API and WebSocket layer. Depends only on `@caw/core`.
 { "data": [ ... ], "meta": { "total": 42 } }
 
 // Error
-{ "error": { "code": 400, "message": "..." } }
+{ "error": { "code": "BAD_REQUEST", "message": "..." } }
 ```
 
 ### `@caw/web-ui` (`apps/web-ui/`)
@@ -109,12 +109,12 @@ SvelteKit 5 static SPA. No runtime package dependencies.
 |--------|------|-------------|
 | GET | `/api/messages` | List all messages |
 | POST | `/api/messages` | Send message |
-| GET | `/api/messages/unread` | Count all unread |
+| GET | `/api/messages/unread/count` | Count all unread |
 | GET | `/api/messages/:id` | Get message |
-| PUT | `/api/messages/:id/read` | Mark message read |
-| GET | `/api/messages/:id/thread` | Get message thread |
+| PUT | `/api/messages/mark-read` | Mark messages read |
+| GET | `/api/threads/:id` | Get message thread |
 | GET | `/api/agents/:id/messages` | List agent messages |
-| GET | `/api/agents/:id/unread` | Count agent unread |
+| GET | `/api/agents/:id/messages/unread` | Count agent unread |
 | POST | `/api/messages/broadcast` | Broadcast message |
 
 ### Workspaces
@@ -163,13 +163,11 @@ Single endpoint: `ws://host:port/ws`
 
 ```jsonc
 { "type": "workflow:status", "data": { "id": "wf_...", "status": "in_progress" } }
-{ "type": "workflow:created", "data": { "id": "wf_...", "name": "..." } }
-{ "type": "task:updated", "data": { "id": "tk_...", "status": "completed" } }
-{ "type": "task:claimed", "data": { "id": "tk_...", "agent_id": "ag_..." } }
+{ "type": "task:updated", "data": { "id": "tk_...", "status": "completed", "workflow_id": "wf_..." } }
 { "type": "agent:registered", "data": { "id": "ag_...", "name": "..." } }
 { "type": "agent:heartbeat", "data": { "id": "ag_...", "timestamp": 1234567890 } }
 { "type": "agent:unregistered", "data": { "id": "ag_..." } }
-{ "type": "message:sent", "data": { "id": "msg_...", "recipient_id": "ag_..." } }
+{ "type": "message:new", "data": { "id": "msg_...", "recipient_id": "ag_..." } }
 ```
 
 Events are dispatched by an in-process EventEmitter (`Broadcaster`). REST mutation handlers emit events after successful DB writes. The WebSocket handler forwards events to clients subscribed to matching channels.

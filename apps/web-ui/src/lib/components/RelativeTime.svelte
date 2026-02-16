@@ -7,13 +7,13 @@ interface Props {
 }
 
 const { timestamp }: Props = $props();
-const display = $derived(relativeTime(timestamp));
+let now = $state(Date.now());
+const display = $derived(relativeTime(timestamp, now));
 let interval: ReturnType<typeof setInterval>;
 
 onMount(() => {
   interval = setInterval(() => {
-    // Force reactivity by accessing timestamp in the update
-    display;
+    now = Date.now();
   }, 10_000);
 });
 

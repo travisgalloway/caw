@@ -1,8 +1,8 @@
 import { existsSync, statSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { DatabaseType } from '@caw/core';
 import { createHttpHandler, createMcpServer } from '@caw/mcp-server';
-import { createBroadcaster, createRestApi, createWsHandler, websocket } from '@caw/rest-api';
+import { createBroadcaster, createRestApi, createWsHandler } from '@caw/rest-api';
 
 export interface WebServerOptions {
   port: number;
@@ -72,7 +72,7 @@ export async function runWebServer(db: DatabaseType, opts: WebServerOptions): Pr
       return new Response('Not Found', { status: 404 });
     },
 
-    websocket,
+    websocket: wsHandler.websocket,
   });
 
   const shutdown = () => {
@@ -106,6 +106,13 @@ function isFile(path: string): boolean {
 
 function serveStatic(pathname: string, staticDir: string): Response {
   const filePath = join(staticDir, pathname);
+
+  // Path traversal protection
+  const resolvedDir = resolve(staticDir);
+  const resolvedFile = resolve(filePath);
+  if (!resolvedFile.startsWith(resolvedDir)) {
+    return new Response('Not Found', { status: 404 });
+  }
 
   // Try the file directly
   if (isFile(filePath)) {
