@@ -37,12 +37,13 @@ A lightweight MCP server backed by SQLite that provides:
 │   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
 └─────────────────┘                       │              │               │
                                           │  ┌───────────▼────────────┐  │
-                                          │  │     SQLite (bun:sqlite)│  │
-                                          │  └────────────────────────┘  │
-                                          └──────────────────────────────┘
+┌─────────────────┐    REST + WebSocket   │  │     SQLite (bun:sqlite)│  │
+│   Browser        │◄────────────────────►│  └────────────────────────┘  │
+│   (web UI)      │    (--web-ui mode)    │                              │
+└─────────────────┘                       └──────────────────────────────┘
 ```
 
-`caw` is a single binary with two modes: TUI (default) and MCP server (`--server`). `@caw/mcp-server` is an embedded library, not a standalone server.
+`caw` is a single binary with three modes: TUI (default), MCP server (`--server`), and web UI (`--web-ui`). `@caw/mcp-server` is an embedded library, not a standalone server. The web UI mode starts a combined HTTP server with REST API, WebSocket, and MCP endpoints, serving a static SvelteKit dashboard.
 
 ### Design Principles
 

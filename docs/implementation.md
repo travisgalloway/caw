@@ -56,3 +56,13 @@
 2. CLAUDE.md integration guide
 3. Template CLI commands (`caw --template`, `caw --list-templates`)
 4. Error handling verification (ToolCallError across all 43 tools)
+
+## Phase 9: Web UI & REST API (M9 — Complete)
+
+1. `@caw/rest-api` package — Bun-native REST router, JSON response helpers, CORS middleware
+2. Route modules for all core entities (workflows, tasks, agents, messages, etc.)
+3. WebSocket broadcaster with channel-based subscribe/unsubscribe protocol
+4. `@caw/web-ui` SvelteKit 5 app — static SPA with shadcn-svelte and Tailwind CSS v4
+5. Pages: workflow list, workflow detail (tabbed), task detail, agent detail, message inbox, setup, help
+6. Real-time updates via WebSocket store with auto-reconnect
+7. Combined `--web-ui` server mode in `@caw/tui` (REST API + WebSocket + MCP + static file serving)

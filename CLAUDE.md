@@ -101,19 +101,21 @@ bun run --filter @caw/mcp-server test
 
 ## Monorepo Structure
 
-Five workspace packages managed by Bun workspaces + Turbo:
+Seven workspace packages managed by Bun workspaces + Turbo:
 
 ```
 caw/
 ├── packages/
 │   ├── core/           @caw/core         — Database, types, services, utilities
 │   ├── mcp-server/     @caw/mcp-server   — MCP protocol server (tools, transport)
+│   ├── rest-api/       @caw/rest-api     — REST API + WebSocket broadcaster
 │   └── spawner/        @caw/spawner      — Agent spawning via claude CLI
 ├── apps/
-│   └── tui/            @caw/tui          — Unified caw binary (TUI + headless MCP)
+│   ├── tui/            @caw/tui          — Unified caw binary (TUI + headless MCP + web UI)
+│   └── web-ui/         @caw/web-ui       — SvelteKit web dashboard (static build)
 ├── tooling/
 │   └── tsconfig/       @caw/tsconfig     — Shared TypeScript configs
-├── docs/                                 — Design documentation (14 files)
+├── docs/                                 — Design documentation (15 files)
 └── scripts/                              — Utility scripts (seed.ts)
 ```
 
@@ -122,18 +124,22 @@ caw/
 ```
 @caw/core         (no dependencies)
 @caw/spawner    → @caw/core
+@caw/rest-api   → @caw/core
 @caw/mcp-server → @caw/core, @caw/spawner
-@caw/tui        → @caw/core, @caw/spawner, @caw/mcp-server
+@caw/tui        → @caw/core, @caw/spawner, @caw/mcp-server, @caw/rest-api
+@caw/web-ui     → (no package deps — pure frontend, talks to REST API at runtime)
 ```
 
-All packages depend on `@caw/core`. The TUI app depends on all three library packages.
+All packages depend on `@caw/core`. The TUI app depends on all four library packages. The web UI is a standalone SvelteKit app with no package dependencies.
 
 ### Package details
 
 - **`packages/core`** (`@caw/core`) — Database layer (SQLite via `bun:sqlite`), entity types, 13 service modules, ID generation, token estimation, git worktree utilities. All other packages depend on this.
-- **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library. 12 tool categories (30+ tools), stdio and HTTP transports. Depends on core and spawner.
+- **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library. 12 tool categories (30+ tools), stdio and HTTP transports, `createHttpHandler` for embedding MCP in a combined server. Depends on core and spawner.
+- **`packages/rest-api`** (`@caw/rest-api`) — REST API layer exposing core services as HTTP endpoints. Bun-native router, JSON response helpers, CORS middleware, WebSocket broadcaster for real-time events. Depends on core.
 - **`packages/spawner`** (`@caw/spawner`) — Agent spawning via `claude -p` CLI. Includes `WorkflowSpawner`, `AgentSession`, `AgentPool`, prompt builders, and MCP config management. Depends on core.
-- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary. TUI mode (default, Ink/React) or headless MCP server (`--server`). Includes CLI commands (`init`, `setup`, `run`), 24 React components, 11 hooks, Zustand store. Depends on core, mcp-server, and spawner.
+- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary. TUI mode (default, Ink/React), headless MCP server (`--server`), or web UI mode (`--web-ui`). Includes CLI commands (`init`, `setup`, `run`), 24 React components, 11 hooks, Zustand store. Depends on core, mcp-server, spawner, and rest-api.
+- **`apps/web-ui`** (`@caw/web-ui`) — SvelteKit 5 web dashboard with shadcn-svelte components and Tailwind CSS v4. Builds to static files served by the `--web-ui` mode. No package dependencies (communicates with REST API and WebSocket at runtime).
 - **`tooling/tsconfig`** (`@caw/tsconfig`) — Shared TypeScript configs: `base.json` (ES2022, ESM, strict, noEmit) and `library.json` (extends base).
 
 ---
@@ -146,6 +152,7 @@ The `caw` binary (`apps/tui/src/bin/cli.ts`) supports these modes:
 caw                              # Launch interactive TUI (desktop only)
 caw --server                     # Headless MCP server (stdio transport)
 caw --server --transport http    # Headless MCP server (HTTP on port 3100)
+caw --web-ui                     # Web UI + MCP + REST API + WebSocket (port 3100)
 caw init [--yes] [--global]      # Initialize caw in repo or globally
 caw setup claude-code            # Configure Claude Code MCP integration
 caw run <workflow_id>            # Execute a workflow
@@ -273,6 +280,53 @@ Zod-validated configuration loaded from `.caw/config.json` (per-repo) or `~/.caw
 
 ---
 
+## REST API Package (`packages/rest-api/`)
+
+### Architecture
+
+- **Bun-native router** (`src/router.ts`): Path-to-regex based request routing with parameter extraction
+- **JSON response helpers** (`src/response.ts`): `ok()`, `created()`, `noContent()`, `badRequest()`, `notFound()`, `conflict()`, `serverError()`
+- **CORS middleware** (`src/middleware.ts`): `applyCors()` wraps responses with CORS headers, `handlePreflight()` handles OPTIONS
+- **WebSocket broadcaster** (`src/ws/broadcaster.ts`): In-process EventEmitter for pushing events to connected clients
+- **WebSocket handler** (`src/ws/handler.ts`): Upgrade handler with channel-based subscribe/unsubscribe protocol
+
+### Route Modules (`src/routes/`)
+
+| Module | Endpoints |
+|--------|-----------|
+| `workflows.ts` | `GET/POST /api/workflows`, `GET/PUT /api/workflows/:id`, `PUT /api/workflows/:id/status`, `PUT /api/workflows/:id/plan` |
+| `tasks.ts` | `GET /api/workflows/:wfId/tasks`, `GET/PUT /api/tasks/:id`, `PUT /api/tasks/:id/status`, `PUT /api/tasks/:id/plan`, `POST /api/tasks/:id/claim`, `POST /api/tasks/:id/release` |
+| `orchestration.ts` | `GET /api/workflows/:id/next-tasks`, `GET /api/workflows/:id/progress`, `GET /api/tasks/:id/dependencies` |
+| `agents.ts` | `GET/POST /api/agents`, `GET/PUT/DELETE /api/agents/:id`, `PUT /api/agents/:id/heartbeat` |
+| `messages.ts` | `GET/POST /api/messages`, `GET /api/agents/:id/messages`, `GET /api/agents/:id/unread`, `GET /api/messages/unread`, `PUT /api/messages/:id/read`, `GET /api/messages/:id`, `GET /api/messages/:id/thread` |
+| `workspaces.ts` | `GET /api/workflows/:wfId/workspaces`, `GET/PUT /api/workspaces/:id`, `POST /api/workspaces` |
+| `templates.ts` | `GET/POST /api/templates`, `GET /api/templates/:id`, `POST /api/templates/:id/apply` |
+| `locks.ts` | `GET /api/workflows/:id/lock`, `POST /api/workflows/:id/lock`, `POST /api/workflows/:id/unlock` |
+| `checkpoints.ts` | `GET /api/tasks/:id/checkpoints`, `POST /api/tasks/:id/checkpoints` |
+
+### WebSocket Protocol
+
+Single endpoint `ws://host:port/ws`. Channels: `global`, `workflow:<id>`, `agent:<id>`.
+
+```jsonc
+// Client → Server
+{ "type": "subscribe", "channel": "workflow:wf_abc123" }
+{ "type": "unsubscribe", "channel": "workflow:wf_abc123" }
+
+// Server → Client
+{ "type": "workflow:status", "data": { "id": "wf_...", "status": "in_progress" } }
+{ "type": "task:updated", "data": { "id": "tk_...", "status": "completed" } }
+```
+
+### Key Exports
+
+- `createRestApi(db, broadcaster?)` — Creates router with all routes registered, returns handle function
+- `createRouter()` — Bare router for custom route registration
+- `createBroadcaster()` — EventEmitter-based broadcaster
+- `createWsHandler(broadcaster)` — WebSocket upgrade handler
+
+---
+
 ## TUI App (`apps/tui/`)
 
 ### Architecture
@@ -312,6 +366,52 @@ Agents are spawned via `claude -p` with appropriate flags: `--model`, `--permiss
 
 ---
 
+## Web UI App (`apps/web-ui/`)
+
+### Architecture
+
+- **SvelteKit 5**: Static SPA built with `adapter-static`, output to `build/`
+- **Svelte 5 runes**: Uses `$state`, `$derived`, `$effect`, `$props` (not legacy stores)
+- **Tailwind CSS v4**: Configured via `@tailwindcss/vite` plugin with `@theme` directive for custom status colors
+- **shadcn-svelte**: Component primitives via `bits-ui` (Button, Card, Table, Tabs, Badge, etc.)
+- **API client** (`src/lib/api/client.ts`): Typed fetch wrapper for all REST endpoints
+- **WebSocket store** (`src/lib/stores/ws.ts`): Svelte writable store with auto-reconnect and channel subscriptions
+
+### Pages
+
+| Route | Page | Description |
+|-------|------|-------------|
+| `/` | Workflow list | Table with Active/All toggle, search, WS live updates |
+| `/workflows/[id]` | Workflow detail | Tabs: Tasks, Agents, Messages, Workspaces |
+| `/workflows/[id]/tasks/[taskId]` | Task detail | Metadata, plan/outcome, checkpoints, dependencies |
+| `/agents/[id]` | Agent detail | Info card, capabilities, message inbox |
+| `/messages` | Message inbox | Global inbox with filters, mark read |
+| `/setup` | Setup guide | Connection checks, quick start |
+| `/help` | Help | Static documentation |
+
+### Shared Components (`src/lib/components/`)
+
+- `StatusBadge.svelte` — Colored badge for workflow/task status strings
+- `ProgressBar.svelte` — Green progress bar with completed/total count
+- `RelativeTime.svelte` — Auto-updating relative time display (e.g. "2m ago")
+
+### Development
+
+```bash
+# Dev server with Vite proxy to backend
+bun run --filter @caw/web-ui dev
+
+# Build static output to apps/web-ui/build/
+bun run --filter @caw/web-ui build:web
+
+# Type check
+bun run --filter @caw/web-ui check
+```
+
+The Vite dev server proxies `/api` and `/ws` to `localhost:3100`, so run `caw --web-ui` in parallel for development.
+
+---
+
 ## Key Dependencies
 
 | Dependency | Package | Purpose |
@@ -324,6 +424,11 @@ Agents are spawned via `claude -p` with appropriate flags: `--model`, `--permiss
 | `react` ^19.0.0 | tui | Component model |
 | `zustand` ^5.0.0 | tui | State management |
 | `ink-testing-library` ^4.0.0 | tui (dev) | Component testing |
+| `@sveltejs/kit` ^2.16.0 | web-ui | SvelteKit framework |
+| `svelte` ^5.0.0 | web-ui | Svelte 5 with runes |
+| `tailwindcss` ^4.0.0 | web-ui | Utility-first CSS (v4) |
+| `bits-ui` ^1.0.0 | web-ui | shadcn-svelte component primitives |
+| `lucide-svelte` ^0.469.0 | web-ui | Icon library |
 
 ---
 
@@ -334,7 +439,7 @@ GitHub Actions pipeline (`.github/workflows/ci.yml`):
 - **Triggers**: Push to `main`, PRs targeting `main`
 - **Runner**: `ubuntu-latest`
 - **Bun version**: 1.3.8
-- **Steps**: `bun install` → `bun run lint` → `bun run build` → `bun run test`
+- **Steps**: `bun install` → `bun run lint` → `bun run build` → `bun run test` → `bun run --filter @caw/web-ui build:web`
 
 ---
 
@@ -358,6 +463,7 @@ Detailed design docs live in `docs/`. Key references:
 | `docs/examples.md` | Usage examples |
 | `docs/implementation.md` | Implementation notes |
 | `docs/future.md` | Roadmap and future features |
+| `docs/web-ui.md` | Web UI architecture, REST API, and WebSocket protocol |
 
 ---
 
@@ -390,6 +496,22 @@ Detailed design docs live in `docs/`. Key references:
 2. Use Ink primitives (`Box`, `Text`) and existing shared components (`SelectableTable`, `ScrollArea`, etc.)
 3. Add tests using `ink-testing-library` in a co-located `.test.tsx` file
 4. Wire into the navigation via the Zustand store (`apps/tui/src/store/index.ts`)
+
+### Adding a REST API route
+
+1. Create or edit a route file in `packages/rest-api/src/routes/`
+2. Register the route function in `packages/rest-api/src/api.ts` (`createRestApi`)
+3. Use `ok()`, `created()`, `badRequest()`, `notFound()` helpers from `../response`
+4. Optionally accept a `Broadcaster` parameter and emit events after mutations
+5. Add tests in `packages/rest-api/src/api.test.ts`
+
+### Adding a web UI page
+
+1. Create a route directory under `apps/web-ui/src/routes/` (e.g. `my-page/+page.svelte`)
+2. Use Svelte 5 runes (`$state`, `$derived`, `$effect`) — not legacy stores
+3. Import API client from `$lib/api/client` for data fetching
+4. Use shared components (`StatusBadge`, `ProgressBar`, `RelativeTime`) from `$lib/components/`
+5. Add nav link in `src/routes/+layout.svelte` if it's a top-level page
 
 ---
 

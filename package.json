@@ -8,7 +8,7 @@
     "lint": "turbo lint",
     "format": "biome check --write .",
     "prepare": "husky",
-    "compile": "bun build apps/tui/src/bin/cli.ts --compile --outfile dist/caw",
+    "compile": "bun build apps/tui/src/bin/cli.ts --compile --outfile dist/caw && cp -r apps/web-ui/build dist/web-ui",
     "compile:all": "bun run scripts/compile-all.ts",
     "clean": "turbo clean && rm -rf node_modules dist"
   },

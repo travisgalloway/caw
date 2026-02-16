@@ -17,6 +17,10 @@ caw --server
 caw --server --transport stdio     # default, for MCP client integration
 caw --server --transport http      # HTTP mode on port 3100
 caw --server --port 8080           # custom port
+
+# Start as web UI dashboard (REST API + WebSocket + MCP + static UI)
+caw --web-ui                       # serves on port 3100
+caw --web-ui --port 8080           # custom port
 ```
 
 ## Layout
