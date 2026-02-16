@@ -18,9 +18,10 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 │   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
 └─────────────────┘                       │              │               │
                                           │  ┌───────────▼────────────┐  │
-                                          │  │     SQLite (bun:sqlite)│  │
-                                          │  └────────────────────────┘  │
-                                          └──────────────────────────────┘
+┌─────────────────┐    REST + WebSocket   │  │     SQLite (bun:sqlite)│  │
+│   Browser        │◄────────────────────►│  └────────────────────────┘  │
+│   (web UI)      │    (--web-ui mode)    │                              │
+└─────────────────┘                       └──────────────────────────────┘
 ```
 
 ## Key Features
@@ -32,6 +33,7 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 - **Multi-agent support** — Agent registration, task claiming, and inter-agent messaging
 - **Workspace isolation** — Git worktree tracking for parallel execution
 - **Terminal UI** — Real-time Ink-based dashboard for monitoring workflows and agents
+- **Web dashboard** — Browser-based UI with real-time WebSocket updates
 
 ## Quick Start
 
@@ -95,8 +97,10 @@ bun ./apps/tui/src/bin/cli.ts --server
 |---|---|---|
 | `@caw/core` | [`packages/core`](packages/core) | Core library — DB, services, types |
 | `@caw/mcp-server` | [`packages/mcp-server`](packages/mcp-server) | MCP server library (tools, transport, config) |
+| `@caw/rest-api` | [`packages/rest-api`](packages/rest-api) | REST API + WebSocket broadcaster |
 | `@caw/spawner` | [`packages/spawner`](packages/spawner) | Agent spawning via `claude -p` CLI |
-| `@caw/tui` | [`apps/tui`](apps/tui) | Unified `caw` binary — TUI (default) or headless MCP server (`--server`) |
+| `@caw/tui` | [`apps/tui`](apps/tui) | Unified `caw` binary — TUI, MCP server, or web UI |
+| `@caw/web-ui` | [`apps/web-ui`](apps/web-ui) | SvelteKit web dashboard (static build) |
 
 ## CLI Reference
 
@@ -109,6 +113,7 @@ Usage: caw [options] [description]
 
 Options:
   --server              Run as headless MCP server (no TUI)
+  --web-ui              Launch web UI dashboard (REST API + WebSocket + static UI)
   --transport <type>    MCP transport: stdio | http (default: stdio)
   --port <number>       HTTP port (default: 3100)
   --db <path>           Database file path
@@ -139,6 +144,9 @@ Commands:
 ```bash
 # Launch TUI dashboard
 caw
+
+# Launch web UI dashboard
+caw --web-ui
 
 # Run as MCP server over stdio
 caw --server
@@ -270,6 +278,7 @@ Full documentation lives in [`docs/`](docs/):
 | [Examples](docs/examples.md) | Full usage flow examples |
 | [CLAUDE.md Integration](docs/claude-md-integration.md) | CLAUDE.md integration instructions |
 | [Implementation](docs/implementation.md) | Implementation priorities and phases |
+| [Web UI](docs/web-ui.md) | Web UI architecture, REST API, and WebSocket protocol |
 | [Future](docs/future.md) | Future considerations |
 | [Testing](TESTING.md) | End-to-end manual test guide |
 

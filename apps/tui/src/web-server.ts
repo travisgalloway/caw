@@ -1,5 +1,5 @@
-import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, statSync } from 'node:fs';
+import { dirname, join } from 'node:path';
 import type { DatabaseType } from '@caw/core';
 import { createHttpHandler, createMcpServer } from '@caw/mcp-server';
 import { createBroadcaster, createRestApi, createWsHandler, websocket } from '@caw/rest-api';
@@ -29,6 +29,7 @@ export async function runWebServer(db: DatabaseType, opts: WebServerOptions): Pr
     opts.staticDir,
     join(import.meta.dir, '../../web-ui-dist'),
     join(import.meta.dir, '../../../apps/web-ui/build'),
+    join(dirname(process.execPath), 'web-ui'),
   ].filter(Boolean) as string[];
 
   const staticDir = staticDirs.find((d) => existsSync(d));
@@ -95,25 +96,32 @@ export async function runWebServer(db: DatabaseType, opts: WebServerOptions): Pr
   }
 }
 
+function isFile(path: string): boolean {
+  try {
+    return statSync(path).isFile();
+  } catch {
+    return false;
+  }
+}
+
 function serveStatic(pathname: string, staticDir: string): Response {
   const filePath = join(staticDir, pathname);
 
   // Try the file directly
-  const file = Bun.file(filePath);
-  if (file.size > 0) {
-    return new Response(file);
+  if (isFile(filePath)) {
+    return new Response(Bun.file(filePath));
   }
 
   // Try with /index.html for directory paths
-  const indexAtPath = Bun.file(join(filePath, 'index.html'));
-  if (indexAtPath.size > 0) {
-    return new Response(indexAtPath);
+  const indexPath = join(filePath, 'index.html');
+  if (isFile(indexPath)) {
+    return new Response(Bun.file(indexPath));
   }
 
   // SPA fallback — serve root index.html for client-side routing
-  const rootIndex = Bun.file(join(staticDir, 'index.html'));
-  if (rootIndex.size > 0) {
-    return new Response(rootIndex);
+  const rootIndex = join(staticDir, 'index.html');
+  if (isFile(rootIndex)) {
+    return new Response(Bun.file(rootIndex));
   }
 
   return new Response('Not Found', { status: 404 });

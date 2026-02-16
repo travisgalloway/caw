@@ -55,9 +55,12 @@
 - Generic MCP client support
 - Custom runtime adapters
 
-## Web Dashboard
+## Web Dashboard Enhancements
 
-- Browser-based alternative to TUI
-- Real-time WebSocket updates
+The basic web dashboard is implemented (`@caw/web-ui` + `@caw/rest-api`, launched via `caw --web-ui`). Remaining enhancements:
+
+- Interactive DAG visualization for task dependencies
 - Mobile-friendly responsive design
 - Collaborative features (multiple users viewing same workflow)
+- Workflow creation and editing from the browser
+- Agent log streaming via WebSocket
