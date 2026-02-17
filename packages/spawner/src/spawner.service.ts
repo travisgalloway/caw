@@ -1,5 +1,11 @@
 import type { DatabaseType } from '@caw/core';
-import { generateId, orchestrationService, taskService, workflowService } from '@caw/core';
+import {
+  agentService,
+  generateId,
+  orchestrationService,
+  taskService,
+  workflowService,
+} from '@caw/core';
 import type { EventListener } from './pool';
 import { AgentPool } from './pool';
 import { registerSpawner, unregisterSpawner } from './registry';
@@ -80,6 +86,9 @@ export class WorkflowSpawner {
         error: `Workflow status is '${workflowData.status}', must be one of: ${validStartStatuses.join(', ')}`,
       };
     }
+
+    // Clean up stale agents from previous runs
+    this.cleanupStaleAgents();
 
     // Transition to in_progress if needed
     if (workflowData.status === 'ready' || workflowData.status === 'paused') {
@@ -353,6 +362,20 @@ export class WorkflowSpawner {
     });
     this.pool.on('agent_failed', (data) => this.emit('agent_failed', data));
     this.pool.on('agent_retrying', (data) => this.emit('agent_retrying', data));
+  }
+
+  private cleanupStaleAgents(): void {
+    const agents = agentService.list(this.db, {
+      workflow_id: this.config.workflowId,
+      status: ['online', 'busy'],
+    });
+    for (const agent of agents) {
+      try {
+        agentService.unregister(this.db, agent.id);
+      } catch {
+        // May already be offline
+      }
+    }
   }
 
   private saveMetadata(): void {

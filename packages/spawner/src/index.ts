@@ -1,5 +1,6 @@
 export type { AgentSessionOptions, ClaudeMessage } from './agent-session';
 export { AgentSession } from './agent-session';
+export { cleanEnvForSpawn } from './env';
 export { buildMcpConfigFile, cleanupMcpConfigFile } from './mcp-config';
 export type { EventListener } from './pool';
 export { AgentPool } from './pool';

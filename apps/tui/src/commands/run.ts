@@ -7,6 +7,7 @@ import {
   buildMcpConfigFile,
   buildPlannerSystemPrompt,
   type ClaudeMessage,
+  cleanEnvForSpawn,
   cleanupMcpConfigFile,
   WorkflowSpawner,
 } from '@caw/spawner';
@@ -75,8 +76,17 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
     ];
 
     try {
-      const proc = spawn('claude', args, { cwd, stdio: ['ignore', 'pipe', 'pipe'] });
+      const proc = spawn('claude', args, {
+        cwd,
+        stdio: ['ignore', 'pipe', 'pipe'],
+        env: cleanEnvForSpawn(),
+      });
       const rl = createInterface({ input: proc.stdout });
+
+      // Capture stderr for debugging
+      const stderrChunks: string[] = [];
+      const stderrRl = createInterface({ input: proc.stderr });
+      stderrRl.on('line', (line) => stderrChunks.push(line));
 
       for await (const line of rl) {
         try {
@@ -93,6 +103,9 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
               console.error(
                 `Planning failed: ${errors ? errors.join('; ') : (msg.subtype ?? 'unknown')}`,
               );
+              if (stderrChunks.length > 0) {
+                console.error('Planner stderr:', stderrChunks.join('\n'));
+              }
               process.exit(1);
             }
           }
@@ -107,6 +120,9 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
 
       if (exitCode !== 0) {
         console.error(`Planner exited with code ${exitCode}`);
+        if (stderrChunks.length > 0) {
+          console.error('Planner stderr:', stderrChunks.join('\n'));
+        }
         process.exit(1);
       }
     } finally {

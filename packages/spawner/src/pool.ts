@@ -158,15 +158,35 @@ export class AgentPool {
     this.sessions.delete(handle.agentId);
 
     if (handle.status === 'completed') {
-      this.emit('agent_completed', {
-        agentId: handle.agentId,
-        taskId: handle.taskId,
-        result: 'completed',
-      });
+      // Verify the task was actually completed in the DB (not a phantom completion)
+      const task = taskService.get(this.db, handle.taskId);
+      const taskDone = task && (task.status === 'completed' || task.status === 'skipped');
+
+      if (taskDone) {
+        this.emit('agent_completed', {
+          agentId: handle.agentId,
+          taskId: handle.taskId,
+          result: 'completed',
+        });
+      } else {
+        // Agent exited successfully but task is not done — treat as failure
+        handle.error = handle.error ?? 'Agent exited without completing task';
+        this.handleAgentFailure(handle);
+      }
+    } else if (handle.status === 'failed') {
+      // Agent process exited with failure — route through retry logic
+      this.handleAgentFailure(handle);
     }
   }
 
   private handleAgentError(handle: AgentHandle, error: Error): void {
+    this.cleanupAgent(handle.agentId);
+    this.sessions.delete(handle.agentId);
+    handle.error = handle.error ?? error.message;
+    this.handleAgentFailure(handle);
+  }
+
+  private handleAgentFailure(handle: AgentHandle): void {
     const currentRetries = this.retryCount.get(handle.taskId) ?? 0;
 
     if (currentRetries < MAX_RETRIES) {
@@ -177,15 +197,30 @@ export class AgentPool {
         attempt: currentRetries + 1,
       });
     } else {
+      // Mark task as failed to prevent infinite respawning.
+      // Must follow valid transition path: pending → planning → in_progress → failed
+      try {
+        const task = taskService.get(this.db, handle.taskId);
+        if (task) {
+          if (task.status === 'pending' || task.status === 'blocked') {
+            taskService.updateStatus(this.db, handle.taskId, 'planning');
+            taskService.updateStatus(this.db, handle.taskId, 'in_progress');
+          } else if (task.status === 'planning') {
+            taskService.updateStatus(this.db, handle.taskId, 'in_progress');
+          }
+          taskService.updateStatus(this.db, handle.taskId, 'failed', {
+            error: handle.error ?? 'Max retries exceeded',
+          });
+        }
+      } catch {
+        // Task may have already transitioned
+      }
       this.emit('agent_failed', {
         agentId: handle.agentId,
         taskId: handle.taskId,
-        error: error.message,
+        error: handle.error ?? 'Max retries exceeded',
       });
     }
-
-    this.cleanupAgent(handle.agentId);
-    this.sessions.delete(handle.agentId);
   }
 
   private cleanupAgent(agentId: string): void {
