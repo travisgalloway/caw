@@ -533,3 +533,33 @@ Detailed design docs live in `docs/`. Key references:
 - The `scripts/seed.ts` script can populate test data without a TUI
 - Pre-commit hooks may not fire automatically; run `bun run format` manually before committing
 - Database files (`.caw/*.db`) are ephemeral between web sessions unless committed (not recommended — add to `.gitignore`)
+
+## Workflow Persistence (caw)
+
+This project uses caw for durable task execution. Workflows, tasks, and checkpoints persist across context clearing.
+
+### Starting a New Workflow
+
+When given a multi-step task:
+
+1. `workflow_create` with a name and the task description
+2. `workflow_set_plan` to break the work into tasks with dependencies
+3. `workflow_next_tasks` to get the first actionable task
+
+### Working on Tasks
+
+For each task:
+
+1. `task_set_plan` — record your approach and files to modify
+2. `task_update_status` — set to `in_progress`
+3. `checkpoint_add` — record progress after each significant step (type: `progress`, `decision`, or `error`)
+4. `task_update_status` — set to `completed` with an `outcome` summary
+
+### Recovering After Context Clear
+
+If your context was cleared and you need to resume:
+
+1. `workflow_list` with status `in_progress` to find active workflows
+2. `workflow_progress` to see which task is current
+3. `task_load_context` with `all_checkpoints: true` to reload full state
+4. Resume from the last checkpoint

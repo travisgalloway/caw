@@ -1,4 +1,4 @@
-import { lockService, workflowService } from '@caw/core';
+import { lockService, messageService, workflowService } from '@caw/core';
 import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
@@ -142,6 +142,27 @@ export function useCommandHandler(): (input: string) => void {
         const next = current === 'unread' ? 'all' : 'unread';
         store.setMessageStatusFilter(next);
         store.setPromptSuccess(`Message filter: ${next}`);
+        return;
+      }
+
+      if (command === 'mark-read') {
+        try {
+          const unread = messageService.listAll(db, { status: 'unread' });
+          const ids = unread.map((m) => m.id);
+          if (ids.length === 0) {
+            store.setPromptSuccess('No unread messages');
+          } else {
+            messageService.markRead(db, ids);
+            store.setPromptSuccess(
+              `Marked ${ids.length} message${ids.length === 1 ? '' : 's'} as read`,
+            );
+            store.triggerRefresh();
+          }
+        } catch (err) {
+          store.setPromptError(
+            `Mark read failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
         return;
       }
 

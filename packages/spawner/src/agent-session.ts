@@ -60,7 +60,7 @@ export class AgentSession {
 
     const args = [
       '-p',
-      `Execute the task assigned to you. Your agent ID is ${this.agentId} and your task ID is ${this.taskId}. Follow the protocol in your system prompt.`,
+      `IMPORTANT: You MUST begin by calling the MCP tool "task_load_context" with task_id "${this.taskId}" to load your task details. Then call "task_update_status" to set your task to "in_progress". Only then should you start working. When finished, call "task_update_status" with status "completed" and an outcome summary. Your agent ID is ${this.agentId}. See your system prompt for the full protocol.`,
       '--append-system-prompt',
       systemPrompt,
       '--mcp-config',
@@ -134,6 +134,13 @@ export class AgentSession {
           this.handle.error = stderr || `claude exited with code ${exitCode}`;
         }
       }
+
+      // Log diagnostics for debugging agent failures
+      const gotInit = this.handle.sessionId !== null;
+      const stderr = stderrChunks.join('\n').slice(0, 300);
+      console.error(
+        `[agent-session] ${this.agentId} exit=${exitCode} status=${this.handle.status} init=${gotInit} stderr=${stderr || '(none)'}`,
+      );
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       const currentStatus: string = this.handle.status;

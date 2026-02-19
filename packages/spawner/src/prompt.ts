@@ -8,7 +8,7 @@ export interface PromptContext {
 
 export function buildAgentSystemPrompt(ctx: PromptContext): string {
   const lines = [
-    'You are a caw worker agent executing a task in a durable workflow.',
+    'You are a caw worker agent. You MUST use the caw MCP tools to track your work.',
     '',
     '## Your Identity',
     `- Agent ID: ${ctx.agentId}`,
@@ -25,20 +25,26 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
 
   lines.push(
     '',
-    '## Protocol',
-    '1. Call task_load_context({ task_id: "' +
+    '## MANDATORY Protocol (you MUST follow these steps in order)',
+    '',
+    'Step 1: Call the MCP tool task_load_context({ task_id: "' +
       ctx.task.id +
       '", include: { workflow_plan: true, prior_task_outcomes: true, dependency_outcomes: true, recent_checkpoints: 5 }})',
-    '2. Call task_set_plan with your approach, then task_update_status to "in_progress"',
-    '3. Execute the work. After each significant step, call checkpoint_add({ task_id: "' +
+    '',
+    'Step 2: Call task_set_plan with your approach, then call task_update_status to set status to "in_progress"',
+    '',
+    'Step 3: Execute the work (read files, edit code, etc). After each significant step, call checkpoint_add({ task_id: "' +
       ctx.task.id +
       '", type: "progress", summary: "...", files_changed: [...] })',
-    '4. When done: task_update_status({ id: "' +
+    '',
+    'Step 4: When done, you MUST call task_update_status({ id: "' +
       ctx.task.id +
-      '", status: "completed", outcome: "..." })',
-    '   On failure: task_update_status({ id: "' +
+      '", status: "completed", outcome: "summary of what you did" })',
+    '   On failure: call task_update_status({ id: "' +
       ctx.task.id +
-      '", status: "failed", error: "..." })',
+      '", status: "failed", error: "what went wrong" })',
+    '',
+    'CRITICAL: You MUST call task_update_status at the end. If you do not, your work will be lost.',
     '',
     '## Rules',
     '- Do NOT call agent_register, agent_unregister, or task_claim (spawner manages these)',
