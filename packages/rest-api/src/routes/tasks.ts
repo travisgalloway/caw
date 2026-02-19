@@ -1,6 +1,6 @@
-import type { DatabaseType, TaskStatus } from '@caw/core';
-import { taskService } from '@caw/core';
-import { badRequest, getSearchParams, notFound, ok, parseBody } from '../response';
+import type { AddTaskParams, DatabaseType, TaskStatus } from '@caw/core';
+import { taskService, workflowReplanningService } from '@caw/core';
+import { badRequest, created, getSearchParams, notFound, ok, parseBody } from '../response';
 import type { Router } from '../router';
 import type { Broadcaster } from '../ws/broadcaster';
 
@@ -116,6 +116,44 @@ export function registerTaskRoutes(router: Router, db: DatabaseType, broadcaster
         workflow_id: task?.workflow_id,
       });
       return ok({ success: true });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('not found')) return notFound(msg);
+      return badRequest(msg);
+    }
+  });
+
+  // Add task to workflow
+  router.post('/api/workflows/:id/tasks', async (req, params) => {
+    const body = await parseBody<AddTaskParams>(req);
+    if (!body) return badRequest('Invalid JSON body');
+    if (!body.name) return badRequest('name is required');
+
+    try {
+      const result = workflowReplanningService.addTask(db, params.id, body);
+      broadcaster?.emit('task:updated', {
+        id: result.task_id,
+        action: 'added',
+        workflow_id: result.workflow_id,
+      });
+      return created(result);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('not found')) return notFound(msg);
+      return badRequest(msg);
+    }
+  });
+
+  // Remove task from workflow
+  router.delete('/api/workflows/:id/tasks/:taskId', (_req, params) => {
+    try {
+      const result = workflowReplanningService.removeTask(db, params.id, params.taskId);
+      broadcaster?.emit('task:updated', {
+        id: result.removed_task_id,
+        action: 'removed',
+        workflow_id: params.id,
+      });
+      return ok(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes('not found')) return notFound(msg);

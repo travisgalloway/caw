@@ -53,6 +53,7 @@ export {
   taskService,
   templateService,
   WORKFLOW_TRANSITIONS,
+  workflowReplanningService,
   workflowService,
   workspaceService,
 } from './services/index';

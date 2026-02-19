@@ -162,6 +162,62 @@ describe('task routes', () => {
     expect(body.data.success).toBe(true);
   });
 
+  test('POST /api/workflows/:id/tasks adds a task', async () => {
+    const wf = createWorkflowWithTasks();
+    // Move workflow to ready so replanning is allowed
+    workflowService.updateStatus(db, wf.id, 'in_progress');
+
+    const res = await req('POST', `/api/workflows/${wf.id}/tasks`, {
+      name: 'Task 3',
+      description: 'A new task',
+    });
+    expect(res.status).toBe(201);
+    const body = (await res.json()) as {
+      data: { task_id: string; sequence: number; workflow_id: string };
+    };
+    expect(body.data.task_id).toMatch(/^tk_/);
+    expect(body.data.sequence).toBe(3);
+    expect(body.data.workflow_id).toBe(wf.id);
+  });
+
+  test('POST /api/workflows/:id/tasks returns 400 for missing name', async () => {
+    const wf = createWorkflowWithTasks();
+    workflowService.updateStatus(db, wf.id, 'in_progress');
+
+    const res = await req('POST', `/api/workflows/${wf.id}/tasks`, { description: 'No name' });
+    expect(res.status).toBe(400);
+  });
+
+  test('POST /api/workflows/:id/tasks returns 404 for missing workflow', async () => {
+    const res = await req('POST', '/api/workflows/wf_nonexistent/tasks', { name: 'Task' });
+    expect(res.status).toBe(404);
+  });
+
+  test('DELETE /api/workflows/:id/tasks/:taskId removes a task', async () => {
+    const wf = createWorkflowWithTasks();
+    workflowService.updateStatus(db, wf.id, 'in_progress');
+
+    const tasks = db
+      .prepare('SELECT id FROM tasks WHERE workflow_id = ? ORDER BY sequence')
+      .all(wf.id) as Array<{ id: string }>;
+
+    const res = await req('DELETE', `/api/workflows/${wf.id}/tasks/${tasks[0].id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: { removed_task_id: string; dependencies_rewired: number; tasks_renumbered: number };
+    };
+    expect(body.data.removed_task_id).toBe(tasks[0].id);
+    expect(body.data.tasks_renumbered).toBe(1);
+  });
+
+  test('DELETE /api/workflows/:id/tasks/:taskId returns 404 for missing task', async () => {
+    const wf = createWorkflowWithTasks();
+    workflowService.updateStatus(db, wf.id, 'in_progress');
+
+    const res = await req('DELETE', `/api/workflows/${wf.id}/tasks/tk_nonexistent`);
+    expect(res.status).toBe(404);
+  });
+
   test('GET /api/tasks/:id/dependencies returns deps', async () => {
     const wf = createWorkflowWithTasks();
     const tasks = db
