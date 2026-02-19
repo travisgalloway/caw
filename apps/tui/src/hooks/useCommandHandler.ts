@@ -1,4 +1,4 @@
-import { lockService, workflowService } from '@caw/core';
+import { lockService, messageService, workflowService } from '@caw/core';
 import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
@@ -145,6 +145,27 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'mark-read') {
+        try {
+          const unread = messageService.listAll(db, { status: 'unread' });
+          const ids = unread.map((m) => m.id);
+          if (ids.length === 0) {
+            store.setPromptSuccess('No unread messages');
+          } else {
+            messageService.markRead(db, ids);
+            store.setPromptSuccess(
+              `Marked ${ids.length} message${ids.length === 1 ? '' : 's'} as read`,
+            );
+            store.triggerRefresh();
+          }
+        } catch (err) {
+          store.setPromptError(
+            `Mark read failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        return;
+      }
+
       if (command === 'lock') {
         if (!sessionInfo) {
           store.setPromptError('No active session — cannot lock');
@@ -212,6 +233,43 @@ export function useCommandHandler(): (input: string) => void {
       if (command === 'table') {
         store.setTaskViewMode('table');
         store.setPromptSuccess('Task view: table');
+        return;
+      }
+
+      if (command === 'reply') {
+        const screen = currentScreen(store);
+        if (screen.screen !== 'message-detail') {
+          store.setPromptError('Navigate to a message detail screen first. Usage: /reply <text>');
+          return;
+        }
+        if (!parsed.args) {
+          store.setPromptError('Usage: /reply <your response text>');
+          return;
+        }
+        try {
+          const message = messageService.get(db, screen.messageId);
+          if (!message) {
+            store.setPromptError(`Message not found: ${screen.messageId}`);
+            return;
+          }
+          if (!message.sender_id) {
+            store.setPromptError('Cannot reply: message has no sender');
+            return;
+          }
+          messageService.send(db, {
+            sender_id: null,
+            recipient_id: message.sender_id,
+            message_type: 'response',
+            body: parsed.args,
+            reply_to_id: message.id,
+            workflow_id: message.workflow_id ?? undefined,
+            task_id: message.task_id ?? undefined,
+          });
+          store.setPromptSuccess('Reply sent');
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(`Reply failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
         return;
       }
 

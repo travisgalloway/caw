@@ -1,5 +1,5 @@
 import type { DatabaseType, Task, Workflow } from '@caw/core';
-import { agentService, taskService } from '@caw/core';
+import { agentService, taskService, workspaceService } from '@caw/core';
 import type { AgentSessionOptions } from './agent-session';
 import { AgentSession } from './agent-session';
 import { buildAgentSystemPrompt } from './prompt';
@@ -23,6 +23,7 @@ export class AgentPool {
     private readonly db: DatabaseType,
     private readonly config: SpawnerConfig,
     private readonly workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary'>,
+    private readonly humanAgentId: string | null = null,
   ) {}
 
   on<E extends SpawnerEvent>(event: E, listener: EventListener<E>): void {
@@ -50,13 +51,24 @@ export class AgentPool {
       throw new Error('Pool is stopped');
     }
 
+    // Resolve workspace for this task (if assigned)
+    let agentCwd: string | undefined;
+    let agentBranch = this.config.branch;
+    if (task.workspace_id) {
+      const workspace = workspaceService.get(this.db, task.workspace_id);
+      if (workspace) {
+        agentCwd = workspace.path;
+        agentBranch = workspace.branch;
+      }
+    }
+
     // Register agent in DB
     const agent = agentService.register(this.db, {
       name: `spawner-${task.name}`,
       runtime: 'claude_code',
       role: 'worker',
       workflow_id: this.config.workflowId,
-      workspace_path: this.config.cwd,
+      workspace_path: agentCwd ?? this.config.cwd,
       metadata: { spawned: true, task_id: task.id },
     });
 
@@ -69,11 +81,30 @@ export class AgentPool {
       );
     }
 
+    // Load prior messages for resumed tasks (Q&A context)
+    let priorMessages: string | undefined;
+    const taskMessages = this.db
+      .prepare(
+        'SELECT sender_id, body, message_type FROM messages WHERE task_id = ? ORDER BY created_at',
+      )
+      .all(task.id) as Array<{ sender_id: string; body: string; message_type: string }>;
+
+    if (taskMessages.length > 0) {
+      priorMessages = taskMessages
+        .map((m) => `[${m.message_type}] ${m.sender_id}: ${m.body}`)
+        .join('\n');
+    }
+
     // Build system prompt
     const systemPrompt = buildAgentSystemPrompt({
       agentId: agent.id,
       workflow: this.workflow,
       task,
+      branch: agentBranch,
+      worktreePath: agentCwd,
+      issueContext: this.config.issueContext,
+      humanAgentId: this.humanAgentId ?? undefined,
+      priorMessages,
     });
 
     // Create session
@@ -82,6 +113,7 @@ export class AgentPool {
       taskId: task.id,
       systemPrompt,
       config: this.config,
+      cwdOverride: agentCwd,
       onComplete: (handle) => this.handleAgentComplete(handle),
       onError: (handle, error) => this.handleAgentError(handle, error),
     };
@@ -158,15 +190,35 @@ export class AgentPool {
     this.sessions.delete(handle.agentId);
 
     if (handle.status === 'completed') {
-      this.emit('agent_completed', {
-        agentId: handle.agentId,
-        taskId: handle.taskId,
-        result: 'completed',
-      });
+      // Verify the task was actually completed in the DB (not a phantom completion)
+      const task = taskService.get(this.db, handle.taskId);
+      const taskDone = task && (task.status === 'completed' || task.status === 'skipped');
+
+      if (taskDone) {
+        this.emit('agent_completed', {
+          agentId: handle.agentId,
+          taskId: handle.taskId,
+          result: 'completed',
+        });
+      } else {
+        // Agent exited successfully but task is not done — treat as failure
+        handle.error = handle.error ?? 'Agent exited without completing task';
+        this.handleAgentFailure(handle);
+      }
+    } else if (handle.status === 'failed') {
+      // Agent process exited with failure — route through retry logic
+      this.handleAgentFailure(handle);
     }
   }
 
   private handleAgentError(handle: AgentHandle, error: Error): void {
+    this.cleanupAgent(handle.agentId);
+    this.sessions.delete(handle.agentId);
+    handle.error = handle.error ?? error.message;
+    this.handleAgentFailure(handle);
+  }
+
+  private handleAgentFailure(handle: AgentHandle): void {
     const currentRetries = this.retryCount.get(handle.taskId) ?? 0;
 
     if (currentRetries < MAX_RETRIES) {
@@ -177,15 +229,30 @@ export class AgentPool {
         attempt: currentRetries + 1,
       });
     } else {
+      // Mark task as failed to prevent infinite respawning.
+      // Must follow valid transition path: pending → planning → in_progress → failed
+      try {
+        const task = taskService.get(this.db, handle.taskId);
+        if (task) {
+          if (task.status === 'pending' || task.status === 'blocked') {
+            taskService.updateStatus(this.db, handle.taskId, 'planning');
+            taskService.updateStatus(this.db, handle.taskId, 'in_progress');
+          } else if (task.status === 'planning') {
+            taskService.updateStatus(this.db, handle.taskId, 'in_progress');
+          }
+          taskService.updateStatus(this.db, handle.taskId, 'failed', {
+            error: handle.error ?? 'Max retries exceeded',
+          });
+        }
+      } catch {
+        // Task may have already transitioned
+      }
       this.emit('agent_failed', {
         agentId: handle.agentId,
         taskId: handle.taskId,
-        error: error.message,
+        error: handle.error ?? 'Max retries exceeded',
       });
     }
-
-    this.cleanupAgent(handle.agentId);
-    this.sessions.delete(handle.agentId);
   }
 
   private cleanupAgent(agentId: string): void {

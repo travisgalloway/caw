@@ -1,4 +1,4 @@
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
 export interface WorktreeInfo {
   path: string;
@@ -62,8 +62,11 @@ export async function createWorktree(
 /**
  * Removes a git worktree with --force.
  */
-export async function removeWorktree(worktreePath: string): Promise<void> {
-  await execGit(['worktree', 'remove', '--force', worktreePath], worktreePath);
+export async function removeWorktree(worktreePath: string, repoPath?: string): Promise<void> {
+  // Worktrees live at {repoPath}-worktrees/{name}, so derive repoPath if not provided
+  // dirname(path) = {repoPath}-worktrees, strip the "-worktrees" suffix to get repoPath
+  const cwd = repoPath ?? dirname(worktreePath).replace(/-worktrees$/, '');
+  await execGit(['worktree', 'remove', '--force', worktreePath], cwd);
 }
 
 /**

@@ -10,6 +10,7 @@ function printUsage(): void {
        caw setup claude-code [--print] [--mcp-only] [--claude-md-only]
        caw run <workflow_id> [options]
        caw run --prompt "..." [options]
+       caw work <issues...> [options]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -37,6 +38,14 @@ Commands:
     --max-agents <n>    Override max_parallel_tasks
     --model <name>      Claude model (default: claude-sonnet-4-5)
     --detach            Start and run in background
+
+  work                  Work on GitHub issue(s): fetch, plan, execute, create PR
+    <issues...>         Issue refs: #123, 123, or GitHub URL
+    --branch <name>     Git branch name (default: caw/issue-<n>)
+    --max-agents <n>    Override max parallel agents
+    --model <name>      Claude model (default: claude-sonnet-4-5)
+    --detach            Start and run in background
+    --port <number>     Daemon port (default: 3100)
 `);
 }
 
@@ -177,6 +186,87 @@ Options:
 
   daemon.cleanup();
   runDb.close();
+  process.exit(0);
+}
+
+if (subcommand === 'work') {
+  const { values: workValues, positionals: workPositionals } = parseArgs({
+    args: process.argv.slice(3),
+    options: {
+      branch: { type: 'string' },
+      'max-agents': { type: 'string' },
+      model: { type: 'string' },
+      'permission-mode': { type: 'string' },
+      'max-turns': { type: 'string' },
+      'max-budget': { type: 'string' },
+      watch: { type: 'boolean', default: true },
+      detach: { type: 'boolean', default: false },
+      port: { type: 'string' },
+      db: { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+
+  if (workValues.help || workPositionals.length === 0) {
+    console.log(`Usage: caw work <issues...> [options]
+
+Arguments:
+  <issues...>               Issue refs: #123, 123, or full GitHub URL
+
+Options:
+  --branch <name>           Git branch name (default: caw/issue-<n>)
+  --max-agents <n>          Override max parallel agents
+  --model <name>            Claude model (default: claude-sonnet-4-5)
+  --permission-mode <mode>  acceptEdits | bypassPermissions (default: bypassPermissions)
+  --max-turns <n>           Max turns per task (default: 50)
+  --max-budget <usd>        Max budget per task in USD
+  --watch                   Show progress (default: true)
+  --detach                  Start and run in background
+  --port <number>           Daemon port (default: 3100)
+  --db <path>               Database file path
+  -h, --help                Show this help message
+`);
+    process.exit(workValues.help ? 0 : 1);
+  }
+
+  const workDbPath = workValues.db ?? getDbPath('per-repo', process.cwd());
+  const workDb = createConnection(workDbPath);
+  runMigrations(workDb);
+
+  const { initDaemon } = await import('../daemon');
+  const daemon = await initDaemon(
+    workDb,
+    workDbPath,
+    workValues.port ? Number(workValues.port) : undefined,
+  );
+
+  const shutdownWork = () => {
+    daemon.cleanup();
+    workDb.close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdownWork);
+  process.on('SIGTERM', shutdownWork);
+
+  const { runWork } = await import('../commands/work');
+  await runWork(workDb, {
+    issues: workPositionals,
+    branch: workValues.branch,
+    maxAgents: workValues['max-agents'] ? Number(workValues['max-agents']) : undefined,
+    model: workValues.model,
+    permissionMode: workValues['permission-mode'],
+    maxTurns: workValues['max-turns'] ? Number(workValues['max-turns']) : undefined,
+    maxBudgetUsd: workValues['max-budget'] ? Number(workValues['max-budget']) : undefined,
+    watch: workValues.watch,
+    detach: workValues.detach,
+    port: daemon.port,
+    cwd: process.cwd(),
+  });
+
+  daemon.cleanup();
+  workDb.close();
   process.exit(0);
 }
 

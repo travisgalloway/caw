@@ -1,9 +1,12 @@
 import { messageService } from '@caw/core';
 import { Box, Text } from 'ink';
 import type React from 'react';
+import { useEffect } from 'react';
 import { useDb } from '../context/db';
 import { formatTimestamp } from '../utils/format';
 import { THEME } from '../utils/theme';
+import type { HintItem } from './HintBar';
+import { HintBar } from './HintBar';
 import { TypeBadge } from './TypeBadge';
 
 interface MessageDetailScreenProps {
@@ -16,11 +19,19 @@ export function MessageDetailScreen({ messageId }: MessageDetailScreenProps): Re
 
   let message = null;
   try {
-    const all = messageService.listAll(db, { limit: 500 });
-    message = all.find((m) => m.id === messageId) ?? null;
+    message = messageService.get(db, messageId, true);
   } catch {
     // ignore
   }
+
+  const messageStatus = message?.status ?? null;
+  const messageDbId = message?.id ?? null;
+
+  useEffect(() => {
+    if (messageStatus === 'unread' && messageDbId) {
+      messageService.markRead(db, [messageDbId]);
+    }
+  }, [messageStatus, messageDbId, db]);
 
   if (!message) {
     return (
@@ -84,9 +95,14 @@ export function MessageDetailScreen({ messageId }: MessageDetailScreenProps): Re
         </Box>
       </Box>
 
-      <Box paddingX={1}>
-        <Text dimColor>Esc back</Text>
-      </Box>
+      <HintBar
+        hints={[
+          { key: 'Esc', desc: 'back' },
+          ...(message.sender_id
+            ? [{ key: '/reply <text>', desc: 'reply to sender' } satisfies HintItem]
+            : []),
+        ]}
+      />
     </Box>
   );
 }

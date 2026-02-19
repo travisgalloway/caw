@@ -1,5 +1,6 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
+import { cleanEnvForSpawn } from './env';
 import { buildMcpConfigFile, cleanupMcpConfigFile } from './mcp-config';
 import type { AgentHandle, SpawnerConfig } from './types';
 
@@ -15,6 +16,7 @@ export interface AgentSessionOptions {
   taskId: string;
   systemPrompt: string;
   config: SpawnerConfig;
+  cwdOverride?: string;
   onMessage?: (message: ClaudeMessage) => void;
   onComplete?: (handle: AgentHandle) => void;
   onError?: (handle: AgentHandle, error: Error) => void;
@@ -59,7 +61,7 @@ export class AgentSession {
 
     const args = [
       '-p',
-      `Execute the task assigned to you. Your agent ID is ${this.agentId} and your task ID is ${this.taskId}. Follow the protocol in your system prompt.`,
+      `IMPORTANT: You MUST begin by calling the MCP tool "task_load_context" with task_id "${this.taskId}" to load your task details. Then call "task_update_status" to set your task to "in_progress". Only then should you start working. When finished, call "task_update_status" with status "completed" and an outcome summary. Your agent ID is ${this.agentId}. See your system prompt for the full protocol.`,
       '--append-system-prompt',
       systemPrompt,
       '--mcp-config',
@@ -78,23 +80,30 @@ export class AgentSession {
       args.push('--max-budget-usd', String(config.maxBudgetUsd));
     }
 
-    if (config.permissionMode === 'bypassPermissions') {
-      args.push('--dangerously-skip-permissions');
-    } else {
-      args.push('--allowedTools', 'mcp__caw__*');
-    }
+    // Spawned agents are non-interactive (no TTY), so --allowedTools can't prompt
+    // for approval. Use --dangerously-skip-permissions for all spawned agents.
+    args.push('--dangerously-skip-permissions');
 
     try {
       const spawnFn = config.spawnFn ?? spawn;
       const proc = spawnFn('claude', args, {
-        cwd: config.cwd,
+        cwd: this.options.cwdOverride ?? config.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
+        env: cleanEnvForSpawn(),
       });
       this.childProcess = proc;
 
       if (!proc.stdout) {
         throw new Error('Failed to open stdout on spawned process');
       }
+
+      // Capture stderr for failure diagnostics
+      const stderrChunks: string[] = [];
+      if (proc.stderr) {
+        const stderrRl = createInterface({ input: proc.stderr });
+        stderrRl.on('line', (line) => stderrChunks.push(line));
+      }
+
       const rl = createInterface({ input: proc.stdout });
 
       for await (const line of rl) {
@@ -122,9 +131,17 @@ export class AgentSession {
       if (this.handle.status === 'running') {
         this.handle.status = exitCode === 0 ? 'completed' : 'failed';
         if (exitCode !== 0) {
-          this.handle.error = `claude exited with code ${exitCode}`;
+          const stderr = stderrChunks.join('\n').slice(0, 500);
+          this.handle.error = stderr || `claude exited with code ${exitCode}`;
         }
       }
+
+      // Log diagnostics for debugging agent failures
+      const gotInit = this.handle.sessionId !== null;
+      const stderr = stderrChunks.join('\n').slice(0, 300);
+      console.error(
+        `[agent-session] ${this.agentId} exit=${exitCode} status=${this.handle.status} init=${gotInit} stderr=${stderr || '(none)'}`,
+      );
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
       const currentStatus: string = this.handle.status;

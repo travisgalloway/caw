@@ -127,7 +127,7 @@ const TAB_NAMES: WorkflowTab[] = ['tasks', 'agents', 'messages', 'workspaces'];
 function detailHints(tab: WorkflowTab): HintItem[] {
   const base: HintItem[] = [
     { key: 'Esc', desc: 'back' },
-    { key: 'Tab', desc: 'switch tabs' },
+    { key: '←→/Tab', desc: 'switch tabs' },
     { key: '↑↓', desc: 'navigate' },
     { key: 'Enter', desc: 'select' },
   ];
@@ -246,7 +246,8 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
 
       <Tabs
         onChange={handleTabChange}
-        keyMap={{ useNumbers: false, useTab: true, previous: [], next: [] }}
+        defaultValue={tab}
+        keyMap={{ useNumbers: false, useTab: true, previous: ['left'], next: ['right'] }}
       >
         <Tab name="tasks">Tasks ({tasks.length})</Tab>
         <Tab name="agents">Agents ({agents.length})</Tab>
