@@ -252,6 +252,15 @@ export const api = {
     }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
   },
 
+  // Claim / Release
+  async claimTask(id: string, agentId: string) {
+    return request<Task>('POST', `/api/tasks/${id}/claim`, { agent_id: agentId });
+  },
+
+  async releaseTask(id: string, agentId: string, reason?: string) {
+    return request<Task>('POST', `/api/tasks/${id}/release`, { agent_id: agentId, reason });
+  },
+
   // Lock
   async getLockInfo(workflowId: string) {
     return request<{ locked: boolean; session_id: string | null }>(
