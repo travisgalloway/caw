@@ -226,6 +226,32 @@ export const api = {
     return request<Workspace[]>('GET', `/api/workflows/${workflowId}/workspaces`);
   },
 
+  // Task management
+  async addTask(
+    workflowId: string,
+    params: {
+      name: string;
+      description?: string;
+      parallel_group?: string;
+      estimated_complexity?: string;
+      depends_on?: string[];
+    },
+  ) {
+    return request<{ task_id: string; sequence: number; workflow_id: string }>(
+      'POST',
+      `/api/workflows/${workflowId}/tasks`,
+      params,
+    );
+  },
+
+  async removeTask(workflowId: string, taskId: string) {
+    return request<{
+      removed_task_id: string;
+      dependencies_rewired: number;
+      tasks_renumbered: number;
+    }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
+  },
+
   // Lock
   async getLockInfo(workflowId: string) {
     return request<{ locked: boolean; session_id: string | null }>(

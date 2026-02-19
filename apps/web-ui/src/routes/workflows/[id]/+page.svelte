@@ -45,6 +45,25 @@ const validTransitions = $derived(workflow ? (WORKFLOW_TRANSITIONS[workflow.stat
 
 const isLocked = $derived(!!workflow?.locked_by_session_id);
 
+// Add Task dialog state
+let showAddTask = $state(false);
+let addTaskName = $state('');
+let addTaskDescription = $state('');
+let addTaskParallelGroup = $state('');
+let addTaskComplexity = $state('');
+let addTaskDependsOn = $state('');
+let addTaskError = $state<string | null>(null);
+let addTaskSubmitting = $state(false);
+
+// Delete confirmation state
+let deleteTask = $state<Task | null>(null);
+let deleteError = $state<string | null>(null);
+let deleteSubmitting = $state(false);
+
+const REMOVABLE_STATUSES = new Set(['pending', 'blocked', 'planning']);
+
+const workflowId = $derived($page.params.id ?? '');
+
 async function handleLockToggle() {
   if (!workflow || !browserSessionId) return;
   actionLoading = 'lock';
@@ -96,8 +115,6 @@ async function handleStatusChange(e: Event) {
   }
 }
 
-const workflowId = $derived($page.params.id ?? '');
-
 async function loadData() {
   try {
     const [wfRes, progressRes, agentsRes, msgRes, wsRes] = await Promise.all([
@@ -117,6 +134,66 @@ async function loadData() {
     error = err instanceof Error ? err.message : String(err);
   } finally {
     loading = false;
+  }
+}
+
+function openAddTask() {
+  addTaskName = '';
+  addTaskDescription = '';
+  addTaskParallelGroup = '';
+  addTaskComplexity = '';
+  addTaskDependsOn = '';
+  addTaskError = null;
+  addTaskSubmitting = false;
+  showAddTask = true;
+}
+
+async function handleAddTask() {
+  if (!addTaskName.trim()) {
+    addTaskError = 'Name is required';
+    return;
+  }
+  addTaskError = null;
+  addTaskSubmitting = true;
+  try {
+    const params: {
+      name: string;
+      description?: string;
+      parallel_group?: string;
+      estimated_complexity?: string;
+      depends_on?: string[];
+    } = { name: addTaskName.trim() };
+    if (addTaskDescription.trim()) params.description = addTaskDescription.trim();
+    if (addTaskParallelGroup.trim()) params.parallel_group = addTaskParallelGroup.trim();
+    if (addTaskComplexity) params.estimated_complexity = addTaskComplexity;
+    if (addTaskDependsOn.trim()) {
+      params.depends_on = addTaskDependsOn
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+    await api.addTask(workflowId, params);
+    showAddTask = false;
+    await loadData();
+  } catch (err) {
+    addTaskError = err instanceof Error ? err.message : String(err);
+  } finally {
+    addTaskSubmitting = false;
+  }
+}
+
+async function handleDeleteTask() {
+  if (!deleteTask) return;
+  deleteError = null;
+  deleteSubmitting = true;
+  try {
+    await api.removeTask(workflowId, deleteTask.id);
+    deleteTask = null;
+    await loadData();
+  } catch (err) {
+    deleteError = err instanceof Error ? err.message : String(err);
+  } finally {
+    deleteSubmitting = false;
   }
 }
 
@@ -147,6 +224,151 @@ const completedTasks = $derived(
   progress ? (progress.by_status['completed'] ?? 0) + (progress.by_status['skipped'] ?? 0) : 0,
 );
 </script>
+
+<!-- Add Task Dialog -->
+{#if showAddTask}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Add Task"
+  >
+    <div class="mx-4 w-full max-w-lg rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+      <h3 class="mb-4 text-lg font-semibold">Add Task</h3>
+      {#if addTaskError}
+        <div class="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+          {addTaskError}
+        </div>
+      {/if}
+      <form
+        onsubmit={(e) => { e.preventDefault(); handleAddTask(); }}
+        class="space-y-3"
+      >
+        <div>
+          <label for="task-name" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Name <span class="text-red-500">*</span>
+          </label>
+          <input
+            id="task-name"
+            type="text"
+            bind:value={addTaskName}
+            required
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            placeholder="Task name"
+          />
+        </div>
+        <div>
+          <label for="task-desc" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Description
+          </label>
+          <textarea
+            id="task-desc"
+            bind:value={addTaskDescription}
+            rows="3"
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            placeholder="Optional description"
+          ></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label for="task-group" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Parallel Group
+            </label>
+            <input
+              id="task-group"
+              type="text"
+              bind:value={addTaskParallelGroup}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+              placeholder="e.g. group-a"
+            />
+          </div>
+          <div>
+            <label for="task-complexity" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Complexity
+            </label>
+            <select
+              id="task-complexity"
+              bind:value={addTaskComplexity}
+              class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            >
+              <option value="">-- Select --</option>
+              <option value="low">Low</option>
+              <option value="medium">Medium</option>
+              <option value="high">High</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label for="task-deps" class="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
+            Depends On
+          </label>
+          <input
+            id="task-deps"
+            type="text"
+            bind:value={addTaskDependsOn}
+            class="w-full rounded border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+            placeholder="Comma-separated task names"
+          />
+        </div>
+        <div class="flex justify-end gap-2 pt-2">
+          <button
+            type="button"
+            onclick={() => showAddTask = false}
+            class="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={addTaskSubmitting}
+            class="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {addTaskSubmitting ? 'Adding...' : 'Add Task'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+{/if}
+
+<!-- Delete Confirmation Dialog -->
+{#if deleteTask}
+  <div
+    class="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Confirm Delete"
+  >
+    <div class="mx-4 w-full max-w-sm rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+      <h3 class="mb-2 text-lg font-semibold">Delete Task</h3>
+      <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+        Are you sure you want to delete <span class="font-medium text-gray-900 dark:text-gray-100">{deleteTask.name}</span>? Dependencies will be rewired automatically.
+      </p>
+      {#if deleteError}
+        <div class="mb-3 rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-800 dark:bg-red-950 dark:text-red-400">
+          {deleteError}
+        </div>
+      {/if}
+      <div class="flex justify-end gap-2">
+        <button
+          type="button"
+          onclick={() => { deleteTask = null; deleteError = null; }}
+          class="rounded border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+        >
+          Cancel
+        </button>
+        <button
+          type="button"
+          disabled={deleteSubmitting}
+          onclick={handleDeleteTask}
+          class="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {deleteSubmitting ? 'Deleting...' : 'Delete'}
+        </button>
+      </div>
+    </div>
+  </div>
+{/if}
 
 <div class="p-6">
   {#if loading}
@@ -275,6 +497,15 @@ const completedTasks = $derived(
 
     <!-- Tab content -->
     {#if activeTab === 'tasks'}
+      <div class="mb-3 flex justify-end">
+        <button
+          type="button"
+          onclick={openAddTask}
+          class="rounded bg-blue-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          + Add Task
+        </button>
+      </div>
       <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
         <table class="w-full text-left text-sm">
           <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
@@ -285,6 +516,7 @@ const completedTasks = $derived(
               <th class="px-4 py-3 font-medium text-gray-500">Agent</th>
               <th class="px-4 py-3 font-medium text-gray-500">Group</th>
               <th class="px-4 py-3 font-medium text-gray-500">Updated</th>
+              <th class="w-10 px-4 py-3 font-medium text-gray-500"></th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
@@ -313,6 +545,18 @@ const completedTasks = $derived(
                 <td class="px-4 py-3 text-xs text-gray-400">{task.parallel_group ?? '—'}</td>
                 <td class="px-4 py-3 text-gray-500">
                   <RelativeTime timestamp={task.updated_at} />
+                </td>
+                <td class="px-4 py-3">
+                  {#if REMOVABLE_STATUSES.has(task.status) && !task.assigned_agent_id}
+                    <button
+                      type="button"
+                      onclick={() => { deleteTask = task; deleteError = null; deleteSubmitting = false; }}
+                      class="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                      title="Delete task"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                    </button>
+                  {/if}
                 </td>
               </tr>
             {/each}
