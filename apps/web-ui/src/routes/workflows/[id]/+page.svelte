@@ -62,7 +62,7 @@ let deleteSubmitting = $state(false);
 
 const REMOVABLE_STATUSES = new Set(['pending', 'blocked', 'planning']);
 
-const workflowId = $derived($page.params.id ?? '');
+const workflowId = $derived($page.params.id!);
 
 async function handleLockToggle() {
   if (!workflow || !browserSessionId) return;
