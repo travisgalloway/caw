@@ -5,6 +5,8 @@ import { useEffect } from 'react';
 import { useDb } from '../context/db';
 import { formatTimestamp } from '../utils/format';
 import { THEME } from '../utils/theme';
+import type { HintItem } from './HintBar';
+import { HintBar } from './HintBar';
 import { TypeBadge } from './TypeBadge';
 
 interface MessageDetailScreenProps {
@@ -93,9 +95,14 @@ export function MessageDetailScreen({ messageId }: MessageDetailScreenProps): Re
         </Box>
       </Box>
 
-      <Box paddingX={1}>
-        <Text dimColor>Esc back</Text>
-      </Box>
+      <HintBar
+        hints={[
+          { key: 'Esc', desc: 'back' },
+          ...(message.sender_id
+            ? [{ key: '/reply <text>', desc: 'reply to sender' } satisfies HintItem]
+            : []),
+        ]}
+      />
     </Box>
   );
 }

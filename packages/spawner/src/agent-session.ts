@@ -16,6 +16,7 @@ export interface AgentSessionOptions {
   taskId: string;
   systemPrompt: string;
   config: SpawnerConfig;
+  cwdOverride?: string;
   onMessage?: (message: ClaudeMessage) => void;
   onComplete?: (handle: AgentHandle) => void;
   onError?: (handle: AgentHandle, error: Error) => void;
@@ -86,7 +87,7 @@ export class AgentSession {
     try {
       const spawnFn = config.spawnFn ?? spawn;
       const proc = spawnFn('claude', args, {
-        cwd: config.cwd,
+        cwd: this.options.cwdOverride ?? config.cwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: cleanEnvForSpawn(),
       });

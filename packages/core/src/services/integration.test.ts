@@ -344,6 +344,98 @@ describe('cross-service integration', () => {
       expect(next2.tasks[0].dependencies_completed).toContain('Frontend');
       expect(next2.tasks[0].dependencies_completed).toContain('Backend');
     });
+
+    it('message round-trip: query → reply → acknowledge', () => {
+      const wf = workflowService.create(db, {
+        name: 'Message Round-Trip Test',
+        source_type: 'prompt',
+      });
+
+      // Register two agents
+      const agent1 = agentService.register(db, {
+        name: 'agent-asker',
+        runtime: 'claude-code',
+        workflow_id: wf.id,
+      });
+      const agent2 = agentService.register(db, {
+        name: 'agent-responder',
+        runtime: 'claude-code',
+        workflow_id: wf.id,
+      });
+
+      // Step 1: Agent1 sends a query to Agent2
+      const queryResult = messageService.send(db, {
+        sender_id: agent1.id,
+        recipient_id: agent2.id,
+        message_type: 'query',
+        subject: 'API contract question',
+        body: 'What format should the /users endpoint return?',
+        workflow_id: wf.id,
+      });
+
+      expect(queryResult.id).toMatch(/^msg_/);
+      expect(queryResult.thread_id).toMatch(/^thr_/);
+
+      const agent2Unread1 = messageService.countUnread(db, agent2.id);
+      expect(agent2Unread1.count).toBe(1);
+
+      // Step 2: Agent2 reads the query (mark read on fetch) and replies
+      const queryMsg = messageService.get(db, queryResult.id, true);
+      expect(queryMsg?.status).toBe('read');
+      expect(queryMsg?.read_at).not.toBeNull();
+
+      const replyResult = messageService.send(db, {
+        sender_id: agent2.id,
+        recipient_id: agent1.id,
+        message_type: 'response',
+        body: 'Return { id, name, email } as JSON',
+        reply_to_id: queryResult.id,
+        workflow_id: wf.id,
+      });
+
+      // Reply inherits the same thread
+      expect(replyResult.thread_id).toBe(queryResult.thread_id);
+
+      // Agent1 now has 1 unread, Agent2 has 0
+      const agent1Unread1 = messageService.countUnread(db, agent1.id);
+      expect(agent1Unread1.count).toBe(1);
+      const agent2Unread2 = messageService.countUnread(db, agent2.id);
+      expect(agent2Unread2.count).toBe(0);
+
+      // Step 3: Agent1 reads the reply and sends an acknowledgment
+      const replyMsg = messageService.get(db, replyResult.id, true);
+      expect(replyMsg?.status).toBe('read');
+
+      const ackResult = messageService.send(db, {
+        sender_id: agent1.id,
+        recipient_id: agent2.id,
+        message_type: 'response',
+        body: 'Acknowledged',
+        reply_to_id: replyResult.id,
+        workflow_id: wf.id,
+      });
+
+      // Ack inherits the same thread
+      expect(ackResult.thread_id).toBe(queryResult.thread_id);
+
+      // Step 4: Verify full thread
+      const thread = messageService.getThread(db, queryResult.thread_id);
+      expect(thread).toHaveLength(3);
+      expect(thread[0].message_type).toBe('query');
+      expect(thread[1].message_type).toBe('response');
+      expect(thread[2].message_type).toBe('response');
+      // Chronological order: query → reply → ack
+      expect(thread[0].id).toBe(queryResult.id);
+      expect(thread[1].id).toBe(replyResult.id);
+      expect(thread[2].id).toBe(ackResult.id);
+
+      // Step 5: Verify final unread counts
+      const agent1FinalUnread = messageService.countUnread(db, agent1.id);
+      expect(agent1FinalUnread.count).toBe(0); // read the reply
+
+      const agent2FinalUnread = messageService.countUnread(db, agent2.id);
+      expect(agent2FinalUnread.count).toBe(1); // ack is unread
+    });
   });
 
   // --- 4. Locking ---

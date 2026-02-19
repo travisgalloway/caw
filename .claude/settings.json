@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "caw": {
+      "command": "bunx",
+      "args": [
+        "@caw/tui",
+        "--server"
+      ]
+    }
+  }
+}

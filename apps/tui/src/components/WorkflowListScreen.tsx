@@ -139,7 +139,7 @@ function WorkflowsTab(): React.JSX.Element {
 }
 
 function hintsForTab(tab: MainTab, showAll: boolean): HintItem[] {
-  const base: HintItem[] = [{ key: 'Tab', desc: 'switch tabs' }];
+  const base: HintItem[] = [{ key: '←→/Tab', desc: 'switch tabs' }];
   switch (tab) {
     case 'workflows': {
       const allHint = showAll ? 'show active only' : 'show completed';
@@ -173,7 +173,8 @@ export function WorkflowListScreen(): React.JSX.Element {
 
       <Tabs
         onChange={handleTabChange}
-        keyMap={{ useNumbers: false, useTab: true, previous: [], next: [] }}
+        defaultValue={mainTab}
+        keyMap={{ useNumbers: false, useTab: true, previous: ['left'], next: ['right'] }}
       >
         <Tab name="workflows">Workflows</Tab>
         <Tab name="agents">Agents</Tab>

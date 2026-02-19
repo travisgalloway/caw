@@ -1,5 +1,5 @@
 import type { DatabaseType, Task, Workflow } from '@caw/core';
-import { agentService, taskService } from '@caw/core';
+import { agentService, taskService, workspaceService } from '@caw/core';
 import type { AgentSessionOptions } from './agent-session';
 import { AgentSession } from './agent-session';
 import { buildAgentSystemPrompt } from './prompt';
@@ -23,6 +23,7 @@ export class AgentPool {
     private readonly db: DatabaseType,
     private readonly config: SpawnerConfig,
     private readonly workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary'>,
+    private readonly humanAgentId: string | null = null,
   ) {}
 
   on<E extends SpawnerEvent>(event: E, listener: EventListener<E>): void {
@@ -50,13 +51,24 @@ export class AgentPool {
       throw new Error('Pool is stopped');
     }
 
+    // Resolve workspace for this task (if assigned)
+    let agentCwd: string | undefined;
+    let agentBranch = this.config.branch;
+    if (task.workspace_id) {
+      const workspace = workspaceService.get(this.db, task.workspace_id);
+      if (workspace) {
+        agentCwd = workspace.path;
+        agentBranch = workspace.branch;
+      }
+    }
+
     // Register agent in DB
     const agent = agentService.register(this.db, {
       name: `spawner-${task.name}`,
       runtime: 'claude_code',
       role: 'worker',
       workflow_id: this.config.workflowId,
-      workspace_path: this.config.cwd,
+      workspace_path: agentCwd ?? this.config.cwd,
       metadata: { spawned: true, task_id: task.id },
     });
 
@@ -69,11 +81,30 @@ export class AgentPool {
       );
     }
 
+    // Load prior messages for resumed tasks (Q&A context)
+    let priorMessages: string | undefined;
+    const taskMessages = this.db
+      .prepare(
+        'SELECT sender_id, body, message_type FROM messages WHERE task_id = ? ORDER BY created_at',
+      )
+      .all(task.id) as Array<{ sender_id: string; body: string; message_type: string }>;
+
+    if (taskMessages.length > 0) {
+      priorMessages = taskMessages
+        .map((m) => `[${m.message_type}] ${m.sender_id}: ${m.body}`)
+        .join('\n');
+    }
+
     // Build system prompt
     const systemPrompt = buildAgentSystemPrompt({
       agentId: agent.id,
       workflow: this.workflow,
       task,
+      branch: agentBranch,
+      worktreePath: agentCwd,
+      issueContext: this.config.issueContext,
+      humanAgentId: this.humanAgentId ?? undefined,
+      priorMessages,
     });
 
     // Create session
@@ -82,6 +113,7 @@ export class AgentPool {
       taskId: task.id,
       systemPrompt,
       config: this.config,
+      cwdOverride: agentCwd,
       onComplete: (handle) => this.handleAgentComplete(handle),
       onError: (handle, error) => this.handleAgentError(handle, error),
     };

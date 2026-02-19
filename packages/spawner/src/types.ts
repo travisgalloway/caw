@@ -11,6 +11,8 @@ export interface SpawnerConfig {
   maxBudgetUsd?: number;
   mcpServerUrl: string;
   cwd: string;
+  branch?: string;
+  issueContext?: string;
   spawnFn?: (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 }
 
@@ -74,6 +76,7 @@ export type SpawnerEvent =
   | 'agent_completed'
   | 'agent_failed'
   | 'agent_retrying'
+  | 'agent_query'
   | 'workflow_all_complete'
   | 'workflow_stalled'
   | 'workflow_failed';
@@ -83,6 +86,7 @@ export interface SpawnerEventData {
   agent_completed: { agentId: string; taskId: string; result: string };
   agent_failed: { agentId: string; taskId: string; error: string };
   agent_retrying: { agentId: string; taskId: string; attempt: number };
+  agent_query: { agentId: string; taskId: string; message: string };
   workflow_all_complete: { workflowId: string };
   workflow_stalled: { workflowId: string; reason: string };
   workflow_failed: { workflowId: string; error: string };

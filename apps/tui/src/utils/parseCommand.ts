@@ -28,6 +28,7 @@ export const SLASH_COMMANDS = [
   'add-task',
   'remove-task',
   'mark-read',
+  'reply',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];
@@ -53,6 +54,7 @@ export const COMMAND_DESCRIPTIONS: Record<SlashCommand, string> = {
   'add-task': 'Add a task to current workflow',
   'remove-task': 'Remove a task from current workflow',
   'mark-read': 'Mark messages as read',
+  reply: 'Reply to agent query',
 };
 
 export function isValidSlashCommand(command: string): command is SlashCommand {

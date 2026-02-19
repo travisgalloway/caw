@@ -2,9 +2,12 @@ import type { DatabaseType } from '@caw/core';
 import {
   agentService,
   generateId,
+  messageService,
   orchestrationService,
+  removeWorktree,
   taskService,
   workflowService,
+  workspaceService,
 } from '@caw/core';
 import type { EventListener } from './pool';
 import { AgentPool } from './pool';
@@ -28,6 +31,8 @@ export class WorkflowSpawner {
   private spawnerMetadata: SpawnerMetadata;
   private status: 'idle' | 'running' | 'suspended' | 'completed' | 'failed' = 'idle';
   private listeners = new Map<SpawnerEvent, Set<EventListener<SpawnerEvent>>>();
+  private humanAgentId: string | null = null;
+  private emittedQueryTasks = new Set<string>();
 
   constructor(
     private readonly db: DatabaseType,
@@ -95,17 +100,37 @@ export class WorkflowSpawner {
       workflowService.updateStatus(this.db, this.config.workflowId, 'in_progress');
     }
 
+    // Register human pseudo-agent for Q&A messaging
+    try {
+      const humanAgent = agentService.register(this.db, {
+        name: 'human',
+        runtime: 'human',
+        role: 'coordinator',
+        workflow_id: this.config.workflowId,
+        workspace_path: this.config.cwd,
+        metadata: { pseudo: true },
+      });
+      this.humanAgentId = humanAgent.id;
+    } catch {
+      // May already exist from a previous run
+    }
+
     // Save spawner metadata
     this.spawnerMetadata.started_at = Date.now();
     this.spawnerMetadata.suspended_at = null;
     this.saveMetadata();
 
     // Create pool
-    this.pool = new AgentPool(this.db, this.config, {
-      id: workflowData.id,
-      name: workflowData.name,
-      plan_summary: workflowData.plan_summary,
-    });
+    this.pool = new AgentPool(
+      this.db,
+      this.config,
+      {
+        id: workflowData.id,
+        name: workflowData.name,
+        plan_summary: workflowData.plan_summary,
+      },
+      this.humanAgentId,
+    );
 
     // Forward pool events
     this.forwardPoolEvents();
@@ -210,11 +235,16 @@ export class WorkflowSpawner {
       return { success: false, agentsSpawned: 0, tasksAvailable: 0, error: 'Workflow not found' };
     }
 
-    this.pool = new AgentPool(this.db, this.config, {
-      id: workflowData.id,
-      name: workflowData.name,
-      plan_summary: workflowData.plan_summary,
-    });
+    this.pool = new AgentPool(
+      this.db,
+      this.config,
+      {
+        id: workflowData.id,
+        name: workflowData.name,
+        plan_summary: workflowData.plan_summary,
+      },
+      this.humanAgentId,
+    );
     this.forwardPoolEvents();
 
     this.spawnerMetadata.suspended_at = null;
@@ -245,8 +275,25 @@ export class WorkflowSpawner {
       this.pool = null;
     }
 
+    await this.cleanupWorktrees();
     unregisterSpawner(this.config.workflowId);
     this.status = 'idle';
+  }
+
+  private async cleanupWorktrees(): Promise<void> {
+    try {
+      const workspaces = workspaceService.list(this.db, this.config.workflowId, 'active');
+      for (const ws of workspaces) {
+        try {
+          await removeWorktree(ws.path);
+          workspaceService.update(this.db, ws.id, { status: 'merged' });
+        } catch {
+          // Already cleaned up or has uncommitted changes
+        }
+      }
+    } catch {
+      // Best effort cleanup
+    }
   }
 
   getStatus(): ExecutionStatus {
@@ -317,12 +364,20 @@ export class WorkflowSpawner {
       return;
     }
 
+    // Detect agent queries (emit events for paused tasks with unanswered questions)
+    this.detectAgentQueries();
+
+    // Check for paused tasks that received a response (Q&A resumption)
+    await this.resumeAnsweredTasks();
+
     // Check for stall
     const activeCount = this.pool.getActiveCount();
+    const pausedCount = progress.by_status.paused ?? 0;
     if (
       activeCount === 0 &&
       nextTasks.tasks.length === 0 &&
-      (progress.by_status.in_progress ?? 0) === 0
+      (progress.by_status.in_progress ?? 0) === 0 &&
+      pausedCount === 0
     ) {
       this.emit('workflow_stalled', {
         workflowId: this.config.workflowId,
@@ -362,6 +417,86 @@ export class WorkflowSpawner {
     });
     this.pool.on('agent_failed', (data) => this.emit('agent_failed', data));
     this.pool.on('agent_retrying', (data) => this.emit('agent_retrying', data));
+  }
+
+  private detectAgentQueries(): void {
+    if (!this.humanAgentId) return;
+
+    // Find paused tasks with assigned agents
+    const pausedTasks = this.db
+      .prepare(
+        "SELECT id, assigned_agent_id FROM tasks WHERE workflow_id = ? AND status = 'paused'",
+      )
+      .all(this.config.workflowId) as Array<{ id: string; assigned_agent_id: string | null }>;
+
+    for (const task of pausedTasks) {
+      if (!task.assigned_agent_id || this.emittedQueryTasks.has(task.id)) continue;
+
+      // Check for unread query messages sent TO the human agent for this task
+      const queryMessages = messageService.list(this.db, this.humanAgentId, {
+        status: 'unread',
+        message_type: 'query',
+      });
+
+      const taskQuery = queryMessages.find((m) => m.task_id === task.id);
+      if (taskQuery) {
+        this.emittedQueryTasks.add(task.id);
+        this.emit('agent_query', {
+          agentId: task.assigned_agent_id,
+          taskId: task.id,
+          message: taskQuery.body,
+        });
+      }
+    }
+  }
+
+  private async resumeAnsweredTasks(): Promise<void> {
+    if (!this.pool) return;
+
+    // Find paused tasks in this workflow
+    const pausedTasks = this.db
+      .prepare(
+        "SELECT id, assigned_agent_id FROM tasks WHERE workflow_id = ? AND status = 'paused'",
+      )
+      .all(this.config.workflowId) as Array<{ id: string; assigned_agent_id: string | null }>;
+
+    for (const pausedTask of pausedTasks) {
+      if (!pausedTask.assigned_agent_id || !this.pool.hasCapacity()) continue;
+
+      // Check if there are unread 'response' messages for this agent
+      const responseMessages = messageService.list(this.db, pausedTask.assigned_agent_id, {
+        status: 'unread',
+        message_type: 'response',
+      });
+
+      if (responseMessages.length > 0) {
+        // Mark messages as read
+        messageService.markRead(
+          this.db,
+          responseMessages.map((m) => m.id),
+        );
+
+        // Transition task: paused -> in_progress, clear assignment so a new agent can claim it
+        try {
+          taskService.updateStatus(this.db, pausedTask.id, 'in_progress');
+
+          // Clear assignment directly (agent may have been unregistered already)
+          this.db
+            .prepare(
+              'UPDATE tasks SET assigned_agent_id = NULL, claimed_at = NULL, updated_at = ? WHERE id = ?',
+            )
+            .run(Date.now(), pausedTask.id);
+
+          // Fetch the full task and spawn a new agent for it
+          const task = taskService.get(this.db, pausedTask.id);
+          if (task) {
+            await this.pool.spawnAgent(task);
+          }
+        } catch {
+          // Task may have already transitioned or been claimed
+        }
+      }
+    }
   }
 
   private cleanupStaleAgents(): void {

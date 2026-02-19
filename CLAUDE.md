@@ -115,7 +115,7 @@ caw/
 │   └── web-ui/         @caw/web-ui       — SvelteKit web dashboard (static build)
 ├── tooling/
 │   └── tsconfig/       @caw/tsconfig     — Shared TypeScript configs
-├── docs/                                 — Design documentation (15 files)
+├── docs/                                 — Design documentation (16 files)
 └── scripts/                              — Utility scripts (seed.ts)
 ```
 
@@ -157,6 +157,7 @@ caw init [--yes] [--global]      # Initialize caw in repo or globally
 caw setup claude-code            # Configure Claude Code MCP integration
 caw run <workflow_id>            # Execute a workflow
 caw run --prompt "..."           # Create + plan + run from a prompt
+caw work <issues...>             # Work on GitHub issue(s): plan, execute, PR
 caw --template <name> "desc"     # Create workflow from template
 caw --list-templates             # List available templates
 ```
@@ -464,6 +465,7 @@ Detailed design docs live in `docs/`. Key references:
 | `docs/implementation.md` | Implementation notes |
 | `docs/future.md` | Roadmap and future features |
 | `docs/web-ui.md` | Web UI architecture, REST API, and WebSocket protocol |
+| `docs/self-development.md` | Using `caw work` for self-development |
 
 ---
 

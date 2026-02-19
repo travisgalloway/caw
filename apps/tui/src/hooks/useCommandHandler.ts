@@ -236,6 +236,43 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'reply') {
+        const screen = currentScreen(store);
+        if (screen.screen !== 'message-detail') {
+          store.setPromptError('Navigate to a message detail screen first. Usage: /reply <text>');
+          return;
+        }
+        if (!parsed.args) {
+          store.setPromptError('Usage: /reply <your response text>');
+          return;
+        }
+        try {
+          const message = messageService.get(db, screen.messageId);
+          if (!message) {
+            store.setPromptError(`Message not found: ${screen.messageId}`);
+            return;
+          }
+          if (!message.sender_id) {
+            store.setPromptError('Cannot reply: message has no sender');
+            return;
+          }
+          messageService.send(db, {
+            sender_id: null,
+            recipient_id: message.sender_id,
+            message_type: 'response',
+            body: parsed.args,
+            reply_to_id: message.id,
+            workflow_id: message.workflow_id ?? undefined,
+            task_id: message.task_id ?? undefined,
+          });
+          store.setPromptSuccess('Reply sent');
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(`Reply failed: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        return;
+      }
+
       if (command === 'add-task') {
         const wfId = getWorkflowId(store);
         if (!wfId) {
