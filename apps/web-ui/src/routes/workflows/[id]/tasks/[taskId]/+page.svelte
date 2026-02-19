@@ -42,13 +42,14 @@ let claimError = $state<string | null>(null);
 const workflowId = $derived($page.params.id ?? '');
 const taskId = $derived($page.params.taskId ?? '');
 
-// Valid task transitions
+// Valid task transitions (matches core state machine in transitions.ts)
 const TASK_TRANSITIONS: Record<string, string[]> = {
-  pending: ['planning', 'in_progress'],
-  planning: ['in_progress'],
-  in_progress: ['completed', 'failed', 'paused'],
+  pending: ['planning'],
+  blocked: ['planning'],
+  planning: ['in_progress', 'completed'],
+  in_progress: ['completed', 'paused', 'failed'],
   paused: ['in_progress'],
-  failed: ['in_progress'],
+  failed: ['pending', 'skipped'],
 };
 
 const validNextStates = $derived(task ? (TASK_TRANSITIONS[task.status] ?? []) : []);
