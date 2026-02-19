@@ -113,7 +113,7 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
       '',
       '## Asking for Human Input',
       'If you are blocked and need human input to proceed:',
-      `1. Call message_send({ sender_id: "${ctx.agentId}", receiver_id: "${ctx.humanAgentId}", type: "query", body: "Your question here", task_id: "${ctx.task.id}", workflow_id: "${ctx.workflow.id}" })`,
+      `1. Call message_send({ sender_id: "${ctx.agentId}", recipient_id: "${ctx.humanAgentId}", message_type: "query", body: "Your question here", task_id: "${ctx.task.id}", workflow_id: "${ctx.workflow.id}" })`,
       `2. Call task_update_status({ id: "${ctx.task.id}", status: "paused" })`,
       '3. The spawner will resume your task when a human replies.',
     );
@@ -191,7 +191,7 @@ export function buildWorkPlannerPrompt(ctx: WorkPlannerContext): string {
     '3. Break the work into focused, atomic tasks with clear dependencies',
     '4. Include a final "Create PR" task that depends on all implementation tasks',
     '5. Create the plan using workflow_set_plan',
-    '6. Transition the workflow to "ready" using workflow_transition_status',
+    '6. Transition the workflow to "ready" using workflow_update_status',
     '',
     '## Planning Rules',
     '- Each task should represent a single, focused unit of work (one file or one logical change)',
