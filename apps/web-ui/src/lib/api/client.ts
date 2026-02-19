@@ -233,4 +233,43 @@ export const api = {
       `/api/workflows/${workflowId}/lock`,
     );
   },
+
+  async lockWorkflow(id: string, sessionId: string) {
+    return request<{ locked: boolean; session_id: string; locked_at: number }>(
+      'POST',
+      `/api/workflows/${id}/lock`,
+      { session_id: sessionId },
+    );
+  },
+
+  async unlockWorkflow(id: string, sessionId: string) {
+    return request<{ success: boolean }>('POST', `/api/workflows/${id}/unlock`, {
+      session_id: sessionId,
+    });
+  },
+
+  // Task mutations
+  async claimTask(id: string, agentId: string) {
+    return request<{ success: boolean }>('POST', `/api/tasks/${id}/claim`, {
+      agent_id: agentId,
+    });
+  },
+
+  async releaseTask(id: string, agentId: string, reason?: string) {
+    return request<{ success: boolean }>('POST', `/api/tasks/${id}/release`, {
+      agent_id: agentId,
+      reason,
+    });
+  },
+
+  async addTask(
+    workflowId: string,
+    params: { name: string; description?: string; sequence?: number; parallel_group?: string },
+  ) {
+    return request<Task>('POST', `/api/workflows/${workflowId}/tasks`, params);
+  },
+
+  async removeTask(workflowId: string, taskId: string) {
+    return request<{ success: boolean }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
+  },
 };
