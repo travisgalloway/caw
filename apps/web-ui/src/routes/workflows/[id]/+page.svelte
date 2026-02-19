@@ -94,7 +94,7 @@ async function handleStatusChange(e: Event) {
   }
 }
 
-const workflowId = $derived($page.params.id);
+const workflowId = $derived($page.params.id ?? '');
 
 async function loadData() {
   try {
