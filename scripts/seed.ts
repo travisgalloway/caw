@@ -13,6 +13,8 @@
  * - 2 workspaces
  */
 
+import path from 'node:path';
+
 import {
   agentService,
   checkpointService,
@@ -55,7 +57,7 @@ const cawRepo = repositoryService.register(db, {
 });
 
 const acmeRepo = repositoryService.register(db, {
-  path: '/Users/travisgalloway/github/acme-api',
+  path: path.join(process.cwd(), '..', 'acme-api'),
   name: 'acme-api',
 });
 
@@ -173,9 +175,9 @@ console.log(`Workflow 1: ${wf1.id} — "Add user authentication" (in_progress, $
 const wf2 = workflowService.create(db, {
   name: 'Refactor database layer',
   source_type: 'issue',
-  source_ref: 'https://github.com/travisgalloway/acme-api/issues/42',
+  source_ref: 'https://github.com/example/acme-api/issues/42',
   source_content: 'Replace raw SQL queries with a query builder for better maintainability.',
-  repository_paths: ['/Users/travisgalloway/github/acme-api'],
+  repository_paths: [path.join(process.cwd(), '..', 'acme-api')],
 });
 
 const wf2Plan = workflowService.setPlan(db, wf2.id, {

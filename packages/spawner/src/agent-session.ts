@@ -80,9 +80,13 @@ export class AgentSession {
       args.push('--max-budget-usd', String(config.maxBudgetUsd));
     }
 
-    // Spawned agents are non-interactive (no TTY), so --allowedTools can't prompt
-    // for approval. Use --dangerously-skip-permissions for all spawned agents.
-    args.push('--dangerously-skip-permissions');
+    // Spawned agents are non-interactive (no TTY). Honor the configured permissionMode.
+    if (config.permissionMode === 'bypassPermissions') {
+      args.push('--dangerously-skip-permissions');
+    } else {
+      // acceptEdits: allow MCP tools but require explicit allowedTools
+      args.push('--allowedTools', 'mcp__caw__*');
+    }
 
     try {
       const spawnFn = config.spawnFn ?? spawn;

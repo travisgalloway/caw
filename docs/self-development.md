@@ -47,7 +47,7 @@ Options:
   --branch <name>           Git branch name (default: caw/issue-<n>)
   --max-agents <n>          Override max parallel agents
   --model <name>            Claude model (default: claude-sonnet-4-5)
-  --permission-mode <mode>  acceptEdits | bypassPermissions (default: bypassPermissions)
+  --permission-mode <mode>  bypassPermissions (uses --dangerously-skip-permissions) | acceptEdits (uses --allowedTools mcp__caw__*)
   --max-turns <n>           Max turns per task (default: 50)
   --max-budget <usd>        Max budget per task in USD
   --detach                  Start and run in background

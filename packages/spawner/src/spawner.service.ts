@@ -429,16 +429,24 @@ export class WorkflowSpawner {
       )
       .all(this.config.workflowId) as Array<{ id: string; assigned_agent_id: string | null }>;
 
+    // Fetch all unread query messages for the human agent once (avoid O(n) DB queries)
+    const queryMessages = messageService.list(this.db, this.humanAgentId, {
+      status: 'unread',
+      message_type: 'query',
+    });
+
+    // Index by task_id for efficient lookup
+    const queryByTaskId = new Map<string, (typeof queryMessages)[0]>();
+    for (const msg of queryMessages) {
+      if (msg.task_id && !queryByTaskId.has(msg.task_id)) {
+        queryByTaskId.set(msg.task_id, msg);
+      }
+    }
+
     for (const task of pausedTasks) {
       if (!task.assigned_agent_id || this.emittedQueryTasks.has(task.id)) continue;
 
-      // Check for unread query messages sent TO the human agent for this task
-      const queryMessages = messageService.list(this.db, this.humanAgentId, {
-        status: 'unread',
-        message_type: 'query',
-      });
-
-      const taskQuery = queryMessages.find((m) => m.task_id === task.id);
+      const taskQuery = queryByTaskId.get(task.id);
       if (taskQuery) {
         this.emittedQueryTasks.add(task.id);
         this.emit('agent_query', {
@@ -463,14 +471,16 @@ export class WorkflowSpawner {
     for (const pausedTask of pausedTasks) {
       if (!pausedTask.assigned_agent_id || !this.pool.hasCapacity()) continue;
 
-      // Check if there are unread 'response' messages for this agent
-      const responseMessages = messageService.list(this.db, pausedTask.assigned_agent_id, {
-        status: 'unread',
-        message_type: 'response',
-      });
+      // Check if there are unread 'response' messages for this task
+      const responseMessages = messageService
+        .list(this.db, pausedTask.assigned_agent_id, {
+          status: 'unread',
+          message_type: 'response',
+        })
+        .filter((m) => m.task_id === pausedTask.id);
 
       if (responseMessages.length > 0) {
-        // Mark messages as read
+        // Mark only the relevant messages as read
         messageService.markRead(
           this.db,
           responseMessages.map((m) => m.id),
