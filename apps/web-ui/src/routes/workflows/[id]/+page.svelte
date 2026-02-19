@@ -28,15 +28,17 @@ let pollInterval: ReturnType<typeof setInterval>;
 // Action button state
 let actionLoading = $state<string | null>(null);
 let actionError = $state<string | null>(null);
-const browserSessionId = crypto.randomUUID();
+// TODO: Lock/unlock requires a registered session_id from the sessions table.
+// For now, disable lock buttons until the web UI has session registration.
+const browserSessionId: string | null = null;
 
-// Valid workflow status transitions
+// Valid workflow status transitions (matches core state machine in transitions.ts)
 const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
-  planning: ['ready'],
-  ready: ['in_progress'],
+  planning: ['ready', 'abandoned'],
+  ready: ['in_progress', 'abandoned'],
   in_progress: ['paused', 'completed', 'failed', 'abandoned'],
   paused: ['in_progress', 'abandoned'],
-  failed: ['in_progress', 'abandoned'],
+  failed: ['in_progress'],
 };
 
 const validTransitions = $derived(workflow ? (WORKFLOW_TRANSITIONS[workflow.status] ?? []) : []);
@@ -44,7 +46,7 @@ const validTransitions = $derived(workflow ? (WORKFLOW_TRANSITIONS[workflow.stat
 const isLocked = $derived(!!workflow?.locked_by_session_id);
 
 async function handleLockToggle() {
-  if (!workflow) return;
+  if (!workflow || !browserSessionId) return;
   actionLoading = 'lock';
   actionError = null;
   try {
@@ -176,8 +178,9 @@ const completedTasks = $derived(
             {isLocked
               ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
               : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}"
-          disabled={actionLoading === 'lock'}
+          disabled={actionLoading === 'lock' || !browserSessionId}
           onclick={handleLockToggle}
+          title={browserSessionId ? undefined : 'Lock requires session registration (not yet implemented)'}
         >
           {#if actionLoading === 'lock'}
             <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>

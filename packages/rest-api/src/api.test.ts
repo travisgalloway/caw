@@ -164,7 +164,7 @@ describe('task routes', () => {
 
   test('POST /api/workflows/:id/tasks adds a task', async () => {
     const wf = createWorkflowWithTasks();
-    // Move workflow to ready so replanning is allowed
+    // Move workflow to in_progress so replanning is allowed
     workflowService.updateStatus(db, wf.id, 'in_progress');
 
     const res = await req('POST', `/api/workflows/${wf.id}/tasks`, {

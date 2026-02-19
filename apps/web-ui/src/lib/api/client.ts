@@ -266,10 +266,18 @@ export const api = {
     workflowId: string,
     params: { name: string; description?: string; sequence?: number; parallel_group?: string },
   ) {
-    return request<Task>('POST', `/api/workflows/${workflowId}/tasks`, params);
+    return request<{ task_id: string; sequence: number; workflow_id: string }>(
+      'POST',
+      `/api/workflows/${workflowId}/tasks`,
+      params,
+    );
   },
 
   async removeTask(workflowId: string, taskId: string) {
-    return request<{ success: boolean }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
+    return request<{
+      removed_task_id: string;
+      dependencies_rewired: number;
+      tasks_renumbered: number;
+    }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
   },
 };
