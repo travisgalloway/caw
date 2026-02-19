@@ -39,8 +39,8 @@ let claimAgentId = $state('');
 let claimSubmitting = $state(false);
 let claimError = $state<string | null>(null);
 
-const workflowId = $derived($page.params.id!);
-const taskId = $derived($page.params.taskId!);
+const workflowId = $derived($page.params.id ?? '');
+const taskId = $derived($page.params.taskId ?? '');
 
 // Valid task transitions
 const TASK_TRANSITIONS: Record<string, string[]> = {
