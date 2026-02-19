@@ -10,4 +10,5 @@ dist/
 coverage/
 .DS_Store
 .caw/
+.claude/settings.json
 --version/
