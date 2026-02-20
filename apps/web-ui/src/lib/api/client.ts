@@ -150,7 +150,14 @@ export const api = {
     return request<Workflow>('GET', `/api/workflows/${id}`);
   },
 
-  async createWorkflow(params: { name: string; source_type: string; source_content?: string }) {
+  async createWorkflow(params: {
+    name: string;
+    source_type: string;
+    source_content?: string;
+    source_ref?: string;
+    max_parallel_tasks?: number;
+    auto_create_workspaces?: boolean;
+  }) {
     return request<Workflow>('POST', '/api/workflows', params);
   },
 
