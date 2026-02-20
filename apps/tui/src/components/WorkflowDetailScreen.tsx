@@ -54,6 +54,7 @@ interface WorkspaceRow {
   branch: string;
   path: string;
   status: string;
+  pr_url: string | null;
 }
 
 const taskColumns: Column<TaskRow>[] = [
@@ -134,6 +135,9 @@ function detailHints(tab: WorkflowTab): HintItem[] {
   if (tab === 'tasks') {
     return [...base, { key: '/dag /tree /table', desc: 'switch view' }];
   }
+  if (tab === 'workspaces') {
+    return [...base, { key: '/merge /rebase', desc: 'merge or rebase' }];
+  }
   return base;
 }
 
@@ -148,6 +152,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
   const push = useAppStore((s) => s.push);
   const taskViewMode = useAppStore((s) => s.taskViewMode);
   const promptFocused = useAppStore((s) => s.promptFocused);
+  const setSelectedWorkspaceId = useAppStore((s) => s.setSelectedWorkspaceId);
 
   const [taskIdx, setTaskIdx] = useState(0);
   const [agentIdx, setAgentIdx] = useState(0);
@@ -232,6 +237,7 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
     branch: ws.branch,
     path: ws.path,
     status: ws.status,
+    pr_url: ws.pr_url,
   }));
 
   const handleTabChange = (name: string) => {
@@ -320,11 +326,20 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
             data={wsRows}
             columns={workspaceColumns}
             selectedIndex={wsIdx}
-            onSelectIndex={setWsIdx}
+            onSelectIndex={(idx) => {
+              setWsIdx(idx);
+              setSelectedWorkspaceId(wsRows[idx]?.id ?? null);
+            }}
             onConfirm={() => {}}
             isFocused={!promptFocused}
             emptyMessage="No workspaces"
           />
+        )}
+        {tab === 'workspaces' && wsRows[wsIdx]?.pr_url && (
+          <Box paddingX={2}>
+            <Text dimColor>PR: </Text>
+            <Text color="cyan">{wsRows[wsIdx].pr_url}</Text>
+          </Box>
         )}
       </Box>
 

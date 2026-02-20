@@ -104,7 +104,9 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
       '2. Push the branch: git push -u origin <branch>',
       '3. Create the PR using: gh pr create --title "..." --body "..."',
       '4. Include "Closes #<issue_number>" in the PR body to auto-link the issue',
-      '5. Record the PR URL in your task outcome',
+      '5. Capture the PR URL from the gh output',
+      '6. Call workspace_update({ id: "<workspaceId>", pr_url: "<url>" }) to store the PR URL',
+      '7. Record the PR URL in your task outcome',
     );
   }
 
@@ -138,6 +140,52 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
   }
 
   return lines.join('\n');
+}
+
+export interface RebaseContext {
+  workspaceId: string;
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  prUrl: string;
+}
+
+export function buildRebaseAgentPrompt(ctx: RebaseContext): string {
+  return [
+    'You are a rebase agent. Your job is to rebase a feature branch onto the updated base branch, resolve any merge conflicts, verify the build, and force-push.',
+    '',
+    '## Context',
+    `- Workspace ID: ${ctx.workspaceId}`,
+    `- Worktree path: ${ctx.worktreePath}`,
+    `- Feature branch: ${ctx.branch}`,
+    `- Base branch: ${ctx.baseBranch}`,
+    `- PR URL: ${ctx.prUrl}`,
+    '',
+    '## Steps',
+    '',
+    `1. Change to the worktree directory: cd ${ctx.worktreePath}`,
+    `2. Fetch the latest base branch: git fetch origin ${ctx.baseBranch}`,
+    `3. Start the rebase: git rebase origin/${ctx.baseBranch}`,
+    '4. If conflicts arise:',
+    '   - For each conflicting file, read both sides of the conflict',
+    '   - Understand the intent of both changes and apply both correctly',
+    '   - Stage resolved files with: git add <file>',
+    '   - Continue the rebase with: git rebase --continue',
+    '   - Repeat until all conflicts are resolved',
+    '5. After the rebase completes, run verification:',
+    '   - bun run build',
+    '   - bun run test',
+    '   - bun run lint',
+    '6. If verification fails, fix the issues and amend the relevant commit',
+    `7. Force-push the rebased branch: git push --force-with-lease origin ${ctx.branch}`,
+    `8. Verify the PR is no longer conflicting: gh pr view ${ctx.prUrl} --json mergeable`,
+    '',
+    '## Rules',
+    '- Do NOT create new branches or switch away from the current branch',
+    '- Do NOT modify files outside the worktree',
+    '- If the rebase cannot be completed cleanly, abort with: git rebase --abort',
+    '- Prefer --force-with-lease over --force for safety',
+  ].join('\n');
 }
 
 export function buildPlannerSystemPrompt(workflowId: string, prompt: string): string {

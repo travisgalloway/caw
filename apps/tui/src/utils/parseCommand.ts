@@ -29,6 +29,9 @@ export const SLASH_COMMANDS = [
   'remove-task',
   'mark-read',
   'reply',
+  'merge',
+  'rebase',
+  'work',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];
@@ -55,6 +58,9 @@ export const COMMAND_DESCRIPTIONS: Record<SlashCommand, string> = {
   'remove-task': 'Remove a task from current workflow',
   'mark-read': 'Mark messages as read',
   reply: 'Reply to agent query',
+  merge: 'Mark workspace as merged',
+  rebase: 'Rebase workspace branch onto main',
+  work: 'Work on GitHub issue(s)',
 };
 
 export function isValidSlashCommand(command: string): command is SlashCommand {

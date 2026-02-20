@@ -61,17 +61,20 @@ function toRows(agents: Agent[]): AgentRow[] {
 
 export function GlobalAgentList(): React.JSX.Element {
   const { data, error } = useAgents();
+  const showAll = useAppStore((s) => s.showAll);
   const promptFocused = useAppStore((s) => s.promptFocused);
   const push = useAppStore((s) => s.push);
   const [selectedIndex, setSelectedIndex] = useState(0);
 
-  const activeAgents = toRows((data ?? []).filter((a) => a.status !== 'offline'));
+  const agents = toRows(
+    showAll ? (data ?? []) : (data ?? []).filter((a) => a.status !== 'offline'),
+  );
 
   useEffect(() => {
-    if (activeAgents.length > 0 && selectedIndex >= activeAgents.length) {
-      setSelectedIndex(activeAgents.length - 1);
+    if (agents.length > 0 && selectedIndex >= agents.length) {
+      setSelectedIndex(agents.length - 1);
     }
-  }, [activeAgents.length, selectedIndex]);
+  }, [agents.length, selectedIndex]);
 
   if (error) {
     return (
@@ -83,9 +86,11 @@ export function GlobalAgentList(): React.JSX.Element {
 
   return (
     <Box flexDirection="column" paddingX={1} flexGrow={1}>
-      <Text bold>Active Agents ({activeAgents.length})</Text>
+      <Text bold>
+        {showAll ? `All Agents (${agents.length})` : `Active Agents (${agents.length})`}
+      </Text>
       <SelectableTable
-        data={activeAgents}
+        data={agents}
         columns={agentColumns}
         selectedIndex={selectedIndex}
         onSelectIndex={setSelectedIndex}
@@ -93,7 +98,7 @@ export function GlobalAgentList(): React.JSX.Element {
           push({ screen: 'agent-detail', workflowId: item.workflow_id, agentId: item.id });
         }}
         isFocused={!promptFocused}
-        emptyMessage="No active agents"
+        emptyMessage={showAll ? 'No agents' : 'No active agents'}
       />
     </Box>
   );

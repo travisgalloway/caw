@@ -11,6 +11,7 @@ function printUsage(): void {
        caw run <workflow_id> [options]
        caw run --prompt "..." [options]
        caw work <issues...> [options]
+       caw pr list|check|merge|rebase [workflow_id|workspace_id]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -186,6 +187,64 @@ Options:
 
   daemon.cleanup();
   runDb.close();
+  process.exit(0);
+}
+
+if (subcommand === 'pr') {
+  const prSubcommand = process.argv[3];
+  const { values: prValues, positionals: prPositionals } = parseArgs({
+    args: process.argv.slice(4),
+    options: {
+      'pr-url': { type: 'string' },
+      'merge-commit': { type: 'string' },
+      model: { type: 'string' },
+      port: { type: 'string' },
+      db: { type: 'string' },
+      help: { type: 'boolean', short: 'h', default: false },
+    },
+    strict: true,
+    allowPositionals: true,
+  });
+
+  if (prValues.help || !prSubcommand) {
+    console.log(`Usage: caw pr list [workflow_id]
+       caw pr check [workflow_id]
+       caw pr merge <workspace_id|workflow_id> --pr-url <url> [--merge-commit <sha>]
+       caw pr rebase <workspace_id|workflow_id> [--model <name>]
+
+Commands:
+  list              List workflows awaiting PR merge
+  check             Check PR merge status, clean up merged worktrees
+  merge             Manually mark a workspace as merged
+  rebase            Rebase conflicting PRs onto updated main branch
+
+Options:
+  --pr-url <url>        PR URL (required for merge if not already set on workspace)
+  --merge-commit <sha>  Merge commit SHA (fetched from GitHub if omitted)
+  --model <name>        Claude model for rebase agent (default: claude-sonnet-4-5)
+  --port <number>       Daemon port (default: 3100)
+  --db <path>           Database file path
+  -h, --help            Show this help message
+`);
+    process.exit(prValues.help ? 0 : 1);
+  }
+
+  const prDbPath = prValues.db ?? getDbPath('per-repo', process.cwd());
+  const prDb = createConnection(prDbPath);
+  runMigrations(prDb);
+
+  const { runPr } = await import('../commands/pr');
+  await runPr(prDb, {
+    subcommand: prSubcommand,
+    workflowId: prPositionals[0],
+    repoPath: process.cwd(),
+    prUrl: prValues['pr-url'],
+    mergeCommit: prValues['merge-commit'],
+    model: prValues.model,
+    port: prValues.port ? Number(prValues.port) : undefined,
+  });
+
+  prDb.close();
   process.exit(0);
 }
 

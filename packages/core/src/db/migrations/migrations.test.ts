@@ -77,7 +77,7 @@ describe('runMigrations', () => {
     runMigrations(db);
 
     const versions = getAppliedVersions(db);
-    expect(versions).toEqual([1, 2, 3, 4]);
+    expect(versions).toEqual([1, 2, 3, 4, 5]);
 
     db.close();
   });
@@ -91,7 +91,7 @@ describe('runMigrations', () => {
     expect(tables).toHaveLength(12);
 
     const versions = getAppliedVersions(db);
-    expect(versions).toEqual([1, 2, 3, 4]);
+    expect(versions).toEqual([1, 2, 3, 4, 5]);
 
     db.close();
   });

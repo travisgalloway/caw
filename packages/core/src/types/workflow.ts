@@ -3,6 +3,7 @@ export type WorkflowStatus =
   | 'ready'
   | 'in_progress'
   | 'paused'
+  | 'awaiting_merge'
   | 'completed'
   | 'failed'
   | 'abandoned';

@@ -3,6 +3,7 @@ export type {
   CawConfig,
   DbMode,
   LoadConfigResult,
+  PrConfig,
   TransportType as ConfigTransportType,
   ValidationResult,
 } from './config/index';
@@ -47,6 +48,7 @@ export {
   lockService,
   messageService,
   orchestrationService,
+  prService,
   repositoryService,
   sessionService,
   TASK_TRANSITIONS,
@@ -77,6 +79,10 @@ export type {
   ParallelGroupStats,
   ProgressResult,
 } from './services/orchestration.service';
+export type {
+  MergeCheckResult,
+  PrStatus,
+} from './services/pr.service';
 export type { SessionRegisterParams } from './services/session.service';
 export type {
   ClaimResult,

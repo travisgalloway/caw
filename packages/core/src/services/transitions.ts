@@ -4,8 +4,9 @@ import type { WorkflowStatus } from '../types/workflow';
 export const WORKFLOW_TRANSITIONS: Record<WorkflowStatus, readonly WorkflowStatus[]> = {
   planning: ['ready', 'abandoned'],
   ready: ['in_progress', 'abandoned'],
-  in_progress: ['paused', 'completed', 'failed', 'abandoned'],
+  in_progress: ['paused', 'completed', 'failed', 'abandoned', 'awaiting_merge'],
   paused: ['in_progress', 'abandoned'],
+  awaiting_merge: ['completed', 'abandoned'],
   failed: ['in_progress'],
   completed: [],
   abandoned: [],

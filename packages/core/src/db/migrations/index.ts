@@ -3,6 +3,7 @@ import { sql as initialSql } from './001_initial';
 import { sql as sessionsSql } from './002_sessions';
 import { sql as workflowLocksSql } from './003_workflow_locks';
 import { sql as agentWorkflowIdSql } from './004_agent_workflow_id';
+import { sql as workspacePrUrlSql } from './005_workspace_pr_url';
 
 export interface Migration {
   version: number;
@@ -15,6 +16,7 @@ const migrations: Migration[] = [
   { version: 2, name: '002_sessions', sql: sessionsSql },
   { version: 3, name: '003_workflow_locks', sql: workflowLocksSql },
   { version: 4, name: '004_agent_workflow_id', sql: agentWorkflowIdSql },
+  { version: 5, name: '005_workspace_pr_url', sql: workspacePrUrlSql },
 ];
 
 export function ensureMigrationsTable(db: DatabaseType): void {

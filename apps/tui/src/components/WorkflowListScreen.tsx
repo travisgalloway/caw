@@ -19,7 +19,14 @@ import { StatsSummary } from './StatsSummary';
 import { StatusIndicator } from './StatusIndicator';
 import { SystemInfo } from './SystemInfo';
 
-const ACTIVE_STATUSES: WorkflowStatus[] = ['in_progress', 'paused', 'failed', 'ready', 'planning'];
+const ACTIVE_STATUSES: WorkflowStatus[] = [
+  'in_progress',
+  'paused',
+  'failed',
+  'ready',
+  'planning',
+  'awaiting_merge',
+];
 
 const MAIN_TAB_NAMES: MainTab[] = ['workflows', 'agents', 'messages'];
 
@@ -77,7 +84,7 @@ const workflowColumns: Column<WorkflowListItem>[] = [
 ];
 
 function WorkflowsTab(): React.JSX.Element {
-  const showAll = useAppStore((s) => s.showAllWorkflows);
+  const showAll = useAppStore((s) => s.showAll);
   const promptFocused = useAppStore((s) => s.promptFocused);
   const push = useAppStore((s) => s.push);
 
@@ -155,7 +162,7 @@ function hintsForTab(tab: MainTab, showAll: boolean): HintItem[] {
 export function WorkflowListScreen(): React.JSX.Element {
   const mainTab = useAppStore((s) => s.mainTab);
   const setMainTab = useAppStore((s) => s.setMainTab);
-  const showAll = useAppStore((s) => s.showAllWorkflows);
+  const showAll = useAppStore((s) => s.showAll);
 
   const handleTabChange = (name: string) => {
     if (MAIN_TAB_NAMES.includes(name as MainTab)) {

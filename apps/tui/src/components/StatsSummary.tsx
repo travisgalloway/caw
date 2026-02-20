@@ -9,7 +9,14 @@ import { usePolling } from '../hooks/usePolling';
 import { useAppStore } from '../store';
 import { THEME } from '../utils/theme';
 
-const ACTIVE_STATUSES: WorkflowStatus[] = ['in_progress', 'paused', 'failed', 'ready', 'planning'];
+const ACTIVE_STATUSES: WorkflowStatus[] = [
+  'in_progress',
+  'paused',
+  'failed',
+  'ready',
+  'planning',
+  'awaiting_merge',
+];
 
 export function StatsSummary(): React.JSX.Element {
   const db = useDb();

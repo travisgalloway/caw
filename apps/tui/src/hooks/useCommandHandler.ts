@@ -1,4 +1,10 @@
-import { lockService, messageService, workflowService } from '@caw/core';
+import {
+  lockService,
+  messageService,
+  prService,
+  workflowService,
+  workspaceService,
+} from '@caw/core';
 import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
@@ -92,13 +98,9 @@ export function useCommandHandler(): (input: string) => void {
       }
 
       if (command === 'all') {
-        store.toggleShowAllWorkflows();
-        const screen = currentScreen(store);
-        if (screen.screen !== 'workflow-list') {
-          store.resetTo({ screen: 'workflow-list' });
-        }
-        const next = !store.showAllWorkflows;
-        store.setPromptSuccess(next ? 'Showing all workflows' : 'Showing active workflows only');
+        store.toggleShowAll();
+        const next = !store.showAll;
+        store.setPromptSuccess(next ? 'Showing all' : 'Showing active only');
         return;
       }
 
@@ -295,6 +297,32 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'work') {
+        if (!parsed.args) {
+          store.setPromptError('Usage: /work <issue_number...>');
+          return;
+        }
+        if (!sessionInfo?.port) {
+          store.setPromptError('No active server session — cannot run work');
+          return;
+        }
+        const issues = parsed.args.split(/\s+/).filter(Boolean);
+        store.setPromptSuccess('Starting work on issue(s)...');
+        Promise.resolve().then(async () => {
+          try {
+            const { runWork } = await import('../commands/work');
+            await runWork(db, { issues, port: sessionInfo.port });
+            store.setPromptSuccess('Work started');
+            store.triggerRefresh();
+          } catch (err) {
+            store.setPromptError(
+              `Work failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        });
+        return;
+      }
+
       if (command === 'remove-task') {
         const wfId = getWorkflowId(store);
         if (!wfId) {
@@ -315,6 +343,135 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError(
             `Remove task failed: ${err instanceof Error ? err.message : String(err)}`,
           );
+        }
+        return;
+      }
+
+      if (command === 'rebase') {
+        const wsId = parsed.args ?? store.selectedWorkspaceId;
+        if (!wsId) {
+          store.setPromptError(
+            'No workspace selected. Select one in the Workspaces tab or use: /rebase <workspace_id>',
+          );
+          return;
+        }
+        try {
+          const workspace = workspaceService.get(db, wsId);
+          if (!workspace) {
+            store.setPromptError(`Workspace not found: ${wsId}`);
+            return;
+          }
+          if (workspace.status !== 'active') {
+            store.setPromptError(
+              `Cannot rebase: workspace status is '${workspace.status}' (must be active)`,
+            );
+            return;
+          }
+          if (!workspace.pr_url) {
+            store.setPromptError('Cannot rebase: workspace has no PR URL');
+            return;
+          }
+          store.setPromptSuccess('Checking PR conflict status...');
+          const prUrl = workspace.pr_url;
+          const worktreePath = workspace.path;
+          const branch = workspace.branch;
+          const wsIdCopy = wsId;
+          Promise.resolve().then(async () => {
+            try {
+              const status = prService.checkPrStatus(prUrl);
+              if (status.merged) {
+                store.setPromptError('PR is already merged');
+                return;
+              }
+              if (status.mergeable !== 'CONFLICTING') {
+                store.setPromptSuccess(`PR has no conflicts (${status.mergeable})`);
+                return;
+              }
+              store.setPromptSuccess('Rebasing — spawning agent...');
+              const { spawnRebaseAgent } = await import('../commands/pr');
+              await spawnRebaseAgent({
+                workspaceId: wsIdCopy,
+                worktreePath,
+                branch,
+                baseBranch: workspace.base_branch ?? 'main',
+                prUrl,
+                port: sessionInfo?.port,
+                onProgress: (event, message) => {
+                  if (event === 'start') store.setPromptSuccess('Rebasing — agent started...');
+                  if (event === 'tick') store.setPromptSuccess('Rebasing — agent working...');
+                  if (event === 'error') store.setPromptError(`Rebase failed: ${message}`);
+                  if (event === 'done') {
+                    store.setPromptSuccess('Rebase completed');
+                    store.triggerRefresh();
+                  }
+                },
+              });
+            } catch (err) {
+              store.setPromptError(
+                `Rebase failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          });
+        } catch (err) {
+          store.setPromptError(
+            `Rebase failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        return;
+      }
+
+      if (command === 'merge') {
+        const wsId = parsed.args ?? store.selectedWorkspaceId;
+        if (!wsId) {
+          store.setPromptError(
+            'No workspace selected. Select one in the Workspaces tab or use: /merge <workspace_id>',
+          );
+          return;
+        }
+        try {
+          const workspace = workspaceService.get(db, wsId);
+          if (!workspace) {
+            store.setPromptError(`Workspace not found: ${wsId}`);
+            return;
+          }
+          if (workspace.status !== 'active') {
+            store.setPromptError(
+              `Cannot merge: workspace status is '${workspace.status}' (must be active)`,
+            );
+            return;
+          }
+          if (!workspace.pr_url) {
+            store.setPromptError('Cannot merge: workspace has no PR URL');
+            return;
+          }
+          store.setPromptSuccess('Checking PR status...');
+          const prUrl = workspace.pr_url;
+          const wfId = workspace.workflow_id;
+          Promise.resolve().then(async () => {
+            try {
+              const status = prService.checkPrStatus(prUrl);
+              if (!status.merged) {
+                store.setPromptError(`PR is not merged (state: ${status.state})`);
+                return;
+              }
+              await prService.completeMerge(db, wsId, status.mergeCommit ?? '', workspace.path);
+              // Check if all workspaces for this workflow are now merged
+              const remaining = workspaceService.list(db, wfId, 'active');
+              if (remaining.length === 0) {
+                workflowService.updateStatus(db, wfId, 'completed');
+                store.setPromptSuccess('Workspace merged — workflow completed');
+              } else {
+                store.setPromptSuccess(`Workspace merged (${remaining.length} still active)`);
+              }
+              store.triggerRefresh();
+            } catch (err) {
+              store.setPromptError(
+                `Merge failed: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          });
+        } catch (err) {
+          store.setPromptError(`Merge failed: ${err instanceof Error ? err.message : String(err)}`);
         }
         return;
       }
