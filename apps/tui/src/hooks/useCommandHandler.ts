@@ -295,6 +295,32 @@ export function useCommandHandler(): (input: string) => void {
         return;
       }
 
+      if (command === 'work') {
+        if (!parsed.args) {
+          store.setPromptError('Usage: /work <issue_number...>');
+          return;
+        }
+        if (!sessionInfo?.port) {
+          store.setPromptError('No active server session — cannot run work');
+          return;
+        }
+        const issues = parsed.args.split(/\s+/);
+        store.setPromptSuccess('Starting work on issue(s)...');
+        Promise.resolve().then(async () => {
+          try {
+            const { runWork } = await import('../commands/work');
+            await runWork(db, { issues, port: sessionInfo.port });
+            store.setPromptSuccess('Work started');
+            store.triggerRefresh();
+          } catch (err) {
+            store.setPromptError(
+              `Work failed: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+        });
+        return;
+      }
+
       if (command === 'remove-task') {
         const wfId = getWorkflowId(store);
         if (!wfId) {
