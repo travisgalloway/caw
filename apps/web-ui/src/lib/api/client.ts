@@ -153,6 +153,13 @@ export interface TaskDependencies {
   dependents: TaskDependency[];
 }
 
+export interface StatsSummary {
+  active_workflows: number;
+  online_agents: number;
+  unread_messages: number;
+  completed_today: number;
+}
+
 export const api = {
   // Workflows
   async listWorkflows(params?: { status?: string; limit?: number; offset?: number }) {
@@ -321,5 +328,10 @@ export const api = {
     return request<{ success: boolean }>('POST', `/api/workflows/${id}/unlock`, {
       session_id: sessionId,
     });
+  },
+
+  // Stats
+  async getStatsSummary() {
+    return request<StatsSummary>('GET', '/api/stats/summary');
   },
 };
