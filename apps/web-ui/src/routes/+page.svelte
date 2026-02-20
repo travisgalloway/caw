@@ -3,6 +3,7 @@ import { onDestroy, onMount } from 'svelte';
 import { api, type WorkflowSummary } from '$lib/api/client';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
+import WorkflowCreateForm from '$lib/components/WorkflowCreateForm.svelte';
 import { wsStore } from '$lib/stores/ws';
 
 let workflows = $state<WorkflowSummary[]>([]);
@@ -10,6 +11,7 @@ let total = $state(0);
 let loading = $state(true);
 let error = $state<string | null>(null);
 let showAll = $state(false);
+let showCreateDialog = $state(false);
 let pollInterval: ReturnType<typeof setInterval>;
 
 const activeStatuses = 'planning,ready,in_progress,paused,awaiting_merge';
@@ -55,6 +57,12 @@ $effect(() => {
       <p class="text-sm text-gray-500">{total} workflow{total !== 1 ? 's' : ''}</p>
     </div>
     <div class="flex items-center gap-2">
+      <button
+        class="rounded-md bg-blue-600 px-3 py-1.5 text-sm font-medium text-white transition-colors hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+        onclick={() => { showCreateDialog = true; }}
+      >
+        New Workflow
+      </button>
       <button
         class="rounded-md px-3 py-1.5 text-sm transition-colors
           {showAll
@@ -115,3 +123,12 @@ $effect(() => {
     </div>
   {/if}
 </div>
+
+<WorkflowCreateForm
+  open={showCreateDialog}
+  onclose={() => { showCreateDialog = false; }}
+  oncreate={() => {
+    showCreateDialog = false;
+    loadWorkflows();
+  }}
+/>
