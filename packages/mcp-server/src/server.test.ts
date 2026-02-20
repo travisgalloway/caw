@@ -4,13 +4,13 @@ import { createMcpServer } from './server';
 import { getRegisteredTools } from './tools/__test-utils';
 
 describe('createMcpServer', () => {
-  test('registers all 56 tools', () => {
+  test('registers all 57 tools', () => {
     const db = createConnection(':memory:');
     runMigrations(db);
     const server = createMcpServer(db);
 
     const tools = getRegisteredTools(server);
-    expect(Object.keys(tools).length).toBe(56);
+    expect(Object.keys(tools).length).toBe(57);
   });
 
   test('all tool names follow entity_action naming convention', () => {

@@ -4,6 +4,7 @@ export * as contextService from './context.service';
 export * as lockService from './lock.service';
 export * as messageService from './message.service';
 export * as orchestrationService from './orchestration.service';
+export * as prService from './pr.service';
 export * as repositoryService from './repository.service';
 export * as sessionService from './session.service';
 export * as taskService from './task.service';

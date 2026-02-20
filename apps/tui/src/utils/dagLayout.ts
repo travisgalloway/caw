@@ -51,6 +51,7 @@ const statusColors: Record<string, string> = {
   failed: 'red',
   skipped: 'gray',
   paused: 'yellow',
+  awaiting_merge: 'yellow',
 };
 
 function statusColor(status: string): string {

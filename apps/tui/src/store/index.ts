@@ -21,7 +21,7 @@ interface AppState {
   navStack: NavScreen[];
 
   mainTab: MainTab;
-  showAllWorkflows: boolean;
+  showAll: boolean;
   taskViewMode: TaskViewMode;
   messageStatusFilter: MessageStatusFilter;
   pollInterval: number;
@@ -30,6 +30,7 @@ interface AppState {
   promptFocused: boolean;
   promptError: string | null;
   promptSuccess: string | null;
+  selectedWorkspaceId: string | null;
 
   push: (frame: NavScreen) => void;
   pop: () => void;
@@ -38,7 +39,7 @@ interface AppState {
   setWorkflowTab: (tab: WorkflowTab) => void;
   setMainTab: (tab: MainTab) => void;
 
-  toggleShowAllWorkflows: () => void;
+  toggleShowAll: () => void;
   setTaskViewMode: (mode: TaskViewMode) => void;
   setMessageStatusFilter: (filter: MessageStatusFilter) => void;
   setPollInterval: (interval: number) => void;
@@ -46,6 +47,7 @@ interface AppState {
   setPromptFocused: (focused: boolean) => void;
   setPromptError: (error: string | null) => void;
   setPromptSuccess: (success: string | null) => void;
+  setSelectedWorkspaceId: (id: string | null) => void;
   triggerRefresh: () => void;
   clearPromptFeedback: () => void;
 }
@@ -54,7 +56,7 @@ export const useAppStore = create<AppState>((set) => ({
   navStack: [{ screen: 'workflow-list' }],
 
   mainTab: 'workflows',
-  showAllWorkflows: false,
+  showAll: false,
   taskViewMode: 'table',
   messageStatusFilter: 'all',
   pollInterval: 2000,
@@ -63,6 +65,7 @@ export const useAppStore = create<AppState>((set) => ({
   promptFocused: false,
   promptError: null,
   promptSuccess: null,
+  selectedWorkspaceId: null,
 
   push: (frame) => set((s) => ({ navStack: [...s.navStack, frame] })),
   pop: () => set((s) => (s.navStack.length > 1 ? { navStack: s.navStack.slice(0, -1) } : s)),
@@ -84,7 +87,7 @@ export const useAppStore = create<AppState>((set) => ({
 
   setMainTab: (tab) => set({ mainTab: tab }),
 
-  toggleShowAllWorkflows: () => set((s) => ({ showAllWorkflows: !s.showAllWorkflows })),
+  toggleShowAll: () => set((s) => ({ showAll: !s.showAll })),
   setTaskViewMode: (mode) => set({ taskViewMode: mode }),
   setMessageStatusFilter: (filter) => set({ messageStatusFilter: filter }),
   setPollInterval: (interval) => set({ pollInterval: interval }),
@@ -92,6 +95,7 @@ export const useAppStore = create<AppState>((set) => ({
   setPromptFocused: (focused) => set({ promptFocused: focused }),
   setPromptError: (error) => set({ promptError: error }),
   setPromptSuccess: (success) => set({ promptSuccess: success }),
+  setSelectedWorkspaceId: (id) => set({ selectedWorkspaceId: id }),
   triggerRefresh: () => set({ lastRefreshAt: Date.now() }),
   clearPromptFeedback: () => set({ promptError: null, promptSuccess: null }),
 }));

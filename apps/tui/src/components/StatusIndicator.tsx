@@ -19,6 +19,7 @@ const workflowStyles: Record<string, SymbolStyle> = {
   completed: { symbol: '✓', color: 'blue' },
   failed: { symbol: '✗', color: 'red' },
   abandoned: { symbol: '○', color: 'gray' },
+  awaiting_merge: { symbol: '◐', color: 'yellow' },
   planning: { symbol: '○', color: 'gray' },
   ready: { symbol: '○', color: 'gray' },
 };

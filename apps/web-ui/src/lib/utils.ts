@@ -27,6 +27,7 @@ export const statusColors: Record<string, string> = {
   failed: 'bg-status-failed text-white',
   paused: 'bg-status-paused text-white',
   abandoned: 'bg-status-abandoned text-white',
+  awaiting_merge: 'bg-amber-500 text-black',
   pending: 'bg-status-pending text-black',
   blocked: 'bg-status-blocked text-white',
   skipped: 'bg-status-skipped text-black',

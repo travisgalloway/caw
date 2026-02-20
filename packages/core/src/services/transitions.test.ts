@@ -13,6 +13,7 @@ const ALL_WORKFLOW_STATUSES: WorkflowStatus[] = [
   'ready',
   'in_progress',
   'paused',
+  'awaiting_merge',
   'failed',
   'completed',
   'abandoned',
@@ -44,17 +45,22 @@ describe('WORKFLOW_TRANSITIONS', () => {
     expect(WORKFLOW_TRANSITIONS.ready).toEqual(['in_progress', 'abandoned']);
   });
 
-  it('in_progress can transition to paused, completed, failed, or abandoned', () => {
+  it('in_progress can transition to paused, completed, failed, abandoned, or awaiting_merge', () => {
     expect(WORKFLOW_TRANSITIONS.in_progress).toEqual([
       'paused',
       'completed',
       'failed',
       'abandoned',
+      'awaiting_merge',
     ]);
   });
 
   it('paused can transition to in_progress or abandoned', () => {
     expect(WORKFLOW_TRANSITIONS.paused).toEqual(['in_progress', 'abandoned']);
+  });
+
+  it('awaiting_merge can transition to completed or abandoned', () => {
+    expect(WORKFLOW_TRANSITIONS.awaiting_merge).toEqual(['completed', 'abandoned']);
   });
 
   it('failed can transition to in_progress (retry)', () => {

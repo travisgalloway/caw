@@ -354,6 +354,15 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
       resolve();
     });
 
+    spawner.on('workflow_awaiting_merge', (data) => {
+      console.log('All tasks complete. Workflow is awaiting PR merge.');
+      for (const url of data.prUrls) {
+        console.log(`  PR: ${url}`);
+      }
+      console.log('Run `caw pr check` to check merge status and clean up worktrees.');
+      resolve();
+    });
+
     spawner.on('workflow_failed', (data) => {
       console.error(`Workflow failed: ${data.error}`);
       resolve();
@@ -366,15 +375,4 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
   });
 
   await spawner.shutdown();
-
-  // Clean up worktrees (best effort — PRs already pushed)
-  for (const record of worktreeRecords) {
-    try {
-      await removeWorktree(record.path, cwd);
-      workspaceService.update(db, record.workspaceId, { status: 'merged' });
-      console.log(`  Cleaned up worktree: ${record.path}`);
-    } catch {
-      // Worktree may have already been removed or has uncommitted changes
-    }
-  }
 }

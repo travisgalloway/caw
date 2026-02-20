@@ -12,7 +12,7 @@ let error = $state<string | null>(null);
 let showAll = $state(false);
 let pollInterval: ReturnType<typeof setInterval>;
 
-const activeStatuses = 'planning,ready,in_progress,paused';
+const activeStatuses = 'planning,ready,in_progress,paused,awaiting_merge';
 
 async function loadWorkflows() {
   try {

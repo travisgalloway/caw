@@ -20,6 +20,7 @@ export interface CreateParams {
 export interface UpdateParams {
   status?: WorkspaceStatus;
   mergeCommit?: string;
+  prUrl?: string;
 }
 
 // --- Service functions ---
@@ -58,14 +59,15 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       base_branch: params.baseBranch ?? null,
       status: 'active',
       merge_commit: null,
+      pr_url: null,
       created_at: now,
       updated_at: now,
     };
 
     db.prepare(
       `INSERT INTO workspaces
-        (id, workflow_id, repository_id, path, branch, base_branch, status, merge_commit, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, repository_id, path, branch, base_branch, status, merge_commit, pr_url, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       workspace.id,
       workspace.workflow_id,
@@ -75,6 +77,7 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       workspace.base_branch,
       workspace.status,
       workspace.merge_commit,
+      workspace.pr_url,
       workspace.created_at,
       workspace.updated_at,
     );
@@ -126,15 +129,13 @@ export function update(db: DatabaseType, id: string, params: UpdateParams): Work
   const now = Date.now();
   const status = params.status ?? workspace.status;
   const mergeCommit = params.mergeCommit ?? workspace.merge_commit;
+  const prUrl = params.prUrl ?? workspace.pr_url;
 
-  db.prepare('UPDATE workspaces SET status = ?, merge_commit = ?, updated_at = ? WHERE id = ?').run(
-    status,
-    mergeCommit,
-    now,
-    id,
-  );
+  db.prepare(
+    'UPDATE workspaces SET status = ?, merge_commit = ?, pr_url = ?, updated_at = ? WHERE id = ?',
+  ).run(status, mergeCommit, prUrl, now, id);
 
-  return { ...workspace, status, merge_commit: mergeCommit, updated_at: now };
+  return { ...workspace, status, merge_commit: mergeCommit, pr_url: prUrl, updated_at: now };
 }
 
 export function list(

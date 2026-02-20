@@ -281,6 +281,12 @@ export class WorkflowSpawner {
   }
 
   private async cleanupWorktrees(): Promise<void> {
+    // Skip cleanup if workflow is awaiting merge — worktrees persist until PR is merged
+    const workflow = workflowService.get(this.db, this.config.workflowId);
+    if (workflow?.status === 'awaiting_merge') {
+      return;
+    }
+
     try {
       const workspaces = workspaceService.list(this.db, this.config.workflowId, 'active');
       for (const ws of workspaces) {
@@ -396,14 +402,30 @@ export class WorkflowSpawner {
     this.stopPolling();
     this.pool?.stopMonitoring();
 
-    try {
-      workflowService.updateStatus(this.db, this.config.workflowId, 'completed');
-    } catch {
-      // May already be completed
-    }
+    // Check if workflow has workspaces with PR URLs — if so, transition to awaiting_merge
+    const workspaces = workspaceService.list(this.db, this.config.workflowId, 'active');
+    const prUrls = workspaces.filter((ws) => ws.pr_url).map((ws) => ws.pr_url as string);
 
-    this.status = 'completed';
-    this.emit('workflow_all_complete', { workflowId: this.config.workflowId });
+    if (prUrls.length > 0) {
+      try {
+        workflowService.updateStatus(this.db, this.config.workflowId, 'awaiting_merge');
+      } catch {
+        // May already be in target state
+      }
+      this.status = 'completed';
+      this.emit('workflow_awaiting_merge', {
+        workflowId: this.config.workflowId,
+        prUrls,
+      });
+    } else {
+      try {
+        workflowService.updateStatus(this.db, this.config.workflowId, 'completed');
+      } catch {
+        // May already be completed
+      }
+      this.status = 'completed';
+      this.emit('workflow_all_complete', { workflowId: this.config.workflowId });
+    }
   }
 
   private forwardPoolEvents(): void {

@@ -1,5 +1,11 @@
 import type { WorkspaceStatus } from '@caw/core';
-import { createWorktree, removeWorktree, workspaceService } from '@caw/core';
+import {
+  createWorktree,
+  prService,
+  removeWorktree,
+  workflowService,
+  workspaceService,
+} from '@caw/core';
 import { z } from 'zod';
 import {
   requireWorkflowLock,
@@ -154,12 +160,13 @@ export const register: ToolRegistrar = (server, db) => {
     server,
     'workspace_update',
     {
-      description: 'Update workspace status',
+      description: 'Update workspace status or PR URL',
       inputSchema: {
         id: z.string().describe('Workspace ID'),
         session_id: z.string().optional().describe('Session ID for lock enforcement'),
         status: z.enum(['active', 'merged', 'abandoned']).optional().describe('New status'),
         merge_commit: z.string().optional().describe('Merge commit SHA'),
+        pr_url: z.string().optional().describe('Pull request URL'),
         cleanup_worktree: z.boolean().optional().describe('Remove the git worktree from disk'),
       },
     },
@@ -177,6 +184,7 @@ export const register: ToolRegistrar = (server, db) => {
             workspaceService.update(db, args.id, {
               status,
               mergeCommit: args.merge_commit,
+              prUrl: args.pr_url,
             });
             await removeWorktree(workspace.path);
             return { success: true, worktree_removed: true };
@@ -192,6 +200,7 @@ export const register: ToolRegistrar = (server, db) => {
           workspaceService.update(db, args.id, {
             status,
             mergeCommit: args.merge_commit,
+            prUrl: args.pr_url,
           });
           return { success: true };
         } catch (err) {
@@ -242,6 +251,55 @@ export const register: ToolRegistrar = (server, db) => {
         } catch (err) {
           toToolCallError(err);
         }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_check_merge',
+    {
+      description:
+        'Check PR merge status for a workflow. If all PRs are merged, transitions workflow to completed and cleans up worktrees.',
+      inputSchema: {
+        workflow_id: z.string().describe('Workflow ID'),
+        repo_path: z.string().optional().describe('Repository path for worktree cleanup'),
+      },
+    },
+    (args) =>
+      handleToolCallAsync(async () => {
+        const workspaces = prService.listAwaitingMerge(db, args.workflow_id);
+        if (workspaces.length === 0) {
+          return { checked: 0, merged: 0, still_open: 0 };
+        }
+
+        let merged = 0;
+        let stillOpen = 0;
+
+        for (const ws of workspaces) {
+          if (!ws.pr_url) continue;
+          try {
+            const status = prService.checkPrStatus(ws.pr_url);
+            if (status.merged && status.mergeCommit) {
+              await prService.completeMerge(db, ws.id, status.mergeCommit, args.repo_path);
+              merged++;
+            } else {
+              stillOpen++;
+            }
+          } catch {
+            stillOpen++;
+          }
+        }
+
+        // If all PRs merged, transition workflow to completed
+        if (merged > 0 && stillOpen === 0) {
+          try {
+            workflowService.updateStatus(db, args.workflow_id, 'completed');
+          } catch {
+            // May already be completed
+          }
+        }
+
+        return { checked: workspaces.length, merged, still_open: stillOpen };
       }),
   );
 };

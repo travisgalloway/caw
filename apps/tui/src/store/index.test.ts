@@ -4,7 +4,7 @@ import { currentScreen, getWorkflowId, useAppStore } from './index';
 const INITIAL_STATE = {
   navStack: [{ screen: 'workflow-list' as const }],
   mainTab: 'workflows' as const,
-  showAllWorkflows: false,
+  showAll: false,
   taskViewMode: 'table' as const,
   messageStatusFilter: 'all' as const,
   pollInterval: 2000,
@@ -24,7 +24,7 @@ describe('useAppStore', () => {
     const state = useAppStore.getState();
     expect(state.navStack).toEqual([{ screen: 'workflow-list' }]);
     expect(state.mainTab).toBe('workflows');
-    expect(state.showAllWorkflows).toBe(false);
+    expect(state.showAll).toBe(false);
     expect(state.taskViewMode).toBe('table');
     expect(state.messageStatusFilter).toBe('all');
     expect(state.pollInterval).toBe(2000);
@@ -142,12 +142,12 @@ describe('useAppStore', () => {
     expect(state.promptSuccess).toBeNull();
   });
 
-  test('toggleShowAllWorkflows toggles the flag', () => {
-    expect(useAppStore.getState().showAllWorkflows).toBe(false);
-    useAppStore.getState().toggleShowAllWorkflows();
-    expect(useAppStore.getState().showAllWorkflows).toBe(true);
-    useAppStore.getState().toggleShowAllWorkflows();
-    expect(useAppStore.getState().showAllWorkflows).toBe(false);
+  test('toggleShowAll toggles the flag', () => {
+    expect(useAppStore.getState().showAll).toBe(false);
+    useAppStore.getState().toggleShowAll();
+    expect(useAppStore.getState().showAll).toBe(true);
+    useAppStore.getState().toggleShowAll();
+    expect(useAppStore.getState().showAll).toBe(false);
   });
 
   test('setTaskViewMode updates taskViewMode', () => {

@@ -78,6 +78,7 @@ export type SpawnerEvent =
   | 'agent_retrying'
   | 'agent_query'
   | 'workflow_all_complete'
+  | 'workflow_awaiting_merge'
   | 'workflow_stalled'
   | 'workflow_failed';
 
@@ -88,6 +89,7 @@ export interface SpawnerEventData {
   agent_retrying: { agentId: string; taskId: string; attempt: number };
   agent_query: { agentId: string; taskId: string; message: string };
   workflow_all_complete: { workflowId: string };
+  workflow_awaiting_merge: { workflowId: string; prUrls: string[] };
   workflow_stalled: { workflowId: string; reason: string };
   workflow_failed: { workflowId: string; error: string };
 }
