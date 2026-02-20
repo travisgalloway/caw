@@ -135,6 +135,24 @@ export interface Workspace {
   updated_at: number;
 }
 
+export type TaskDependencyType = 'blocks' | 'informs';
+
+export interface TaskDependency {
+  task_id: string;
+  depends_on_id: string;
+  dependency_type: TaskDependencyType;
+}
+
+export interface WorkflowDependencies {
+  tasks: Task[];
+  dependencies: TaskDependency[];
+}
+
+export interface TaskDependencies {
+  dependencies: TaskDependency[];
+  dependents: TaskDependency[];
+}
+
 export const api = {
   // Workflows
   async listWorkflows(params?: { status?: string; limit?: number; offset?: number }) {
@@ -176,6 +194,10 @@ export const api = {
     );
   },
 
+  async getWorkflowDependencies(id: string) {
+    return request<WorkflowDependencies>('GET', `/api/workflows/${id}/dependencies`);
+  },
+
   // Tasks
   async listTasks(workflowId: string) {
     return request<Task[]>('GET', `/api/workflows/${workflowId}/tasks`);
@@ -183,6 +205,10 @@ export const api = {
 
   async getTask(id: string, checkpoints = false) {
     return request<Task>('GET', `/api/tasks/${id}${checkpoints ? '?checkpoints=true' : ''}`);
+  },
+
+  async getTaskDependencies(id: string) {
+    return request<TaskDependencies>('GET', `/api/tasks/${id}/dependencies`);
   },
 
   async updateTaskStatus(
