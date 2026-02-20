@@ -280,7 +280,7 @@ export const register: ToolRegistrar = (server, db) => {
           try {
             const status = prService.checkPrStatus(ws.pr_url);
             if (status.merged && status.mergeCommit) {
-              await prService.completeMerge(db, ws.id, status.mergeCommit, args.repo_path);
+              await prService.completeMerge(db, ws.id, status.mergeCommit, ws.path);
               merged++;
             } else {
               stillOpen++;

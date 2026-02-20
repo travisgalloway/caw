@@ -50,17 +50,17 @@ export async function completeMerge(
   db: DatabaseType,
   workspaceId: string,
   mergeCommit: string,
-  repoPath?: string,
+  worktreePath?: string,
 ): Promise<void> {
   workspaceService.update(db, workspaceId, {
     status: 'merged',
     mergeCommit,
   });
 
-  const workspace = workspaceService.get(db, workspaceId);
-  if (workspace) {
+  const pathToRemove = worktreePath ?? workspaceService.get(db, workspaceId)?.path;
+  if (pathToRemove) {
     try {
-      await removeWorktree(workspace.path, repoPath);
+      await removeWorktree(pathToRemove);
     } catch {
       // Worktree may already be removed
     }

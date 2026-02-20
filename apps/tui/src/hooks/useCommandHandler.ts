@@ -306,7 +306,7 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError('No active server session — cannot run work');
           return;
         }
-        const issues = parsed.args.split(/\s+/);
+        const issues = parsed.args.split(/\s+/).filter(Boolean);
         store.setPromptSuccess('Starting work on issue(s)...');
         Promise.resolve().then(async () => {
           try {
@@ -393,7 +393,7 @@ export function useCommandHandler(): (input: string) => void {
                 workspaceId: wsIdCopy,
                 worktreePath,
                 branch,
-                baseBranch: 'main',
+                baseBranch: workspace.base_branch ?? 'main',
                 prUrl,
                 port: sessionInfo?.port,
                 onProgress: (event, message) => {
@@ -454,7 +454,7 @@ export function useCommandHandler(): (input: string) => void {
                 store.setPromptError(`PR is not merged (state: ${status.state})`);
                 return;
               }
-              await prService.completeMerge(db, wsId, status.mergeCommit ?? '');
+              await prService.completeMerge(db, wsId, status.mergeCommit ?? '', workspace.path);
               // Check if all workspaces for this workflow are now merged
               const remaining = workspaceService.list(db, wfId, 'active');
               if (remaining.length === 0) {

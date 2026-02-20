@@ -31,7 +31,7 @@ export interface SpawnRebaseOptions {
 }
 
 export async function runPr(db: DatabaseType, options: PrOptions): Promise<void> {
-  const { subcommand, workflowId, repoPath } = options;
+  const { subcommand, workflowId } = options;
 
   if (subcommand === 'list') {
     const { workflows } = workflowService.list(db, { status: 'awaiting_merge' });
@@ -59,27 +59,32 @@ export async function runPr(db: DatabaseType, options: PrOptions): Promise<void>
     let totalOpen = 0;
 
     for (const wf of allWorkflows) {
+      let wfMerged = 0;
+      let wfOpen = 0;
       const workspaces = prService.listAwaitingMerge(db, wf.id);
       for (const ws of workspaces) {
         if (!ws.pr_url) continue;
         try {
           const status = prService.checkPrStatus(ws.pr_url);
           if (status.merged && status.mergeCommit) {
-            await prService.completeMerge(db, ws.id, status.mergeCommit, repoPath);
+            await prService.completeMerge(db, ws.id, status.mergeCommit, ws.path);
             console.log(`  Merged: ${ws.branch} (${ws.pr_url})`);
-            totalMerged++;
+            wfMerged++;
           } else {
             console.log(`  Open: ${ws.branch} (${status.state}, ${status.mergeable})`);
-            totalOpen++;
+            wfOpen++;
           }
         } catch (err) {
           console.error(`  Error checking ${ws.pr_url}: ${err}`);
-          totalOpen++;
+          wfOpen++;
         }
       }
 
-      // If all PRs merged, complete the workflow
-      if (totalMerged > 0 && totalOpen === 0) {
+      totalMerged += wfMerged;
+      totalOpen += wfOpen;
+
+      // If all PRs merged for this workflow, complete it
+      if (wfMerged > 0 && wfOpen === 0) {
         try {
           workflowService.updateStatus(db, wf.id, 'completed');
           console.log(`Workflow ${wf.id} completed.`);
@@ -130,7 +135,7 @@ export async function runPr(db: DatabaseType, options: PrOptions): Promise<void>
         return;
       }
 
-      await prService.completeMerge(db, workspace.id, mergeCommit, repoPath);
+      await prService.completeMerge(db, workspace.id, mergeCommit, workspace.path);
       console.log(`Workspace ${workspace.id} marked as merged.`);
 
       // Check if all workspaces merged
@@ -155,7 +160,7 @@ export async function runPr(db: DatabaseType, options: PrOptions): Promise<void>
         try {
           const status = prService.checkPrStatus(ws.pr_url);
           if (status.merged && status.mergeCommit) {
-            await prService.completeMerge(db, ws.id, status.mergeCommit, repoPath);
+            await prService.completeMerge(db, ws.id, status.mergeCommit, ws.path);
             console.log(`  Merged: ${ws.branch}`);
           }
         } catch (err) {
@@ -179,6 +184,7 @@ export async function runPr(db: DatabaseType, options: PrOptions): Promise<void>
       branch: string;
       path: string;
       pr_url: string | null;
+      base_branch: string | null;
     }> = [];
 
     if (workspace) {
@@ -205,7 +211,7 @@ export async function runPr(db: DatabaseType, options: PrOptions): Promise<void>
           workspaceId: ws.id,
           worktreePath: ws.path,
           branch: ws.branch,
-          baseBranch: 'main',
+          baseBranch: ws.base_branch ?? 'main',
           prUrl: ws.pr_url,
           port: options.port,
           model: options.model,
