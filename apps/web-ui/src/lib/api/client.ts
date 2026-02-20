@@ -160,6 +160,17 @@ export interface StatsSummary {
   completed_today: number;
 }
 
+export interface DiagnosticCheck {
+  name: string;
+  status: 'pass' | 'fail';
+  message: string;
+}
+
+export interface DiagnosticsResponse {
+  checks: DiagnosticCheck[];
+  allPassed: boolean;
+}
+
 export const api = {
   // Workflows
   async listWorkflows(params?: { status?: string; limit?: number; offset?: number }) {
@@ -333,5 +344,10 @@ export const api = {
   // Stats
   async getStatsSummary() {
     return request<StatsSummary>('GET', '/api/stats/summary');
+  },
+
+  // Setup
+  async getDiagnostics() {
+    return request<DiagnosticsResponse>('GET', '/api/setup/diagnostics');
   },
 };
