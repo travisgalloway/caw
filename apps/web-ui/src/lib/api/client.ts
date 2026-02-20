@@ -226,6 +226,41 @@ export const api = {
     return request<Workspace[]>('GET', `/api/workflows/${workflowId}/workspaces`);
   },
 
+  // Task management
+  async addTask(
+    workflowId: string,
+    params: {
+      name: string;
+      description?: string;
+      parallel_group?: string;
+      estimated_complexity?: string;
+      depends_on?: string[];
+    },
+  ) {
+    return request<{ task_id: string; sequence: number; workflow_id: string }>(
+      'POST',
+      `/api/workflows/${workflowId}/tasks`,
+      params,
+    );
+  },
+
+  async removeTask(workflowId: string, taskId: string) {
+    return request<{
+      removed_task_id: string;
+      dependencies_rewired: number;
+      tasks_renumbered: number;
+    }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
+  },
+
+  // Claim / Release
+  async claimTask(id: string, agentId: string) {
+    return request<Task>('POST', `/api/tasks/${id}/claim`, { agent_id: agentId });
+  },
+
+  async releaseTask(id: string, agentId: string, reason?: string) {
+    return request<Task>('POST', `/api/tasks/${id}/release`, { agent_id: agentId, reason });
+  },
+
   // Lock
   async getLockInfo(workflowId: string) {
     return request<{ locked: boolean; session_id: string | null }>(
@@ -246,38 +281,5 @@ export const api = {
     return request<{ success: boolean }>('POST', `/api/workflows/${id}/unlock`, {
       session_id: sessionId,
     });
-  },
-
-  // Task mutations
-  async claimTask(id: string, agentId: string) {
-    return request<{ success: boolean }>('POST', `/api/tasks/${id}/claim`, {
-      agent_id: agentId,
-    });
-  },
-
-  async releaseTask(id: string, agentId: string, reason?: string) {
-    return request<{ success: boolean }>('POST', `/api/tasks/${id}/release`, {
-      agent_id: agentId,
-      reason,
-    });
-  },
-
-  async addTask(
-    workflowId: string,
-    params: { name: string; description?: string; sequence?: number; parallel_group?: string },
-  ) {
-    return request<{ task_id: string; sequence: number; workflow_id: string }>(
-      'POST',
-      `/api/workflows/${workflowId}/tasks`,
-      params,
-    );
-  },
-
-  async removeTask(workflowId: string, taskId: string) {
-    return request<{
-      removed_task_id: string;
-      dependencies_rewired: number;
-      tasks_renumbered: number;
-    }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
   },
 };
