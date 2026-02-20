@@ -507,6 +507,41 @@ describe('CORS', () => {
   });
 });
 
+// --- Setup Routes ---
+
+describe('setup routes', () => {
+  test('GET /api/setup/diagnostics returns diagnostic checks', async () => {
+    const res = await req('GET', '/api/setup/diagnostics');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        checks: Array<{ name: string; status: 'pass' | 'fail'; message: string }>;
+        allPassed: boolean;
+      };
+    };
+    expect(body.data.checks).toBeArray();
+    expect(body.data.checks.length).toBeGreaterThan(0);
+    expect(body.data).toHaveProperty('allPassed');
+    expect(typeof body.data.allPassed).toBe('boolean');
+
+    // Verify all expected checks are present
+    const checkNames = body.data.checks.map((c) => c.name);
+    expect(checkNames).toContain('database');
+    expect(checkNames).toContain('mcp_server');
+    expect(checkNames).toContain('claude_md');
+    expect(checkNames).toContain('config_file');
+    expect(checkNames).toContain('gitignore');
+
+    // Each check should have the required structure
+    for (const check of body.data.checks) {
+      expect(check).toHaveProperty('name');
+      expect(check).toHaveProperty('status');
+      expect(check).toHaveProperty('message');
+      expect(['pass', 'fail']).toContain(check.status);
+    }
+  });
+});
+
 // --- 404 ---
 
 describe('routing', () => {

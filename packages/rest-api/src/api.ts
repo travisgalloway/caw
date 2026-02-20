@@ -7,6 +7,7 @@ import { registerCheckpointRoutes } from './routes/checkpoints';
 import { registerLockRoutes } from './routes/locks';
 import { registerMessageRoutes } from './routes/messages';
 import { registerOrchestrationRoutes } from './routes/orchestration';
+import { registerSetupRoutes } from './routes/setup';
 import { registerStatsRoutes } from './routes/stats';
 import { registerTaskRoutes } from './routes/tasks';
 import { registerTemplateRoutes } from './routes/templates';
@@ -32,6 +33,7 @@ export function createRestApi(db: DatabaseType, broadcaster?: Broadcaster): Rest
   registerTemplateRoutes(router, db);
   registerCheckpointRoutes(router, db);
   registerLockRoutes(router, db);
+  registerSetupRoutes(router, db);
   registerStatsRoutes(router, db);
 
   async function handle(req: Request): Promise<Response> {
