@@ -14,19 +14,55 @@ export interface McpHttpHandler {
   handleRequest: (req: Request) => Response | Promise<Response>;
 }
 
-export async function createHttpHandler(server: McpServer): Promise<McpHttpHandler> {
+export async function createHttpHandler(
+  server: McpServer,
+  db?: DatabaseType,
+): Promise<McpHttpHandler> {
   const { WebStandardStreamableHTTPServerTransport } = await import(
     '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
   );
 
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: () => crypto.randomUUID(),
-  });
+  type TransportType = InstanceType<typeof WebStandardStreamableHTTPServerTransport>;
+  const sessions = new Map<string, { transport: TransportType; server: McpServer }>();
 
-  await server.connect(transport);
+  async function createSession(): Promise<TransportType> {
+    const transport = new WebStandardStreamableHTTPServerTransport({
+      sessionIdGenerator: () => crypto.randomUUID(),
+      onsessioninitialized: (sessionId: string) => {
+        sessions.set(sessionId, { transport, server: sessionServer });
+      },
+    });
+
+    const sessionServer = db ? createMcpServer(db) : server;
+    await sessionServer.connect(transport);
+    return transport;
+  }
 
   return {
-    handleRequest: (req: Request) => transport.handleRequest(req),
+    async handleRequest(req: Request) {
+      const sessionHeader = req.headers.get('mcp-session-id');
+
+      if (sessionHeader) {
+        const session = sessions.get(sessionHeader);
+        if (session) {
+          return session.transport.handleRequest(req);
+        }
+      }
+
+      if (req.method === 'POST' && !sessionHeader) {
+        const transport = await createSession();
+        return transport.handleRequest(req);
+      }
+
+      return new Response(
+        JSON.stringify({
+          jsonrpc: '2.0',
+          error: { code: -32000, message: 'Bad Request: No active session' },
+          id: null,
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      );
+    },
   };
 }
 
@@ -37,6 +73,7 @@ export interface StartServerResult {
 export async function startServer(
   server: McpServer,
   config: ServerConfig,
+  db?: DatabaseType,
 ): Promise<StartServerResult> {
   if (config.transport === 'stdio') {
     const transport = new StdioServerTransport();
@@ -47,11 +84,27 @@ export async function startServer(
       '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
     );
 
-    const transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: () => crypto.randomUUID(),
-    });
+    type TransportType = InstanceType<typeof WebStandardStreamableHTTPServerTransport>;
 
-    await server.connect(transport);
+    // The MCP SDK's WebStandardStreamableHTTPServerTransport only supports one session
+    // per transport instance. To support multiple concurrent clients (planner + workers),
+    // we create a new transport + server pair for each session.
+    const sessions = new Map<string, { transport: TransportType; server: McpServer }>();
+
+    async function createSession(): Promise<TransportType> {
+      const transport = new WebStandardStreamableHTTPServerTransport({
+        sessionIdGenerator: () => crypto.randomUUID(),
+        onsessioninitialized: (sessionId: string) => {
+          sessions.set(sessionId, { transport, server: sessionServer });
+        },
+      });
+
+      // Create a new server instance with the same tools for this session.
+      // If db was provided, create a fresh server; otherwise reuse the original.
+      const sessionServer = db ? createMcpServer(db) : server;
+      await sessionServer.connect(transport);
+      return transport;
+    }
 
     const httpServer = Bun.serve({
       port: config.port,
@@ -60,7 +113,32 @@ export async function startServer(
         const url = new URL(req.url);
 
         if (url.pathname === '/mcp') {
-          return transport.handleRequest(req);
+          const sessionHeader = req.headers.get('mcp-session-id');
+
+          // Route to existing session
+          if (sessionHeader) {
+            const session = sessions.get(sessionHeader);
+            if (session) {
+              return session.transport.handleRequest(req);
+            }
+            // Unknown session ID — fall through to error
+          }
+
+          // New initialization request (POST without session header)
+          if (req.method === 'POST' && !sessionHeader) {
+            const transport = await createSession();
+            return transport.handleRequest(req);
+          }
+
+          // GET/DELETE without a known session
+          return new Response(
+            JSON.stringify({
+              jsonrpc: '2.0',
+              error: { code: -32000, message: 'Bad Request: No active session' },
+              id: null,
+            }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } },
+          );
         }
 
         if (url.pathname === '/health') {
@@ -78,6 +156,10 @@ export async function startServer(
     return {
       stop() {
         httpServer.stop();
+        for (const session of sessions.values()) {
+          session.transport.close();
+        }
+        sessions.clear();
       },
     };
   }

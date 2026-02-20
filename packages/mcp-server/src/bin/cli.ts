@@ -14,7 +14,7 @@ const db = createConnection(dbPath);
 runMigrations(db);
 
 const server = createMcpServer(db);
-await startServer(server, config);
+await startServer(server, config, db);
 
 function parseArgs(argv: string[]): Record<string, string> {
   const result: Record<string, string> = {};

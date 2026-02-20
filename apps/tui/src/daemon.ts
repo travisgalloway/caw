@@ -147,7 +147,7 @@ async function startAsDaemon(
   const config = resolveConfig({ transport: 'http', port: String(port) });
   config.quiet = true;
   const mcpServer = createMcpServer(db);
-  const serverHandle = await startServer(mcpServer, config);
+  const serverHandle = await startServer(mcpServer, config, db);
 
   // Start heartbeat
   const heartbeatTimer = setInterval(() => {
@@ -248,7 +248,7 @@ function joinAsClient(db: DatabaseType, lockPath: string, daemonPort: number): D
       const config = resolveConfig({ transport: 'http', port: String(port) });
       config.quiet = true;
       const mcpServer = createMcpServer(db);
-      await startServer(mcpServer, config);
+      await startServer(mcpServer, config, db);
     } else {
       // Another client won — re-read lock to find new daemon port
       const otherLock = readLockFile(lockPath);

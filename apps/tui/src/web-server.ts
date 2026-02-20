@@ -13,9 +13,9 @@ export interface WebServerOptions {
 export async function runWebServer(db: DatabaseType, opts: WebServerOptions): Promise<void> {
   const port = opts.port;
 
-  // MCP server + HTTP handler
+  // MCP server + HTTP handler (pass db for multi-session support)
   const mcpServer = createMcpServer(db);
-  const mcpHandler = await createHttpHandler(mcpServer);
+  const mcpHandler = await createHttpHandler(mcpServer, db);
 
   // REST API with broadcaster
   const broadcaster = createBroadcaster();
