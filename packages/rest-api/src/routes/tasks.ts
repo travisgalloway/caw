@@ -172,4 +172,28 @@ export function registerTaskRoutes(router: Router, db: DatabaseType, broadcaster
       return badRequest(msg);
     }
   });
+
+  // Get all task dependencies for a workflow (for tree/DAG visualization)
+  router.get('/api/workflows/:id/dependencies', (_req, params) => {
+    const workflow = db.prepare('SELECT id FROM workflows WHERE id = ?').get(params.id) as {
+      id: string;
+    } | null;
+    if (!workflow) return notFound(`Workflow not found: ${params.id}`);
+
+    // Get all tasks for the workflow
+    const tasks = db
+      .prepare('SELECT * FROM tasks WHERE workflow_id = ? ORDER BY sequence, name')
+      .all(params.id);
+
+    // Get all task dependencies for this workflow
+    const dependencies = db
+      .prepare(
+        `SELECT td.* FROM task_dependencies td
+         JOIN tasks t ON td.task_id = t.id
+         WHERE t.workflow_id = ?`,
+      )
+      .all(params.id);
+
+    return ok({ tasks, dependencies });
+  });
 }

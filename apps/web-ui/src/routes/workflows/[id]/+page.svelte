@@ -8,11 +8,14 @@ import {
   type ProgressResult,
   type Task,
   type Workflow,
+  type WorkflowDependencies,
   type Workspace,
 } from '$lib/api/client';
 import ProgressBar from '$lib/components/ProgressBar.svelte';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
+import TaskDag from '$lib/components/TaskDag.svelte';
+import TaskTree from '$lib/components/TaskTree.svelte';
 import { wsStore } from '$lib/stores/ws';
 
 let workflow = $state<Workflow | null>(null);
@@ -20,9 +23,11 @@ let progress = $state<ProgressResult | null>(null);
 let agents = $state<Agent[]>([]);
 let messages = $state<Message[]>([]);
 let workspaces = $state<Workspace[]>([]);
+let dependencies = $state<WorkflowDependencies | null>(null);
 let loading = $state(true);
 let error = $state<string | null>(null);
 let activeTab = $state<'tasks' | 'agents' | 'messages' | 'workspaces'>('tasks');
+let viewMode = $state<'table' | 'tree' | 'dag'>('table');
 let pollInterval: ReturnType<typeof setInterval>;
 
 // Action button state
@@ -63,6 +68,11 @@ let deleteSubmitting = $state(false);
 const REMOVABLE_STATUSES = new Set(['pending', 'blocked', 'planning']);
 
 const workflowId = $derived($page.params.id ?? '');
+
+// Save view mode to localStorage when it changes
+$effect(() => {
+  localStorage.setItem('workflow-view-mode', viewMode);
+});
 
 async function handleLockToggle() {
   if (!workflow || !browserSessionId) return;
@@ -117,18 +127,30 @@ async function handleStatusChange(e: Event) {
 
 async function loadData() {
   try {
-    const [wfRes, progressRes, agentsRes, msgRes, wsRes] = await Promise.all([
+    const promises = [
       api.getWorkflow(workflowId),
       api.getWorkflowProgress(workflowId),
       api.listAgents({ workflow_id: workflowId }),
       api.listMessages({ limit: 20 }),
       api.listWorkspaces(workflowId),
-    ]);
-    workflow = wfRes.data;
-    progress = progressRes.data;
-    agents = agentsRes.data;
-    messages = msgRes.data;
-    workspaces = wsRes.data;
+    ];
+
+    // Fetch dependencies if in tree or dag mode
+    if (viewMode === 'tree' || viewMode === 'dag') {
+      promises.push(api.getWorkflowDependencies(workflowId));
+    }
+
+    const results = await Promise.all(promises);
+    workflow = results[0].data;
+    progress = results[1].data;
+    agents = results[2].data;
+    messages = results[3].data;
+    workspaces = results[4].data;
+
+    if (viewMode === 'tree' || viewMode === 'dag') {
+      dependencies = results[5]?.data ?? null;
+    }
+
     error = null;
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
@@ -198,6 +220,12 @@ async function handleDeleteTask() {
 }
 
 onMount(() => {
+  // Restore view mode from localStorage
+  const savedViewMode = localStorage.getItem('workflow-view-mode');
+  if (savedViewMode === 'tree' || savedViewMode === 'dag' || savedViewMode === 'table') {
+    viewMode = savedViewMode;
+  }
+
   loadData();
   pollInterval = setInterval(loadData, 5000);
   wsStore.subscribeChannel(`workflow:${workflowId}`);
@@ -216,6 +244,13 @@ $effect(() => {
     event?.type?.startsWith('task:') ||
     event?.type?.startsWith('agent:')
   ) {
+    loadData();
+  }
+});
+
+// Reload data when view mode changes to fetch dependencies
+$effect(() => {
+  if (viewMode === 'tree' || viewMode === 'dag') {
     loadData();
   }
 });
@@ -497,7 +532,41 @@ const completedTasks = $derived(
 
     <!-- Tab content -->
     {#if activeTab === 'tasks'}
-      <div class="mb-3 flex justify-end">
+      <div class="mb-3 flex items-center justify-between">
+        <!-- View Mode Toggle -->
+        <div class="inline-flex rounded-lg border border-gray-300 bg-white p-1 dark:border-gray-700 dark:bg-gray-900">
+          <button
+            type="button"
+            onclick={() => viewMode = 'table'}
+            class="rounded px-3 py-1.5 text-sm font-medium transition-colors
+              {viewMode === 'table'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}"
+          >
+            Table
+          </button>
+          <button
+            type="button"
+            onclick={() => viewMode = 'tree'}
+            class="rounded px-3 py-1.5 text-sm font-medium transition-colors
+              {viewMode === 'tree'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}"
+          >
+            Tree
+          </button>
+          <button
+            type="button"
+            onclick={() => viewMode = 'dag'}
+            class="rounded px-3 py-1.5 text-sm font-medium transition-colors
+              {viewMode === 'dag'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}"
+          >
+            DAG
+          </button>
+        </div>
+
         <button
           type="button"
           onclick={openAddTask}
@@ -506,63 +575,90 @@ const completedTasks = $derived(
           + Add Task
         </button>
       </div>
-      <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
-        <table class="w-full text-left text-sm">
-          <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
-            <tr>
-              <th class="px-4 py-3 font-medium text-gray-500">#</th>
-              <th class="px-4 py-3 font-medium text-gray-500">Name</th>
-              <th class="px-4 py-3 font-medium text-gray-500">Status</th>
-              <th class="px-4 py-3 font-medium text-gray-500">Agent</th>
-              <th class="px-4 py-3 font-medium text-gray-500">Group</th>
-              <th class="px-4 py-3 font-medium text-gray-500">Updated</th>
-              <th class="w-10 px-4 py-3 font-medium text-gray-500"></th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
-            {#each workflow.tasks as task}
-              <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
-                <td class="px-4 py-3 tabular-nums text-gray-400">{task.sequence}</td>
-                <td class="px-4 py-3">
-                  <a
-                    href="/workflows/{workflowId}/tasks/{task.id}"
-                    class="font-medium text-blue-600 hover:underline dark:text-blue-400"
-                  >
-                    {task.name}
-                  </a>
-                  {#if task.description}
-                    <p class="mt-0.5 truncate text-xs text-gray-400" title={task.description}>
-                      {task.description}
-                    </p>
-                  {/if}
-                </td>
-                <td class="px-4 py-3">
-                  <StatusBadge status={task.status} />
-                </td>
-                <td class="px-4 py-3 font-mono text-xs text-gray-400">
-                  {task.assigned_agent_id ?? '—'}
-                </td>
-                <td class="px-4 py-3 text-xs text-gray-400">{task.parallel_group ?? '—'}</td>
-                <td class="px-4 py-3 text-gray-500">
-                  <RelativeTime timestamp={task.updated_at} />
-                </td>
-                <td class="px-4 py-3">
-                  {#if REMOVABLE_STATUSES.has(task.status) && !task.assigned_agent_id}
-                    <button
-                      type="button"
-                      onclick={() => { deleteTask = task; deleteError = null; deleteSubmitting = false; }}
-                      class="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
-                      title="Delete task"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
-                    </button>
-                  {/if}
-                </td>
+
+      {#if viewMode === 'table'}
+        <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-800">
+          <table class="w-full text-left text-sm">
+            <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900">
+              <tr>
+                <th class="px-4 py-3 font-medium text-gray-500">#</th>
+                <th class="px-4 py-3 font-medium text-gray-500">Name</th>
+                <th class="px-4 py-3 font-medium text-gray-500">Status</th>
+                <th class="px-4 py-3 font-medium text-gray-500">Agent</th>
+                <th class="px-4 py-3 font-medium text-gray-500">Group</th>
+                <th class="px-4 py-3 font-medium text-gray-500">Updated</th>
+                <th class="w-10 px-4 py-3 font-medium text-gray-500"></th>
               </tr>
-            {/each}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+              {#each workflow.tasks as task}
+                <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-900">
+                  <td class="px-4 py-3 tabular-nums text-gray-400">{task.sequence}</td>
+                  <td class="px-4 py-3">
+                    <a
+                      href="/workflows/{workflowId}/tasks/{task.id}"
+                      class="font-medium text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      {task.name}
+                    </a>
+                    {#if task.description}
+                      <p class="mt-0.5 truncate text-xs text-gray-400" title={task.description}>
+                        {task.description}
+                      </p>
+                    {/if}
+                  </td>
+                  <td class="px-4 py-3">
+                    <StatusBadge status={task.status} />
+                  </td>
+                  <td class="px-4 py-3 font-mono text-xs text-gray-400">
+                    {task.assigned_agent_id ?? '—'}
+                  </td>
+                  <td class="px-4 py-3 text-xs text-gray-400">{task.parallel_group ?? '—'}</td>
+                  <td class="px-4 py-3 text-gray-500">
+                    <RelativeTime timestamp={task.updated_at} />
+                  </td>
+                  <td class="px-4 py-3">
+                    {#if REMOVABLE_STATUSES.has(task.status) && !task.assigned_agent_id}
+                      <button
+                        type="button"
+                        onclick={() => { deleteTask = task; deleteError = null; deleteSubmitting = false; }}
+                        class="rounded p-1 text-red-400 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950"
+                        title="Delete task"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
+                      </button>
+                    {/if}
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else if viewMode === 'tree'}
+        {#if dependencies}
+          <TaskTree
+            tasks={workflow.tasks}
+            dependencies={dependencies.task_dependencies}
+            workflowId={workflowId}
+          />
+        {:else}
+          <div class="flex items-center justify-center rounded-lg border border-gray-200 py-12 dark:border-gray-800">
+            <span class="text-gray-400">Loading dependencies...</span>
+          </div>
+        {/if}
+      {:else if viewMode === 'dag'}
+        {#if dependencies}
+          <TaskDag
+            tasks={workflow.tasks}
+            dependencies={dependencies.task_dependencies}
+            workflowId={workflowId}
+          />
+        {:else}
+          <div class="flex items-center justify-center rounded-lg border border-gray-200 py-12 dark:border-gray-800">
+            <span class="text-gray-400">Loading dependencies...</span>
+          </div>
+        {/if}
+      {/if}
     {:else if activeTab === 'agents'}
       {#if agents.length === 0}
         <p class="py-8 text-center text-gray-400">No agents registered for this workflow.</p>
