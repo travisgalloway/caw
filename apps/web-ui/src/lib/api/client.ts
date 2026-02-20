@@ -171,6 +171,16 @@ export interface DiagnosticsResponse {
   allPassed: boolean;
 }
 
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description: string | null;
+  template: string;
+  version: number;
+  created_at: number;
+  updated_at: number;
+}
+
 export const api = {
   // Workflows
   async listWorkflows(params?: { status?: string; limit?: number; offset?: number }) {
@@ -349,5 +359,35 @@ export const api = {
   // Setup
   async getDiagnostics() {
     return request<DiagnosticsResponse>('GET', '/api/setup/diagnostics');
+  },
+
+  // Templates
+  async listTemplates() {
+    return request<WorkflowTemplate[]>('GET', '/api/templates');
+  },
+
+  async getTemplate(id: string) {
+    return request<WorkflowTemplate>('GET', `/api/templates/${id}`);
+  },
+
+  async createTemplate(params: {
+    name: string;
+    description?: string;
+    from_workflow_id?: string;
+    template?: { tasks: Array<Record<string, unknown>>; variables?: string[] };
+  }) {
+    return request<WorkflowTemplate>('POST', '/api/templates', params);
+  },
+
+  async applyTemplate(
+    id: string,
+    params: {
+      workflow_name: string;
+      variables?: Record<string, string>;
+      repo_paths?: string[];
+      max_parallel?: number;
+    },
+  ) {
+    return request<{ workflow_id: string }>('POST', `/api/templates/${id}/apply`, params);
   },
 };
