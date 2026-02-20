@@ -16,6 +16,7 @@ onDestroy(() => {
 
 const navItems = [
   { href: '/', label: 'Workflows', icon: '▶' },
+  { href: '/agents', label: 'Agents', icon: '🤖' },
   { href: '/messages', label: 'Messages', icon: '✉' },
   { href: '/setup', label: 'Setup', icon: '⚙' },
   { href: '/help', label: 'Help', icon: '?' },

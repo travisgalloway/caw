@@ -187,10 +187,17 @@ export const api = {
   },
 
   // Agents
-  async listAgents(params?: { workflow_id?: string; status?: string }) {
+  async listAgents(params?: {
+    workflow_id?: string;
+    status?: string;
+    role?: string;
+    runtime?: string;
+  }) {
     const query = new URLSearchParams();
     if (params?.workflow_id) query.set('workflow_id', params.workflow_id);
     if (params?.status) query.set('status', params.status);
+    if (params?.role) query.set('role', params.role);
+    if (params?.runtime) query.set('runtime', params.runtime);
     const qs = query.toString();
     return request<Agent[]>('GET', `/api/agents${qs ? `?${qs}` : ''}`);
   },
