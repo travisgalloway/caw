@@ -25,7 +25,78 @@ let error = $state<string | null>(null);
 let activeTab = $state<'tasks' | 'agents' | 'messages' | 'workspaces'>('tasks');
 let pollInterval: ReturnType<typeof setInterval>;
 
-const workflowId = $derived($page.params.id);
+// Action button state
+let actionLoading = $state<string | null>(null);
+let actionError = $state<string | null>(null);
+// TODO: Lock/unlock requires a registered session_id from the sessions table.
+// For now, disable lock buttons until the web UI has session registration.
+const browserSessionId: string | null = null;
+
+// Valid workflow status transitions (matches core state machine in transitions.ts)
+const WORKFLOW_TRANSITIONS: Record<string, string[]> = {
+  planning: ['ready', 'abandoned'],
+  ready: ['in_progress', 'abandoned'],
+  in_progress: ['paused', 'completed', 'failed', 'abandoned'],
+  paused: ['in_progress', 'abandoned'],
+  failed: ['in_progress'],
+};
+
+const validTransitions = $derived(workflow ? (WORKFLOW_TRANSITIONS[workflow.status] ?? []) : []);
+
+const isLocked = $derived(!!workflow?.locked_by_session_id);
+
+async function handleLockToggle() {
+  if (!workflow || !browserSessionId) return;
+  actionLoading = 'lock';
+  actionError = null;
+  try {
+    if (isLocked) {
+      await api.unlockWorkflow(workflow.id, browserSessionId);
+    } else {
+      await api.lockWorkflow(workflow.id, browserSessionId);
+    }
+    await loadData();
+  } catch (err) {
+    actionError = err instanceof Error ? err.message : String(err);
+  } finally {
+    actionLoading = null;
+  }
+}
+
+async function handleResume() {
+  if (!workflow) return;
+  actionLoading = 'resume';
+  actionError = null;
+  try {
+    await api.updateWorkflowStatus(workflow.id, 'in_progress');
+    await loadData();
+  } catch (err) {
+    actionError = err instanceof Error ? err.message : String(err);
+  } finally {
+    actionLoading = null;
+  }
+}
+
+async function handleStatusChange(e: Event) {
+  if (!workflow) return;
+  const select = e.target as HTMLSelectElement;
+  const newStatus = select.value;
+  if (!newStatus) return;
+  actionLoading = 'status';
+  actionError = null;
+  try {
+    await api.updateWorkflowStatus(workflow.id, newStatus);
+    await loadData();
+  } catch (err) {
+    actionError = err instanceof Error ? err.message : String(err);
+  } finally {
+    actionLoading = null;
+    // Reset select to placeholder
+    select.value = '';
+  }
+}
+
+const workflowId = $derived($page.params.id ?? '');
 
 async function loadData() {
   try {
@@ -95,10 +166,77 @@ const completedTasks = $derived(
       <div class="flex items-center gap-3">
         <h2 class="text-2xl font-bold">{workflow.name}</h2>
         <StatusBadge status={workflow.status} />
-        {#if workflow.locked_by_session_id}
+        {#if isLocked}
           <span class="rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800">Locked</span>
         {/if}
       </div>
+
+      <!-- Action buttons -->
+      <div class="mt-3 flex items-center gap-2">
+        <button
+          class="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors
+            {isLocked
+              ? 'border-yellow-300 bg-yellow-50 text-yellow-800 hover:bg-yellow-100'
+              : 'border-gray-300 bg-white text-gray-700 hover:bg-gray-50'}"
+          disabled={actionLoading === 'lock' || !browserSessionId}
+          onclick={handleLockToggle}
+          title={browserSessionId ? undefined : 'Lock requires session registration (not yet implemented)'}
+        >
+          {#if actionLoading === 'lock'}
+            <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+          {:else}
+            <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              {#if isLocked}
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+              {:else}
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+              {/if}
+            </svg>
+          {/if}
+          {isLocked ? 'Unlock' : 'Lock'}
+        </button>
+
+        {#if workflow.status === 'paused' || workflow.status === 'failed'}
+          <button
+            class="inline-flex items-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-3 py-1.5 text-sm font-medium text-green-800 transition-colors hover:bg-green-100"
+            disabled={actionLoading === 'resume'}
+            onclick={handleResume}
+          >
+            {#if actionLoading === 'resume'}
+              <span class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent"></span>
+            {:else}
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            {/if}
+            Resume
+          </button>
+        {/if}
+
+        {#if validTransitions.length > 0}
+          <select
+            class="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 transition-colors hover:bg-gray-50 disabled:opacity-50"
+            disabled={actionLoading === 'status'}
+            onchange={handleStatusChange}
+          >
+            <option value="">Change status…</option>
+            {#each validTransitions as status}
+              <option value={status}>{status.replace(/_/g, ' ')}</option>
+            {/each}
+          </select>
+          {#if actionLoading === 'status'}
+            <span class="inline-block h-4 w-4 animate-spin rounded-full border-2 border-blue-500 border-t-transparent"></span>
+          {/if}
+        {/if}
+      </div>
+
+      {#if actionError}
+        <div class="mt-2 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {actionError}
+        </div>
+      {/if}
+
       {#if workflow.plan_summary}
         <p class="mt-1 text-sm text-gray-500">{workflow.plan_summary}</p>
       {/if}

@@ -24,8 +24,8 @@ let deps = $state<{
 let loading = $state(true);
 let error = $state<string | null>(null);
 
-const workflowId = $derived($page.params.id);
-const taskId = $derived($page.params.taskId);
+const workflowId = $derived($page.params.id ?? '');
+const taskId = $derived($page.params.taskId ?? '');
 
 onMount(async () => {
   try {

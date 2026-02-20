@@ -15,4 +15,5 @@ export {
   WORKFLOW_TRANSITIONS,
 } from './transitions';
 export * as workflowService from './workflow.service';
+export * as workflowReplanningService from './workflow-replanning.service';
 export * as workspaceService from './workspace.service';

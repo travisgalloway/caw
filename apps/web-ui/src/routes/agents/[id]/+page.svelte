@@ -10,7 +10,7 @@ let messages = $state<Message[]>([]);
 let loading = $state(true);
 let error = $state<string | null>(null);
 
-const agentId = $derived($page.params.id);
+const agentId = $derived($page.params.id ?? '');
 
 onMount(async () => {
   try {
