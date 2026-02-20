@@ -282,37 +282,4 @@ export const api = {
       session_id: sessionId,
     });
   },
-
-  // Task mutations
-  async claimTask(id: string, agentId: string) {
-    return request<{ success: boolean }>('POST', `/api/tasks/${id}/claim`, {
-      agent_id: agentId,
-    });
-  },
-
-  async releaseTask(id: string, agentId: string, reason?: string) {
-    return request<{ success: boolean }>('POST', `/api/tasks/${id}/release`, {
-      agent_id: agentId,
-      reason,
-    });
-  },
-
-  async addTask(
-    workflowId: string,
-    params: { name: string; description?: string; sequence?: number; parallel_group?: string },
-  ) {
-    return request<{ task_id: string; sequence: number; workflow_id: string }>(
-      'POST',
-      `/api/workflows/${workflowId}/tasks`,
-      params,
-    );
-  },
-
-  async removeTask(workflowId: string, taskId: string) {
-    return request<{
-      removed_task_id: string;
-      dependencies_rewired: number;
-      tasks_renumbered: number;
-    }>('DELETE', `/api/workflows/${workflowId}/tasks/${taskId}`);
-  },
 };
