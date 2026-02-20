@@ -2,6 +2,7 @@
 import { onDestroy, onMount } from 'svelte';
 import { api, type WorkflowSummary } from '$lib/api/client';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
+import StatsCards from '$lib/components/StatsCards.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
 import WorkflowCreateForm from '$lib/components/WorkflowCreateForm.svelte';
 import { wsStore } from '$lib/stores/ws';
@@ -51,6 +52,8 @@ $effect(() => {
 </script>
 
 <div class="p-6">
+  <StatsCards />
+
   <div class="mb-6 flex items-center justify-between">
     <div>
       <h2 class="text-2xl font-bold tracking-tight">Workflows</h2>
