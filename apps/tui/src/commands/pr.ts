@@ -378,8 +378,8 @@ export async function spawnReviewAgent(options: {
         }
       }
 
-      // Default to approve if we couldn't parse a verdict
-      resolve({ action: 'approve' });
+      // Default to request_changes if we couldn't parse a verdict — fail safe
+      resolve({ action: 'request_changes', reason: 'Failed to parse review verdict' });
     });
 
     proc.on('error', (err) => reject(err));
@@ -418,8 +418,14 @@ export async function waitForCi(
           summary: `Failed: ${failed.map((c) => `${c.name} (${c.state})`).join(', ')}`,
         };
       }
-    } catch {
-      // gh command failed — may be no checks yet, wait and retry
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      // "no checks" or "no commit" are expected early on — wait and retry
+      if (/no checks|no commit|could not find/i.test(msg)) {
+        // Expected: checks not reported yet
+      } else {
+        return { passed: false, summary: `CI check error: ${msg}` };
+      }
     }
 
     await new Promise((r) => setTimeout(r, pollIntervalSecs * 1000));
@@ -547,8 +553,9 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
       console.log(`\n  PR: ${ws.branch} (${ws.pr_url})`);
 
       // 1. Check if already merged
+      let status: ReturnType<typeof prService.checkPrStatus>;
       try {
-        const status = prService.checkPrStatus(ws.pr_url);
+        status = prService.checkPrStatus(ws.pr_url);
         if (status.merged) {
           console.log('    Already merged.');
           if (!dryRun && status.mergeCommit) {
@@ -564,35 +571,30 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
         summary.push(entry);
         continue;
       }
-
-      // 1b. Check for conflicts — rebase if needed
-      {
-        const status = prService.checkPrStatus(ws.pr_url);
-        if (status.mergeable === 'CONFLICTING') {
-          console.log('    Conflicts detected — rebasing...');
-          if (dryRun) {
-            console.log('    [dry-run] Would spawn rebase agent');
-          } else {
-            try {
-              await spawnRebaseAgent({
-                workspaceId: ws.id,
-                worktreePath: ws.path,
-                branch: ws.branch,
-                baseBranch: ws.base_branch ?? 'main',
-                prUrl: ws.pr_url,
-                port: options.port,
-                model: options.model,
-                onProgress: (event, message) => {
-                  if (event === 'done') console.log('    Rebase complete.');
-                  if (event === 'error') console.error(`    Rebase failed: ${message}`);
-                },
-              });
-            } catch (err) {
-              entry.reason = `Rebase failed: ${err instanceof Error ? err.message : String(err)}`;
-              console.error(`    ${entry.reason}`);
-              summary.push(entry);
-              continue;
-            }
+      if (status.mergeable === 'CONFLICTING') {
+        console.log('    Conflicts detected — rebasing...');
+        if (dryRun) {
+          console.log('    [dry-run] Would spawn rebase agent');
+        } else {
+          try {
+            await spawnRebaseAgent({
+              workspaceId: ws.id,
+              worktreePath: ws.path,
+              branch: ws.branch,
+              baseBranch: ws.base_branch ?? 'main',
+              prUrl: ws.pr_url,
+              port: options.port,
+              model: options.model,
+              onProgress: (event, message) => {
+                if (event === 'done') console.log('    Rebase complete.');
+                if (event === 'error') console.error(`    Rebase failed: ${message}`);
+              },
+            });
+          } catch (err) {
+            entry.reason = `Rebase failed: ${err instanceof Error ? err.message : String(err)}`;
+            console.error(`    ${entry.reason}`);
+            summary.push(entry);
+            continue;
           }
         }
       }
@@ -682,8 +684,11 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
       console.log(`    Merged${mergeResult.sha ? ` (${mergeResult.sha.slice(0, 8)})` : ''}`);
 
       // 6. Complete merge (cleanup workspace + worktree)
-      const mergeCommit = mergeResult.sha ?? 'unknown';
-      await prService.completeMerge(db, ws.id, mergeCommit, ws.path);
+      if (mergeResult.sha) {
+        await prService.completeMerge(db, ws.id, mergeResult.sha, ws.path);
+      } else {
+        console.warn('    Warning: merge commit SHA unavailable — skipping workspace cleanup');
+      }
       entry.result = 'merged';
       summary.push(entry);
 
