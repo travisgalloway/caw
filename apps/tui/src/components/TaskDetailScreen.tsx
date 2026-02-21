@@ -1,17 +1,17 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
-import { useWorkflowDetail } from '../hooks/useWorkflowDetail';
+import { useTaskDetail } from '../hooks/useTaskDetail';
 import { formatTimestamp } from '../utils/format';
 import { THEME } from '../utils/theme';
+import { CheckpointTimeline } from './CheckpointTimeline';
 import { StatusIndicator } from './StatusIndicator';
 
 interface TaskDetailScreenProps {
-  workflowId: string;
   taskId: string;
 }
 
-export function TaskDetailScreen({ workflowId, taskId }: TaskDetailScreenProps): React.JSX.Element {
-  const { data, error } = useWorkflowDetail(workflowId);
+export function TaskDetailScreen({ taskId }: TaskDetailScreenProps): React.JSX.Element {
+  const { data: task, error } = useTaskDetail(taskId);
 
   if (error) {
     return (
@@ -21,20 +21,10 @@ export function TaskDetailScreen({ workflowId, taskId }: TaskDetailScreenProps):
     );
   }
 
-  if (!data) {
-    return (
-      <Box flexDirection="column" padding={1}>
-        <Text dimColor>Loading...</Text>
-      </Box>
-    );
-  }
-
-  const task = data.workflow.tasks?.find((t) => t.id === taskId);
-
   if (!task) {
     return (
       <Box flexDirection="column" padding={1}>
-        <Text color="red">Task not found: {taskId}</Text>
+        <Text dimColor>Loading...</Text>
       </Box>
     );
   }
@@ -116,6 +106,13 @@ export function TaskDetailScreen({ workflowId, taskId }: TaskDetailScreenProps):
             <Text>{task.outcome}</Text>
           </Box>
         )}
+      </Box>
+
+      <Box flexDirection="column" marginTop={1} marginX={1}>
+        <Text bold dimColor>
+          Checkpoints
+        </Text>
+        <CheckpointTimeline checkpoints={task.checkpoints || []} />
       </Box>
 
       <Box paddingX={1}>
