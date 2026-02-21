@@ -20,6 +20,7 @@ export interface RunOptions {
   permissionMode?: string;
   maxTurns?: number;
   maxBudgetUsd?: number;
+  ephemeralWorktree?: boolean;
   watch?: boolean;
   detach?: boolean;
   port?: number;
@@ -168,6 +169,7 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
     permissionMode,
     maxTurns: options.maxTurns ?? 50,
     maxBudgetUsd: options.maxBudgetUsd,
+    ephemeralWorktree: options.ephemeralWorktree,
     mcpServerUrl: `http://localhost:${port}/mcp`,
     cwd,
   });

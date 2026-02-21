@@ -54,7 +54,12 @@ export class AgentPool {
     // Resolve workspace for this task (if assigned)
     let agentCwd: string | undefined;
     let agentBranch = this.config.branch;
-    if (task.workspace_id) {
+    let worktreeName: string | undefined;
+
+    if (this.config.ephemeralWorktree) {
+      // Use Claude Code's native --worktree flag; generate a slug from the task ID
+      worktreeName = `caw-${task.id}`;
+    } else if (task.workspace_id) {
       const workspace = workspaceService.get(this.db, task.workspace_id);
       if (workspace) {
         agentCwd = workspace.path;
@@ -114,6 +119,7 @@ export class AgentPool {
       systemPrompt,
       config: this.config,
       cwdOverride: agentCwd,
+      worktreeName,
       onComplete: (handle) => this.handleAgentComplete(handle),
       onError: (handle, error) => this.handleAgentError(handle, error),
     };

@@ -38,6 +38,7 @@ Commands:
     --prompt <text>     Create workflow from prompt, plan it, then run
     --max-agents <n>    Override max_parallel_tasks
     --model <name>      Claude model (default: claude-sonnet-4-5)
+    --ephemeral-worktree  Use Claude Code native worktree isolation per task
     --detach            Start and run in background
 
   work                  Work on GitHub issue(s): fetch, plan, execute, create PR
@@ -120,6 +121,7 @@ if (subcommand === 'run') {
       'permission-mode': { type: 'string' },
       'max-turns': { type: 'string' },
       'max-budget': { type: 'string' },
+      'ephemeral-worktree': { type: 'boolean', default: false },
       watch: { type: 'boolean', default: true },
       detach: { type: 'boolean', default: false },
       port: { type: 'string' },
@@ -141,6 +143,7 @@ Options:
   --permission-mode <mode>  acceptEdits | bypassPermissions (default: bypassPermissions)
   --max-turns <n>           Max turns per task (default: 50)
   --max-budget <usd>        Max budget per task in USD
+  --ephemeral-worktree      Use Claude Code's native --worktree isolation per task
   --watch                   Show progress (default: true)
   --detach                  Start and run in background
   --port <number>           Daemon port (default: 3100)
@@ -179,6 +182,7 @@ Options:
     permissionMode: runValues['permission-mode'],
     maxTurns: runValues['max-turns'] ? Number(runValues['max-turns']) : undefined,
     maxBudgetUsd: runValues['max-budget'] ? Number(runValues['max-budget']) : undefined,
+    ephemeralWorktree: runValues['ephemeral-worktree'],
     watch: runValues.watch,
     detach: runValues.detach,
     port: daemon.port,
