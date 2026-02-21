@@ -1,7 +1,13 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
-import type { DatabaseType } from '@caw/core';
-import { createWorktree, removeWorktree, workflowService, workspaceService } from '@caw/core';
+import type { CycleMode, DatabaseType } from '@caw/core';
+import {
+  createWorktree,
+  loadConfig,
+  removeWorktree,
+  workflowService,
+  workspaceService,
+} from '@caw/core';
 import { DEFAULT_PORT } from '@caw/mcp-server';
 import {
   buildMcpConfigFile,
@@ -24,6 +30,7 @@ export interface WorkOptions {
   port?: number;
   cwd?: string;
   branch?: string;
+  cycle?: CycleMode;
 }
 
 interface GhIssue {
@@ -354,12 +361,32 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
       resolve();
     });
 
-    spawner.on('workflow_awaiting_merge', (data) => {
+    spawner.on('workflow_awaiting_merge', async (data) => {
       console.log('All tasks complete. Workflow is awaiting PR merge.');
       for (const url of data.prUrls) {
         console.log(`  PR: ${url}`);
       }
-      console.log('Run `caw pr check` to check merge status and clean up worktrees.');
+
+      // Resolve cycle mode: CLI flag > config > default 'off'
+      const config = loadConfig(cwd);
+      const cycleMode = options.cycle ?? config.config?.pr?.cycle ?? 'off';
+
+      if (cycleMode === 'auto' || cycleMode === 'hitl') {
+        console.log(`\nStarting PR cycle (mode: ${cycleMode})...`);
+        const { runCycle } = await import('./pr');
+        await runCycle(db, {
+          subcommand: 'cycle',
+          workflowId: workflow.id,
+          repoPath: cwd,
+          port,
+          model: options.model,
+          cycle: cycleMode,
+        });
+      } else {
+        console.log('Run `caw pr check` to check merge status and clean up worktrees.');
+        console.log('Or run `caw pr cycle` to review, merge, and rebase PRs.');
+      }
+
       resolve();
     });
 
