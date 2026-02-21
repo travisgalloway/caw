@@ -13,6 +13,8 @@ export interface SpawnerConfig {
   cwd: string;
   branch?: string;
   issueContext?: string;
+  /** Use Claude Code's native --worktree flag instead of caw-managed worktrees. */
+  ephemeralWorktree?: boolean;
   spawnFn?: (command: string, args: string[], options: SpawnOptions) => ChildProcess;
 }
 

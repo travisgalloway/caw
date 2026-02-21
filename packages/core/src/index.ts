@@ -1,8 +1,10 @@
 export type {
   AgentConfig,
   CawConfig,
+  CycleMode,
   DbMode,
   LoadConfigResult,
+  MergeMethod,
   PrConfig,
   TransportType as ConfigTransportType,
   ValidationResult,

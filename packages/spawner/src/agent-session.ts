@@ -17,6 +17,8 @@ export interface AgentSessionOptions {
   systemPrompt: string;
   config: SpawnerConfig;
   cwdOverride?: string;
+  /** When set, passes --worktree <name> to claude instead of setting cwd. */
+  worktreeName?: string;
   onMessage?: (message: ClaudeMessage) => void;
   onComplete?: (handle: AgentHandle) => void;
   onError?: (handle: AgentHandle, error: Error) => void;
@@ -80,6 +82,11 @@ export class AgentSession {
       args.push('--max-budget-usd', String(config.maxBudgetUsd));
     }
 
+    // Use Claude Code's native worktree isolation when requested
+    if (this.options.worktreeName) {
+      args.push('--worktree', this.options.worktreeName);
+    }
+
     // Spawned agents are non-interactive (no TTY). Honor the configured permissionMode.
     if (config.permissionMode === 'bypassPermissions') {
       args.push('--dangerously-skip-permissions');
@@ -90,8 +97,13 @@ export class AgentSession {
 
     try {
       const spawnFn = config.spawnFn ?? spawn;
+      // When using --worktree, Claude manages the working directory itself,
+      // so always use the main repo cwd (not a worktree override).
+      const effectiveCwd = this.options.worktreeName
+        ? config.cwd
+        : (this.options.cwdOverride ?? config.cwd);
       const proc = spawnFn('claude', args, {
-        cwd: this.options.cwdOverride ?? config.cwd,
+        cwd: effectiveCwd,
         stdio: ['ignore', 'pipe', 'pipe'],
         env: cleanEnvForSpawn(),
       });

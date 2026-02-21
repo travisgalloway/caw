@@ -21,16 +21,15 @@ export interface MergeCheckResult {
  * Check PR status via `gh pr view`.
  */
 export function checkPrStatus(prUrl: string): PrStatus {
-  const raw = execFileSync(
-    'gh',
-    ['pr', 'view', prUrl, '--json', 'state,merged,mergeable,mergeCommit'],
-    { encoding: 'utf-8', timeout: 30_000 },
-  ).trim();
+  const raw = execFileSync('gh', ['pr', 'view', prUrl, '--json', 'state,mergeable,mergeCommit'], {
+    encoding: 'utf-8',
+    timeout: 30_000,
+  }).trim();
 
   const data = JSON.parse(raw);
   return {
     state: data.state,
-    merged: data.merged ?? false,
+    merged: data.state === 'MERGED',
     mergeable: data.mergeable ?? 'UNKNOWN',
     mergeCommit: data.mergeCommit?.oid,
   };

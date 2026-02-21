@@ -11,7 +11,7 @@ function printUsage(): void {
        caw run <workflow_id> [options]
        caw run --prompt "..." [options]
        caw work <issues...> [options]
-       caw pr list|check|merge|rebase [workflow_id|workspace_id]
+       caw pr list|check|merge|rebase|cycle [workflow_id|workspace_id]
 
 Options:
   --server              Run as headless MCP server (no TUI)
@@ -38,6 +38,7 @@ Commands:
     --prompt <text>     Create workflow from prompt, plan it, then run
     --max-agents <n>    Override max_parallel_tasks
     --model <name>      Claude model (default: claude-sonnet-4-5)
+    --ephemeral-worktree  Use Claude Code native worktree isolation per task
     --detach            Start and run in background
 
   work                  Work on GitHub issue(s): fetch, plan, execute, create PR
@@ -120,6 +121,7 @@ if (subcommand === 'run') {
       'permission-mode': { type: 'string' },
       'max-turns': { type: 'string' },
       'max-budget': { type: 'string' },
+      'ephemeral-worktree': { type: 'boolean', default: false },
       watch: { type: 'boolean', default: true },
       detach: { type: 'boolean', default: false },
       port: { type: 'string' },
@@ -141,6 +143,7 @@ Options:
   --permission-mode <mode>  acceptEdits | bypassPermissions (default: bypassPermissions)
   --max-turns <n>           Max turns per task (default: 50)
   --max-budget <usd>        Max budget per task in USD
+  --ephemeral-worktree      Use Claude Code's native --worktree isolation per task
   --watch                   Show progress (default: true)
   --detach                  Start and run in background
   --port <number>           Daemon port (default: 3100)
@@ -179,6 +182,7 @@ Options:
     permissionMode: runValues['permission-mode'],
     maxTurns: runValues['max-turns'] ? Number(runValues['max-turns']) : undefined,
     maxBudgetUsd: runValues['max-budget'] ? Number(runValues['max-budget']) : undefined,
+    ephemeralWorktree: runValues['ephemeral-worktree'],
     watch: runValues.watch,
     detach: runValues.detach,
     port: daemon.port,
@@ -200,6 +204,12 @@ if (subcommand === 'pr') {
       model: { type: 'string' },
       port: { type: 'string' },
       db: { type: 'string' },
+      cycle: { type: 'string' },
+      'no-review': { type: 'boolean', default: false },
+      'dry-run': { type: 'boolean', default: false },
+      'merge-method': { type: 'string' },
+      'ci-timeout': { type: 'string' },
+      'ci-poll': { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
     },
     strict: true,
@@ -211,20 +221,28 @@ if (subcommand === 'pr') {
        caw pr check [workflow_id]
        caw pr merge <workspace_id|workflow_id> --pr-url <url> [--merge-commit <sha>]
        caw pr rebase <workspace_id|workflow_id> [--model <name>]
+       caw pr cycle [workflow_id] [--cycle auto|hitl] [options]
 
 Commands:
   list              List workflows awaiting PR merge
   check             Check PR merge status, clean up merged worktrees
   merge             Manually mark a workspace as merged
   rebase            Rebase conflicting PRs onto updated main branch
+  cycle             Review, wait for CI, merge, rebase loop
 
 Options:
-  --pr-url <url>        PR URL (required for merge if not already set on workspace)
-  --merge-commit <sha>  Merge commit SHA (fetched from GitHub if omitted)
-  --model <name>        Claude model for rebase agent (default: claude-sonnet-4-5)
-  --port <number>       Daemon port (default: 3100)
-  --db <path>           Database file path
-  -h, --help            Show this help message
+  --pr-url <url>          PR URL (required for merge if not already set on workspace)
+  --merge-commit <sha>    Merge commit SHA (fetched from GitHub if omitted)
+  --model <name>          Claude model for agents (default: claude-sonnet-4-5)
+  --port <number>         Daemon port (default: 3100)
+  --db <path>             Database file path
+  --cycle <mode>          Cycle mode: auto | hitl (default from config or auto for cycle cmd)
+  --no-review             Skip code review step
+  --dry-run               Show what would happen without making changes
+  --merge-method <type>   squash | merge | rebase (default: squash)
+  --ci-timeout <secs>     CI wait timeout in seconds (default: 600)
+  --ci-poll <secs>        CI poll interval in seconds (default: 30)
+  -h, --help              Show this help message
 `);
     process.exit(prValues.help ? 0 : 1);
   }
@@ -232,6 +250,17 @@ Options:
   const prDbPath = prValues.db ?? getDbPath('per-repo', process.cwd());
   const prDb = createConnection(prDbPath);
   runMigrations(prDb);
+
+  // Start daemon for cycle subcommand (rebase agents need MCP)
+  let prDaemon: { port: number; cleanup: () => void } | undefined;
+  if (prSubcommand === 'cycle' || prSubcommand === 'rebase') {
+    const { initDaemon } = await import('../daemon');
+    prDaemon = await initDaemon(prDb, prDbPath, prValues.port ? Number(prValues.port) : undefined);
+  }
+
+  const cycleMode =
+    (prValues.cycle as 'auto' | 'hitl' | 'off' | undefined) ??
+    (prSubcommand === 'cycle' ? 'auto' : undefined);
 
   const { runPr } = await import('../commands/pr');
   await runPr(prDb, {
@@ -241,9 +270,16 @@ Options:
     prUrl: prValues['pr-url'],
     mergeCommit: prValues['merge-commit'],
     model: prValues.model,
-    port: prValues.port ? Number(prValues.port) : undefined,
+    port: prDaemon?.port ?? (prValues.port ? Number(prValues.port) : undefined),
+    cycle: cycleMode,
+    noReview: prValues['no-review'],
+    dryRun: prValues['dry-run'],
+    mergeMethod: prValues['merge-method'] as 'squash' | 'merge' | 'rebase' | undefined,
+    ciTimeout: prValues['ci-timeout'] ? Number(prValues['ci-timeout']) : undefined,
+    ciPoll: prValues['ci-poll'] ? Number(prValues['ci-poll']) : undefined,
   });
 
+  prDaemon?.cleanup();
   prDb.close();
   process.exit(0);
 }
@@ -262,6 +298,7 @@ if (subcommand === 'work') {
       detach: { type: 'boolean', default: false },
       port: { type: 'string' },
       db: { type: 'string' },
+      cycle: { type: 'string' },
       help: { type: 'boolean', short: 'h', default: false },
     },
     strict: true,
@@ -285,6 +322,7 @@ Options:
   --detach                  Start and run in background
   --port <number>           Daemon port (default: 3100)
   --db <path>               Database file path
+  --cycle <mode>            After completion: auto | hitl | off (default from config or off)
   -h, --help                Show this help message
 `);
     process.exit(workValues.help ? 0 : 1);
@@ -322,6 +360,7 @@ Options:
     detach: workValues.detach,
     port: daemon.port,
     cwd: process.cwd(),
+    cycle: workValues.cycle as 'auto' | 'hitl' | 'off' | undefined,
   });
 
   daemon.cleanup();

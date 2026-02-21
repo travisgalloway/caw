@@ -4,11 +4,12 @@ export { cleanEnvForSpawn } from './env';
 export { buildMcpConfigFile, cleanupMcpConfigFile } from './mcp-config';
 export type { EventListener } from './pool';
 export { AgentPool } from './pool';
-export type { PromptContext, RebaseContext, WorkPlannerContext } from './prompt';
+export type { PromptContext, RebaseContext, ReviewContext, WorkPlannerContext } from './prompt';
 export {
   buildAgentSystemPrompt,
   buildPlannerSystemPrompt,
   buildRebaseAgentPrompt,
+  buildReviewAgentPrompt,
   buildWorkPlannerPrompt,
 } from './prompt';
 export {

@@ -142,6 +142,47 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
   return lines.join('\n');
 }
 
+export interface ReviewContext {
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  prUrl: string;
+}
+
+export function buildReviewAgentPrompt(ctx: ReviewContext): string {
+  return [
+    'You are a code review agent. Your job is to review a pull request for bugs, security issues, and code quality, then output a JSON verdict.',
+    '',
+    '## Context',
+    `- Worktree path: ${ctx.worktreePath}`,
+    `- Feature branch: ${ctx.branch}`,
+    `- Base branch: ${ctx.baseBranch}`,
+    `- PR URL: ${ctx.prUrl}`,
+    '',
+    '## Steps',
+    '',
+    `1. Change to the worktree directory: cd ${ctx.worktreePath}`,
+    `2. Review the diff: git diff origin/${ctx.baseBranch}...HEAD`,
+    '3. Look for:',
+    '   - Bugs and logic errors',
+    '   - Security vulnerabilities (injection, XSS, etc.)',
+    '   - Missing error handling',
+    '   - Broken tests or missing test coverage',
+    '4. Run verification:',
+    '   - bun run build',
+    '   - bun run test',
+    '   - bun run lint',
+    '5. Output your verdict as the LAST line of your response, as a JSON object:',
+    '   - If approved: {"action": "approve"}',
+    '   - If changes needed: {"action": "request_changes", "reason": "description of issues"}',
+    '',
+    '## Rules',
+    '- Be thorough but pragmatic — only flag real issues, not style preferences',
+    '- If build/test/lint fails, that alone is reason to request changes',
+    '- Your final line MUST be valid JSON matching the format above',
+  ].join('\n');
+}
+
 export interface RebaseContext {
   workspaceId: string;
   worktreePath: string;

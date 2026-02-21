@@ -1,4 +1,6 @@
 import { describe, expect, test } from 'bun:test';
+import { EventEmitter } from 'node:events';
+import { Readable } from 'node:stream';
 import type { AgentSessionOptions } from './agent-session';
 import { AgentSession } from './agent-session';
 
@@ -60,5 +62,102 @@ describe('AgentSession', () => {
     const handle = session.getHandle();
     expect(handle.status).toBe('aborted');
     expect(handle.error).toBe('Aborted');
+  });
+
+  describe('worktreeName option', () => {
+    function createMockSpawn() {
+      let capturedArgs: string[] = [];
+      let capturedCwd: string | undefined;
+
+      const spawnFn = (_cmd: string, args: string[], opts: { cwd?: string }) => {
+        capturedArgs = args;
+        capturedCwd = opts.cwd as string;
+        const proc = new EventEmitter() as EventEmitter & {
+          stdout: Readable;
+          stderr: Readable;
+          stdin: null;
+          pid: number;
+          killed: boolean;
+          kill: () => boolean;
+        };
+        proc.stdout = new Readable({ read() {} });
+        proc.stderr = new Readable({ read() {} });
+        proc.stdin = null;
+        proc.pid = 12345;
+        proc.killed = false;
+        proc.kill = () => true;
+        // End streams and emit close after a tick
+        setTimeout(() => {
+          proc.stdout.push(null);
+          proc.stderr.push(null);
+          setTimeout(() => proc.emit('close', 0), 10);
+        }, 10);
+        return proc;
+      };
+
+      return {
+        // biome-ignore lint/suspicious/noExplicitAny: test mock
+        spawnFn: spawnFn as any,
+        getArgs: () => capturedArgs,
+        getCwd: () => capturedCwd,
+      };
+    }
+
+    test('includes --worktree flag when worktreeName is set', async () => {
+      const mock = createMockSpawn();
+      const session = new AgentSession({
+        ...defaultOptions,
+        worktreeName: 'caw-tk_test456',
+        config: { ...defaultOptions.config, spawnFn: mock.spawnFn },
+      });
+
+      await session.run();
+
+      const args = mock.getArgs();
+      const wtIdx = args.indexOf('--worktree');
+      expect(wtIdx).toBeGreaterThan(-1);
+      expect(args[wtIdx + 1]).toBe('caw-tk_test456');
+    });
+
+    test('uses main repo cwd when worktreeName is set (ignores cwdOverride)', async () => {
+      const mock = createMockSpawn();
+      const session = new AgentSession({
+        ...defaultOptions,
+        worktreeName: 'caw-tk_test456',
+        cwdOverride: '/some/worktree/path',
+        config: { ...defaultOptions.config, cwd: '/main/repo', spawnFn: mock.spawnFn },
+      });
+
+      await session.run();
+
+      // Should use main repo cwd, not the worktree override
+      expect(mock.getCwd()).toBe('/main/repo');
+    });
+
+    test('does not include --worktree flag when worktreeName is not set', async () => {
+      const mock = createMockSpawn();
+      const session = new AgentSession({
+        ...defaultOptions,
+        config: { ...defaultOptions.config, spawnFn: mock.spawnFn },
+      });
+
+      await session.run();
+
+      const args = mock.getArgs();
+      expect(args.indexOf('--worktree')).toBe(-1);
+    });
+
+    test('uses cwdOverride normally when worktreeName is not set', async () => {
+      const mock = createMockSpawn();
+      const session = new AgentSession({
+        ...defaultOptions,
+        cwdOverride: '/some/worktree/path',
+        config: { ...defaultOptions.config, cwd: '/main/repo', spawnFn: mock.spawnFn },
+      });
+
+      await session.run();
+
+      expect(mock.getCwd()).toBe('/some/worktree/path');
+    });
   });
 });
