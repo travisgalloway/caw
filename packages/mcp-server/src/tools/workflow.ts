@@ -202,6 +202,12 @@ export const register: ToolRegistrar = (server, db) => {
               estimated_complexity: z.enum(['low', 'medium', 'high']).optional(),
               files_likely_affected: z.array(z.string()).optional(),
               repository_path: z.string().optional().describe('Repository path for this task'),
+              context_from: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  'Task names whose outcomes to inject as context. When set, replaces generic prior-task loading with targeted results.',
+                ),
             }),
           ),
         }),
@@ -221,6 +227,7 @@ export const register: ToolRegistrar = (server, db) => {
               files_likely_affected: t.files_likely_affected as string[] | undefined,
               depends_on: t.depends_on as string[] | undefined,
               repository_path: t.repository_path as string | undefined,
+              context_from: t.context_from as string[] | undefined,
             })),
           });
         } catch (err) {

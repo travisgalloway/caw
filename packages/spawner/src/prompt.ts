@@ -2,8 +2,9 @@ import type { Task, Workflow } from '@caw/core';
 
 export interface PromptContext {
   agentId: string;
-  workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary'>;
+  workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary' | 'source_content'>;
   task: Pick<Task, 'id' | 'name' | 'description'>;
+  dependencyChain?: string[];
   branch?: string;
   worktreePath?: string;
   issueContext?: string;
@@ -40,6 +41,24 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
 
   if (ctx.task.description) {
     lines.push(`- Description: ${ctx.task.description}`);
+  }
+
+  // Goal chain: workflow goal → dependency chain → current task
+  if (ctx.workflow.source_content || ctx.dependencyChain?.length) {
+    lines.push('', '## Goal Chain');
+    if (ctx.workflow.source_content) {
+      // Truncate to first 500 chars to keep prompt lean
+      const goal =
+        ctx.workflow.source_content.length > 500
+          ? `${ctx.workflow.source_content.slice(0, 500)}...`
+          : ctx.workflow.source_content;
+      lines.push(`**Workflow Goal**: ${goal}`);
+    }
+    if (ctx.dependencyChain && ctx.dependencyChain.length > 0) {
+      lines.push(
+        `**Dependency Chain**: ${ctx.dependencyChain.join(' → ')} → **${ctx.task.name}** (you are here)`,
+      );
+    }
   }
 
   lines.push(

@@ -23,7 +23,7 @@ export class AgentPool {
   constructor(
     private readonly db: DatabaseType,
     private readonly config: SpawnerConfig,
-    private readonly workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary'>,
+    private readonly workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary' | 'source_content'>,
     private readonly humanAgentId: string | null = null,
   ) {}
 
@@ -101,11 +101,20 @@ export class AgentPool {
         .join('\n');
     }
 
+    // Build dependency chain (names of tasks this task depends on)
+    const depRows = this.db
+      .prepare(
+        'SELECT t.name FROM task_dependencies td JOIN tasks t ON t.id = td.depends_on_id WHERE td.task_id = ? ORDER BY t.sequence ASC',
+      )
+      .all(task.id) as Array<{ name: string }>;
+    const dependencyChain = depRows.length > 0 ? depRows.map((r) => r.name) : undefined;
+
     // Build system prompt
     const systemPrompt = buildAgentSystemPrompt({
       agentId: agent.id,
       workflow: this.workflow,
       task,
+      dependencyChain,
       branch: agentBranch,
       worktreePath: agentCwd,
       issueContext: this.config.issueContext,

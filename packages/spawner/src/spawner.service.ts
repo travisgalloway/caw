@@ -128,6 +128,7 @@ export class WorkflowSpawner {
         id: workflowData.id,
         name: workflowData.name,
         plan_summary: workflowData.plan_summary,
+        source_content: workflowData.source_content,
       },
       this.humanAgentId,
     );
@@ -242,6 +243,7 @@ export class WorkflowSpawner {
         id: workflowData.id,
         name: workflowData.name,
         plan_summary: workflowData.plan_summary,
+        source_content: workflowData.source_content,
       },
       this.humanAgentId,
     );

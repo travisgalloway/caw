@@ -27,6 +27,7 @@ export interface Task {
   repository_id: string | null;
   assigned_agent_id: string | null;
   claimed_at: number | null;
+  context_from: string | null;
   created_at: number;
   updated_at: number;
 }

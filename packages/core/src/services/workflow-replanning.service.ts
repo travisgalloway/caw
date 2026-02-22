@@ -18,6 +18,7 @@ export interface PlanTask {
   files_likely_affected?: string[];
   depends_on?: string[];
   repository_path?: string;
+  context_from?: string[];
 }
 
 export interface AddTaskParams {
@@ -351,8 +352,8 @@ export function replan(
     const now = Date.now();
     const insertTask = db.prepare(
       `INSERT INTO tasks
-        (id, workflow_id, name, description, status, sequence, parallel_group, repository_id, context, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, name, description, status, sequence, parallel_group, repository_id, context, context_from, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
     const insertWR = db.prepare(
       'INSERT OR IGNORE INTO workflow_repositories (workflow_id, repository_id, added_at) VALUES (?, ?, ?)',
@@ -386,9 +387,26 @@ export function replan(
         t.parallel_group ?? null,
         repoId,
         contextJson,
+        null, // context_from resolved after all tasks inserted
         now,
         now,
       );
+    }
+
+    // Resolve context_from names to task IDs
+    const updateContextFrom = db.prepare('UPDATE tasks SET context_from = ? WHERE id = ?');
+    for (const t of params.tasks) {
+      if (!t.context_from || t.context_from.length === 0) continue;
+      const tId = nameToIdMap.get(t.name) as string;
+      const resolvedIds: string[] = [];
+      for (const ref of t.context_from) {
+        const refId = resolveTaskRef(db, workflowId, ref, nameToIdMap);
+        if (!refId) {
+          throw new Error(`Unknown context_from reference '${ref}' in task '${t.name}'`);
+        }
+        resolvedIds.push(refId);
+      }
+      updateContextFrom.run(JSON.stringify(resolvedIds), tId);
     }
 
     // Wire dependencies for new tasks (de-dup to avoid UNIQUE constraint errors)
