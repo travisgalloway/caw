@@ -4,6 +4,7 @@ import type { Router } from './router';
 import { createRouter } from './router';
 import { registerAgentRoutes } from './routes/agents';
 import { registerCheckpointRoutes } from './routes/checkpoints';
+import { registerConfigRoutes } from './routes/config';
 import { registerLockRoutes } from './routes/locks';
 import { registerMessageRoutes } from './routes/messages';
 import { registerOrchestrationRoutes } from './routes/orchestration';
@@ -35,6 +36,7 @@ export function createRestApi(db: DatabaseType, broadcaster?: Broadcaster): Rest
   registerLockRoutes(router, db);
   registerSetupRoutes(router, db);
   registerStatsRoutes(router, db);
+  registerConfigRoutes(router, db);
 
   async function handle(req: Request): Promise<Response> {
     // Handle CORS preflight

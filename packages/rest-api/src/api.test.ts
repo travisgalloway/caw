@@ -542,6 +542,43 @@ describe('setup routes', () => {
   });
 });
 
+// --- Config Routes ---
+
+describe('config routes', () => {
+  test('GET /api/config returns config and diagnostics', async () => {
+    const res = await req('GET', '/api/config');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      data: {
+        config: Record<string, unknown>;
+        diagnostics: {
+          dbPath: string;
+          repoConfigPath: string | null;
+          globalConfigPath: string;
+          warnings: string[];
+        };
+      };
+    };
+
+    // Verify config object exists (even if empty)
+    expect(body.data.config).toBeDefined();
+    expect(typeof body.data.config).toBe('object');
+
+    // Verify diagnostics structure
+    expect(body.data.diagnostics).toBeDefined();
+    expect(typeof body.data.diagnostics.dbPath).toBe('string');
+    expect(body.data.diagnostics.dbPath.length).toBeGreaterThan(0);
+    expect(typeof body.data.diagnostics.globalConfigPath).toBe('string');
+    expect(body.data.diagnostics.globalConfigPath.length).toBeGreaterThan(0);
+    expect(Array.isArray(body.data.diagnostics.warnings)).toBe(true);
+
+    // repoConfigPath can be null or string
+    if (body.data.diagnostics.repoConfigPath !== null) {
+      expect(typeof body.data.diagnostics.repoConfigPath).toBe('string');
+    }
+  });
+});
+
 // --- 404 ---
 
 describe('routing', () => {
