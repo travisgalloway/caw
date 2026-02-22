@@ -15,12 +15,14 @@ export interface CreateParams {
   taskIds?: string[];
   repositoryId?: string;
   repositoryPath?: string;
+  config?: Record<string, unknown>;
 }
 
 export interface UpdateParams {
   status?: WorkspaceStatus;
   mergeCommit?: string;
   prUrl?: string;
+  config?: Record<string, unknown>;
 }
 
 // --- Service functions ---
@@ -50,6 +52,8 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
 
     const now = Date.now();
 
+    const configJson = params.config ? JSON.stringify(params.config) : null;
+
     const workspace: Workspace = {
       id: workspaceId(),
       workflow_id: params.workflowId,
@@ -60,14 +64,15 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       status: 'active',
       merge_commit: null,
       pr_url: null,
+      config: configJson,
       created_at: now,
       updated_at: now,
     };
 
     db.prepare(
       `INSERT INTO workspaces
-        (id, workflow_id, repository_id, path, branch, base_branch, status, merge_commit, pr_url, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, repository_id, path, branch, base_branch, status, merge_commit, pr_url, config, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     ).run(
       workspace.id,
       workspace.workflow_id,
@@ -78,6 +83,7 @@ export function create(db: DatabaseType, params: CreateParams): Workspace {
       workspace.status,
       workspace.merge_commit,
       workspace.pr_url,
+      workspace.config,
       workspace.created_at,
       workspace.updated_at,
     );
@@ -131,11 +137,24 @@ export function update(db: DatabaseType, id: string, params: UpdateParams): Work
   const mergeCommit = params.mergeCommit ?? workspace.merge_commit;
   const prUrl = params.prUrl ?? workspace.pr_url;
 
-  db.prepare(
-    'UPDATE workspaces SET status = ?, merge_commit = ?, pr_url = ?, updated_at = ? WHERE id = ?',
-  ).run(status, mergeCommit, prUrl, now, id);
+  let configJson = workspace.config;
+  if (params.config) {
+    const existing = workspace.config ? JSON.parse(workspace.config) : {};
+    configJson = JSON.stringify({ ...existing, ...params.config });
+  }
 
-  return { ...workspace, status, merge_commit: mergeCommit, pr_url: prUrl, updated_at: now };
+  db.prepare(
+    'UPDATE workspaces SET status = ?, merge_commit = ?, pr_url = ?, config = ?, updated_at = ? WHERE id = ?',
+  ).run(status, mergeCommit, prUrl, configJson, now, id);
+
+  return {
+    ...workspace,
+    status,
+    merge_commit: mergeCommit,
+    pr_url: prUrl,
+    config: configJson,
+    updated_at: now,
+  };
 }
 
 export function list(

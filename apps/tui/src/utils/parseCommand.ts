@@ -32,6 +32,8 @@ export const SLASH_COMMANDS = [
   'merge',
   'rebase',
   'work',
+  'cycle',
+  'max-agents',
 ] as const;
 
 export type SlashCommand = (typeof SLASH_COMMANDS)[number];
@@ -61,6 +63,8 @@ export const COMMAND_DESCRIPTIONS: Record<SlashCommand, string> = {
   merge: 'Mark workspace as merged',
   rebase: 'Rebase workspace branch onto main',
   work: 'Work on GitHub issue(s)',
+  cycle: 'Set PR cycle mode (auto/hitl/off)',
+  'max-agents': 'Set max parallel agents for workflow',
 };
 
 export function isValidSlashCommand(command: string): command is SlashCommand {

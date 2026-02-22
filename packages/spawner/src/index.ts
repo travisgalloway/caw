@@ -19,6 +19,8 @@ export {
   registerSpawner,
   unregisterSpawner,
 } from './registry';
+export type { AutoResumeResult, ResumeOptions } from './resume';
+export { resumeWorkflows } from './resume';
 export { WorkflowSpawner } from './spawner.service';
 export type {
   AgentHandle,

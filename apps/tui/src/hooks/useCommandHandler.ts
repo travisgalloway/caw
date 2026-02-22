@@ -1,7 +1,10 @@
 import {
+  type CycleMode,
+  loadConfig,
   lockService,
   messageService,
   prService,
+  resolveCycleMode,
   workflowService,
   workspaceService,
 } from '@caw/core';
@@ -110,19 +113,101 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError('No workflow selected. Usage: /resume <workflow_id>');
           return;
         }
+        if (!sessionInfo?.port) {
+          store.setPromptError('No active server session — cannot resume');
+          return;
+        }
         try {
           const workflow = workflowService.get(db, wfId);
           if (!workflow) {
             store.setPromptError(`Workflow not found: ${wfId}`);
             return;
           }
-          if (workflow.status !== 'paused' && workflow.status !== 'failed') {
+          const resumableStatuses = ['paused', 'failed', 'ready', 'in_progress', 'awaiting_merge'];
+          if (!resumableStatuses.includes(workflow.status)) {
             store.setPromptError(
-              `Cannot resume: workflow status is '${workflow.status}' (must be paused or failed)`,
+              `Cannot resume: workflow status is '${workflow.status}' (must be paused, failed, ready, in_progress, or awaiting_merge)`,
             );
             return;
           }
-          workflowService.updateStatus(db, wfId, 'in_progress');
+          const port = sessionInfo.port;
+
+          // For awaiting_merge, run the PR cycle directly instead of spawning agents
+          if (workflow.status === 'awaiting_merge') {
+            store.setPromptSuccess(`Running PR cycle for ${wfId}...`);
+            Promise.resolve().then(async () => {
+              try {
+                const { runCycle } = await import('../commands/pr');
+                await runCycle(db, {
+                  subcommand: 'cycle',
+                  workflowId: wfId,
+                  repoPath: process.cwd(),
+                  port,
+                });
+                store.triggerRefresh();
+              } catch (err) {
+                store.setPromptError(
+                  `Cycle error: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              }
+            });
+            return;
+          }
+
+          // Transition to in_progress if not already there
+          if (workflow.status !== 'in_progress') {
+            workflowService.updateStatus(db, wfId, 'in_progress');
+          }
+          // Start a spawner for this workflow
+          Promise.resolve().then(async () => {
+            try {
+              const { getSpawner, WorkflowSpawner } = await import('@caw/spawner');
+              if (getSpawner(wfId)) return; // Already running
+              const maxAgents = workflow.max_parallel_tasks ?? 3;
+              const spawner = new WorkflowSpawner(db, {
+                workflowId: wfId,
+                maxAgents,
+                model: 'claude-sonnet-4-5',
+                permissionMode: 'bypassPermissions',
+                maxTurns: 50,
+                mcpServerUrl: `http://localhost:${port}/mcp`,
+                cwd: process.cwd(),
+              });
+              spawner.on('workflow_all_complete', () => {
+                queueMicrotask(() => spawner.shutdown());
+              });
+              spawner.on('workflow_stalled', () => {
+                queueMicrotask(() => spawner.shutdown());
+              });
+              spawner.on('workflow_failed', () => {
+                queueMicrotask(() => spawner.shutdown());
+              });
+              spawner.on('workflow_awaiting_merge', async ({ workflowId }) => {
+                try {
+                  const { runCycle } = await import('../commands/pr');
+                  await runCycle(db, {
+                    subcommand: 'cycle',
+                    workflowId,
+                    repoPath: process.cwd(),
+                    port,
+                  });
+                } catch (err) {
+                  console.error(
+                    `[resume] Cycle error: ${err instanceof Error ? err.message : String(err)}`,
+                  );
+                }
+                queueMicrotask(() => spawner.shutdown());
+              });
+              const result = await spawner.start();
+              if (!result.success) {
+                console.error(`[resume] Failed to start spawner: ${result.error}`);
+              }
+            } catch (err) {
+              console.error(
+                `[resume] Spawner error: ${err instanceof Error ? err.message : String(err)}`,
+              );
+            }
+          });
           store.setPromptSuccess(`Resumed workflow ${wfId}`);
           store.triggerRefresh();
         } catch (err) {
@@ -343,6 +428,127 @@ export function useCommandHandler(): (input: string) => void {
           store.setPromptError(
             `Remove task failed: ${err instanceof Error ? err.message : String(err)}`,
           );
+        }
+        return;
+      }
+
+      if (command === 'cycle') {
+        const wfId = getWorkflowId(store);
+        if (!wfId) {
+          store.setPromptError('Navigate to a workflow first');
+          return;
+        }
+        const validModes: CycleMode[] = ['auto', 'hitl', 'off'];
+        const args = parsed.args?.trim();
+
+        if (!args) {
+          // Show current resolved cycle mode
+          try {
+            const workflow = workflowService.get(db, wfId);
+            const workspaces = workspaceService.list(db, wfId);
+            const activeWs = workspaces.find((ws) => ws.status === 'active') ?? workspaces[0];
+            const fileConfig = loadConfig().config;
+            const resolved = resolveCycleMode(undefined, activeWs, workflow, fileConfig);
+
+            // Determine which level it came from
+            let source = 'default';
+            const parseConfig = (cfg: string | null | undefined) => {
+              if (!cfg) return undefined;
+              try {
+                return JSON.parse(cfg)?.pr?.cycle;
+              } catch {
+                return undefined;
+              }
+            };
+            if (activeWs && parseConfig(activeWs.config)) {
+              source = 'workspace';
+            } else if (workflow && parseConfig(workflow.config)) {
+              source = 'workflow';
+            } else if (fileConfig?.pr?.cycle) {
+              source = 'config';
+            }
+
+            store.setPromptSuccess(`Cycle mode: ${resolved} (${source})`);
+          } catch (err) {
+            store.setPromptError(
+              `Failed to resolve cycle mode: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+          return;
+        }
+
+        // Check for "workspace <mode>" variant
+        const parts = args.split(/\s+/);
+        if (parts[0] === 'workspace') {
+          const mode = parts[1] as CycleMode;
+          if (!mode || !validModes.includes(mode)) {
+            store.setPromptError(`Usage: /cycle workspace auto|hitl|off`);
+            return;
+          }
+          const wsId = store.selectedWorkspaceId;
+          if (!wsId) {
+            store.setPromptError('No workspace selected. Select one in the Workspaces tab first.');
+            return;
+          }
+          try {
+            workspaceService.update(db, wsId, {
+              config: { pr: { cycle: mode } },
+            });
+            store.setPromptSuccess(`Workspace cycle mode set to: ${mode}`);
+            store.triggerRefresh();
+          } catch (err) {
+            store.setPromptError(
+              `Failed to set workspace cycle mode: ${err instanceof Error ? err.message : String(err)}`,
+            );
+          }
+          return;
+        }
+
+        // Set workflow-level cycle mode
+        const mode = parts[0] as CycleMode;
+        if (!validModes.includes(mode)) {
+          store.setPromptError(`Invalid cycle mode: ${mode}. Use auto, hitl, or off`);
+          return;
+        }
+        try {
+          workflowService.patchConfig(db, wfId, { pr: { cycle: mode } });
+          store.setPromptSuccess(`Workflow cycle mode set to: ${mode}`);
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(
+            `Failed to set cycle mode: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        return;
+      }
+
+      if (command === 'max-agents') {
+        const n = Number(parsed.args);
+        if (!parsed.args || Number.isNaN(n) || n < 1 || !Number.isInteger(n)) {
+          store.setPromptError('Usage: /max-agents <number>');
+          return;
+        }
+        const wfId = getWorkflowId(store);
+        if (!wfId) {
+          store.setPromptError('Navigate to a workflow first');
+          return;
+        }
+        try {
+          // Always persist to DB
+          workflowService.setParallelism(db, wfId, n);
+          // Also update live spawner pool if one is running
+          import('@caw/spawner')
+            .then(({ getSpawner }) => {
+              const spawner = getSpawner(wfId);
+              if (spawner) {
+                spawner.setMaxAgents(n);
+              }
+            })
+            .catch(() => {});
+          store.setPromptSuccess(`Set max agents to ${n}`);
+          store.triggerRefresh();
+        } catch (err) {
+          store.setPromptError(`Failed: ${err instanceof Error ? err.message : String(err)}`);
         }
         return;
       }

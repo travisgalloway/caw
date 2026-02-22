@@ -1,7 +1,13 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { CycleMode, DatabaseType, MergeMethod } from '@caw/core';
-import { loadConfig, prService, workflowService, workspaceService } from '@caw/core';
+import {
+  loadConfig,
+  prService,
+  resolveCycleMode,
+  workflowService,
+  workspaceService,
+} from '@caw/core';
 import {
   buildMcpConfigFile,
   buildRebaseAgentPrompt,
@@ -493,9 +499,14 @@ function promptUser(question: string): Promise<string> {
 }
 
 export async function runCycle(db: DatabaseType, options: PrOptions): Promise<void> {
-  // Resolve cycle mode: CLI flag > config > default 'off'
+  // Resolve cycle mode: CLI flag > workspace > workflow > config > default 'off'
   const config = loadConfig(options.repoPath);
-  const mode = options.cycle ?? config.config?.pr?.cycle ?? 'off';
+  const targetWorkflow = options.workflowId ? workflowService.get(db, options.workflowId) : null;
+  const workspaces = options.workflowId
+    ? workspaceService.list(db, options.workflowId, 'active')
+    : [];
+  const activeWorkspace = workspaces[0] ?? null;
+  const mode = resolveCycleMode(options.cycle, activeWorkspace, targetWorkflow, config.config);
 
   if (mode === 'off') {
     console.log('Cycle mode is off. Use --cycle auto|hitl to enable.');
@@ -518,7 +529,10 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
   // Find workflows awaiting merge
   const targetWfId = options.workflowId;
   const allWorkflows = targetWfId
-    ? workflowService.list(db, {}).workflows.filter((w) => w.id === targetWfId)
+    ? (() => {
+        const wf = workflowService.get(db, targetWfId);
+        return wf ? [wf] : [];
+      })()
     : workflowService.list(db, { status: 'awaiting_merge' }).workflows;
 
   if (allWorkflows.length === 0) {

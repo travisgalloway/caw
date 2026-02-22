@@ -158,6 +158,7 @@ export {
   workflowId,
   workspaceId,
 } from './utils/id';
+export { resolveCycleMode } from './utils/resolve-pr-options';
 export { estimateObjectTokens, estimateTokens } from './utils/tokens';
 export type { WorktreeInfo } from './utils/worktree';
 export { createWorktree, listWorktrees, removeWorktree } from './utils/worktree';

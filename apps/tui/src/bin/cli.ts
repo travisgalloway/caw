@@ -482,6 +482,30 @@ if (values['web-ui']) {
     process.exit(1);
   });
 
+  // Auto-resume in_progress workflows (daemon only)
+  if (daemon.isDaemon) {
+    const { resumeWorkflows } = await import('@caw/spawner');
+    const resumeResult = await resumeWorkflows(db, {
+      mcpServerUrl: `http://localhost:${daemon.port}/mcp`,
+      cwd: process.cwd(),
+      onAwaitingMerge: async (workflowId) => {
+        const { runCycle } = await import('../commands/pr');
+        await runCycle(db, {
+          subcommand: 'cycle',
+          workflowId,
+          repoPath: process.cwd(),
+          port: daemon.port,
+        });
+      },
+    });
+    if (resumeResult.resumed.length > 0) {
+      console.error(`Resumed ${resumeResult.resumed.length} workflow(s)`);
+    }
+    for (const err of resumeResult.errors) {
+      console.error(`Failed to resume workflow ${err.workflowId}: ${err.error}`);
+    }
+  }
+
   const { runTui } = await import('../app');
   await runTui(db, {
     workflow: values.workflow,

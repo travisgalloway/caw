@@ -18,6 +18,7 @@ export class AgentPool {
   private listeners = new Map<SpawnerEvent, Set<EventListener<SpawnerEvent>>>();
   private retryCount = new Map<string, number>();
   private stopped = false;
+  private maxAgentsOverride: number | null = null;
 
   constructor(
     private readonly db: DatabaseType,
@@ -188,7 +189,15 @@ export class AgentPool {
   }
 
   hasCapacity(): boolean {
-    return this.getActiveCount() < this.config.maxAgents;
+    return this.getActiveCount() < this.getMaxAgents();
+  }
+
+  setMaxAgents(n: number): void {
+    this.maxAgentsOverride = n;
+  }
+
+  getMaxAgents(): number {
+    return this.maxAgentsOverride ?? this.config.maxAgents;
   }
 
   private handleAgentComplete(handle: AgentHandle): void {

@@ -5,6 +5,7 @@ import {
   createWorktree,
   loadConfig,
   removeWorktree,
+  resolveCycleMode,
   workflowService,
   workspaceService,
 } from '@caw/core';
@@ -38,6 +39,30 @@ interface GhIssue {
   title: string;
   body: string;
   labels: Array<{ name: string }>;
+}
+
+export function expandIssueArgs(args: string[]): string[] {
+  const expanded: string[] = [];
+  // Join and re-split on commas/whitespace to handle "114," "115," shell artifacts
+  const tokens = args
+    .join(' ')
+    .split(/[\s,]+/)
+    .filter(Boolean);
+  for (const token of tokens) {
+    const rangeMatch = token.match(/^#?(\d+)-(\d+)$/);
+    if (rangeMatch) {
+      const start = Number(rangeMatch[1]);
+      const end = Number(rangeMatch[2]);
+      if (start <= end && end - start <= 100) {
+        for (let i = start; i <= end; i++) {
+          expanded.push(String(i));
+        }
+        continue;
+      }
+    }
+    expanded.push(token);
+  }
+  return expanded;
 }
 
 function normalizeIssueNumber(input: string): number {
@@ -96,7 +121,7 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
   }
 
   // 1. Parse and normalize issue numbers
-  const issueNumbers = options.issues.map(normalizeIssueNumber);
+  const issueNumbers = expandIssueArgs(options.issues).map(normalizeIssueNumber);
   console.log(`Fetching ${issueNumbers.length} issue(s)...`);
 
   // 2. Resolve repo name
@@ -367,9 +392,17 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
         console.log(`  PR: ${url}`);
       }
 
-      // Resolve cycle mode: CLI flag > config > default 'off'
+      // Resolve cycle mode: CLI flag > workspace > workflow > config > default 'off'
       const config = loadConfig(cwd);
-      const cycleMode = options.cycle ?? config.config?.pr?.cycle ?? 'off';
+      const workspaces = workspaceService.list(db, workflow.id, 'active');
+      const activeWorkspace = workspaces[0] ?? null;
+      const currentWorkflow = workflowService.get(db, workflow.id);
+      const cycleMode = resolveCycleMode(
+        options.cycle,
+        activeWorkspace,
+        currentWorkflow,
+        config.config,
+      );
 
       if (cycleMode === 'auto' || cycleMode === 'hitl') {
         console.log(`\nStarting PR cycle (mode: ${cycleMode})...`);

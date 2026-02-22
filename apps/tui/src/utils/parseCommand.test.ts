@@ -75,6 +75,38 @@ describe('parseCommand', () => {
       args: 'tk_abc123',
     });
   });
+
+  test('parses /max-agents with number arg', () => {
+    expect(parseCommand('/max-agents 5')).toEqual({
+      type: 'slash',
+      command: 'max-agents',
+      args: '5',
+    });
+  });
+
+  test('parses /max-agents without args', () => {
+    expect(parseCommand('/max-agents')).toEqual({ type: 'slash', command: 'max-agents' });
+  });
+
+  test('parses /cycle without args', () => {
+    expect(parseCommand('/cycle')).toEqual({ type: 'slash', command: 'cycle' });
+  });
+
+  test('parses /cycle with mode arg', () => {
+    expect(parseCommand('/cycle auto')).toEqual({
+      type: 'slash',
+      command: 'cycle',
+      args: 'auto',
+    });
+  });
+
+  test('parses /cycle workspace with mode arg', () => {
+    expect(parseCommand('/cycle workspace hitl')).toEqual({
+      type: 'slash',
+      command: 'cycle',
+      args: 'workspace hitl',
+    });
+  });
 });
 
 describe('isValidSlashCommand', () => {
@@ -95,6 +127,14 @@ describe('isValidSlashCommand', () => {
   test('returns true for add-task and remove-task commands', () => {
     expect(isValidSlashCommand('add-task')).toBe(true);
     expect(isValidSlashCommand('remove-task')).toBe(true);
+  });
+
+  test('returns true for cycle command', () => {
+    expect(isValidSlashCommand('cycle')).toBe(true);
+  });
+
+  test('returns true for max-agents command', () => {
+    expect(isValidSlashCommand('max-agents')).toBe(true);
   });
 
   test('returns false for invalid commands', () => {

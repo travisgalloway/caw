@@ -75,6 +75,28 @@ export async function runWebServer(db: DatabaseType, opts: WebServerOptions): Pr
     websocket: wsHandler.websocket,
   });
 
+  // Auto-resume in_progress workflows
+  const { resumeWorkflows } = await import('@caw/spawner');
+  const resumeResult = await resumeWorkflows(db, {
+    mcpServerUrl: `http://localhost:${port}/mcp`,
+    cwd: process.cwd(),
+    onAwaitingMerge: async (workflowId) => {
+      const { runCycle } = await import('./commands/pr');
+      await runCycle(db, {
+        subcommand: 'cycle',
+        workflowId,
+        repoPath: process.cwd(),
+        port,
+      });
+    },
+  });
+  if (resumeResult.resumed.length > 0) {
+    console.error(`Resumed ${resumeResult.resumed.length} workflow(s)`);
+  }
+  for (const err of resumeResult.errors) {
+    console.error(`Failed to resume workflow ${err.workflowId}: ${err.error}`);
+  }
+
   const shutdown = () => {
     server.stop();
     db.close();

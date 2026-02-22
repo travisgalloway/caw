@@ -422,6 +422,31 @@ export function getSummary(
   };
 }
 
+export function patchConfig(
+  db: DatabaseType,
+  id: string,
+  patch: Record<string, unknown>,
+): Workflow {
+  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
+
+  if (!workflow) {
+    throw new Error(`Workflow not found: ${id}`);
+  }
+
+  const existing = workflow.config ? JSON.parse(workflow.config) : {};
+  const merged = { ...existing, ...patch };
+  const configJson = JSON.stringify(merged);
+  const now = Date.now();
+
+  db.prepare('UPDATE workflows SET config = ?, updated_at = ? WHERE id = ?').run(
+    configJson,
+    now,
+    id,
+  );
+
+  return { ...workflow, config: configJson, updated_at: now };
+}
+
 // Re-export extracted modules to preserve the workflowService.* namespace
 export * from './workflow-replanning.service';
 export * from './workflow-repository.service';

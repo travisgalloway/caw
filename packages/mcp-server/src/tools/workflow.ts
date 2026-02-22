@@ -361,6 +361,32 @@ export const register: ToolRegistrar = (server, db) => {
       }),
   );
 
+  defineTool(
+    server,
+    'workflow_set_config',
+    {
+      description:
+        'Merge configuration into a workflow. Use to set options like PR cycle mode: { pr: { cycle: "auto" } }',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
+        config: z
+          .record(z.string(), z.unknown())
+          .describe('Config object to shallow-merge into existing config'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          requireWorkflowLock(db, args.id, args.session_id);
+          const workflow = workflowService.patchConfig(db, args.id, args.config);
+          return { id: workflow.id, config: workflow.config };
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
   // --- Multi-repo management tools ---
 
   defineTool(

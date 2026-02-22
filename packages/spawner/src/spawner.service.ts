@@ -302,6 +302,17 @@ export class WorkflowSpawner {
     }
   }
 
+  setMaxAgents(n: number): void {
+    if (this.pool) {
+      this.pool.setMaxAgents(n);
+    }
+    // Persist to DB
+    workflowService.setParallelism(this.db, this.config.workflowId, n);
+    // Update saved metadata
+    this.spawnerMetadata.max_agents = n;
+    this.saveMetadata();
+  }
+
   getStatus(): ExecutionStatus {
     const progress = orchestrationService.getProgress(this.db, this.config.workflowId);
 
@@ -537,6 +548,13 @@ export class WorkflowSpawner {
       status: ['online', 'busy'],
     });
     for (const agent of agents) {
+      // Release tasks claimed by this stale agent back to pending
+      this.db
+        .prepare(
+          `UPDATE tasks SET assigned_agent_id = NULL, claimed_at = NULL, status = 'pending', updated_at = ?
+           WHERE assigned_agent_id = ? AND status IN ('in_progress', 'planning')`,
+        )
+        .run(Date.now(), agent.id);
       try {
         agentService.unregister(this.db, agent.id);
       } catch {
@@ -552,7 +570,18 @@ export class WorkflowSpawner {
         .get(this.config.workflowId) as { config: string | null } | null;
 
       const existing = workflow?.config ? JSON.parse(workflow.config) : {};
-      const updated = { ...existing, spawner: this.spawnerMetadata };
+      const updated = {
+        ...existing,
+        spawner: this.spawnerMetadata,
+        spawner_config: {
+          max_agents: this.config.maxAgents,
+          model: this.config.model,
+          permission_mode: this.config.permissionMode,
+          max_turns: this.config.maxTurns,
+          max_budget_usd: this.config.maxBudgetUsd ?? null,
+          ephemeral_worktree: this.config.ephemeralWorktree ?? false,
+        },
+      };
 
       this.db
         .prepare('UPDATE workflows SET config = ?, updated_at = ? WHERE id = ?')

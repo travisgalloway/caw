@@ -124,6 +124,23 @@ export function registerWorkflowRoutes(
     }
   });
 
+  // Patch workflow config
+  router.put('/api/workflows/:id/config', async (req, params) => {
+    const body = await parseBody<{ config: Record<string, unknown> }>(req);
+    if (!body) return badRequest('Invalid JSON body');
+    if (!body.config || typeof body.config !== 'object') return badRequest('config is required');
+
+    try {
+      const workflow = workflowService.patchConfig(db, params.id, body.config);
+      broadcaster?.emit('workflow:status', { id: workflow.id, status: workflow.status });
+      return ok(workflow);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes('not found')) return notFound(msg);
+      return badRequest(msg);
+    }
+  });
+
   // Get workflow summary
   router.get('/api/workflows/:id/summary', (req, params) => {
     const format = getSearchParams(req).get('format') === 'markdown' ? 'markdown' : 'json';
