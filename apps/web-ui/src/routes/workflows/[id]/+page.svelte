@@ -127,13 +127,14 @@ async function handleStatusChange(e: Event) {
 
 async function loadData() {
   try {
-    const [workflowResult, progressResult, agentsResult, messagesResult, workspacesResult] = await Promise.all([
-      api.getWorkflow(workflowId),
-      api.getWorkflowProgress(workflowId),
-      api.listAgents({ workflow_id: workflowId }),
-      api.listMessages({ limit: 20 }),
-      api.listWorkspaces(workflowId),
-    ]);
+    const [workflowResult, progressResult, agentsResult, messagesResult, workspacesResult] =
+      await Promise.all([
+        api.getWorkflow(workflowId),
+        api.getWorkflowProgress(workflowId),
+        api.listAgents({ workflow_id: workflowId }),
+        api.listMessages({ limit: 20 }),
+        api.listWorkspaces(workflowId),
+      ]);
 
     workflow = workflowResult.data;
     progress = progressResult.data;
