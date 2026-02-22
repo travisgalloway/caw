@@ -202,6 +202,12 @@ export const register: ToolRegistrar = (server, db) => {
               estimated_complexity: z.enum(['low', 'medium', 'high']).optional(),
               files_likely_affected: z.array(z.string()).optional(),
               repository_path: z.string().optional().describe('Repository path for this task'),
+              context_from: z
+                .array(z.string())
+                .optional()
+                .describe(
+                  'Task names whose outcomes to inject as context. When set, replaces generic prior-task loading with targeted results.',
+                ),
             }),
           ),
         }),
@@ -221,6 +227,7 @@ export const register: ToolRegistrar = (server, db) => {
               files_likely_affected: t.files_likely_affected as string[] | undefined,
               depends_on: t.depends_on as string[] | undefined,
               repository_path: t.repository_path as string | undefined,
+              context_from: t.context_from as string[] | undefined,
             })),
           });
         } catch (err) {
@@ -355,6 +362,32 @@ export const register: ToolRegistrar = (server, db) => {
       handleToolCall(() => {
         try {
           return lockService.getLockInfo(db, args.id);
+        } catch (err) {
+          toToolCallError(err);
+        }
+      }),
+  );
+
+  defineTool(
+    server,
+    'workflow_set_config',
+    {
+      description:
+        'Merge configuration into a workflow. Use to set options like PR cycle mode: { pr: { cycle: "auto" } }',
+      inputSchema: {
+        id: z.string().describe('Workflow ID'),
+        session_id: z.string().optional().describe('Session ID for lock enforcement'),
+        config: z
+          .record(z.string(), z.unknown())
+          .describe('Config object to shallow-merge into existing config'),
+      },
+    },
+    (args) =>
+      handleToolCall(() => {
+        try {
+          requireWorkflowLock(db, args.id, args.session_id);
+          const workflow = workflowService.patchConfig(db, args.id, args.config);
+          return { id: workflow.id, config: workflow.config };
         } catch (err) {
           toToolCallError(err);
         }

@@ -167,6 +167,10 @@ export const register: ToolRegistrar = (server, db) => {
         status: z.enum(['active', 'merged', 'abandoned']).optional().describe('New status'),
         merge_commit: z.string().optional().describe('Merge commit SHA'),
         pr_url: z.string().optional().describe('Pull request URL'),
+        config: z
+          .record(z.string(), z.unknown())
+          .optional()
+          .describe('Config object to shallow-merge into existing config'),
         cleanup_worktree: z.boolean().optional().describe('Remove the git worktree from disk'),
       },
     },
@@ -185,6 +189,7 @@ export const register: ToolRegistrar = (server, db) => {
               status,
               mergeCommit: args.merge_commit,
               prUrl: args.pr_url,
+              config: args.config,
             });
             await removeWorktree(workspace.path);
             return { success: true, worktree_removed: true };
@@ -201,6 +206,7 @@ export const register: ToolRegistrar = (server, db) => {
             status,
             mergeCommit: args.merge_commit,
             prUrl: args.pr_url,
+            config: args.config,
           });
           return { success: true };
         } catch (err) {

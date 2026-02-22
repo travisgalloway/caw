@@ -110,4 +110,57 @@ describe('WorkflowHeader', () => {
     expect(frame).toContain('Created:');
     expect(frame).toContain('Updated:');
   });
+
+  test('displays cycle mode when workflow config has cycle set', () => {
+    const workflowWithCycle = {
+      ...baseWorkflow,
+      config: JSON.stringify({ pr: { cycle: 'auto' } }),
+    };
+    const { lastFrame } = render(
+      <WorkflowHeader workflow={workflowWithCycle} progress={null} workspaceCount={1} />,
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Cycle:');
+    expect(frame).toContain('auto');
+    expect(frame).toContain('workflow');
+  });
+
+  test('does not display cycle label when mode is off', () => {
+    const { lastFrame } = render(
+      <WorkflowHeader workflow={baseWorkflow} progress={null} workspaceCount={1} />,
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).not.toContain('Cycle:');
+  });
+
+  test('displays cycle mode from workspace config', () => {
+    const workspaces = [
+      {
+        id: 'ws_test123456',
+        workflow_id: 'wf_test123456',
+        repository_id: null,
+        branch: 'feat/test',
+        path: '/tmp/test',
+        status: 'active' as const,
+        base_branch: 'main',
+        pr_url: null,
+        merge_commit: null,
+        config: JSON.stringify({ pr: { cycle: 'hitl' } }),
+        created_at: now,
+        updated_at: now,
+      },
+    ];
+    const { lastFrame } = render(
+      <WorkflowHeader
+        workflow={baseWorkflow}
+        progress={null}
+        workspaceCount={1}
+        workspaces={workspaces}
+      />,
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Cycle:');
+    expect(frame).toContain('hitl');
+    expect(frame).toContain('workspace');
+  });
 });

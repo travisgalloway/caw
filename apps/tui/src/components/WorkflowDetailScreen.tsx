@@ -136,7 +136,7 @@ function detailHints(tab: WorkflowTab): HintItem[] {
     return [...base, { key: '/dag /tree /table', desc: 'switch view' }];
   }
   if (tab === 'workspaces') {
-    return [...base, { key: '/merge /rebase', desc: 'merge or rebase' }];
+    return [...base, { key: '/merge /rebase /cycle', desc: 'merge, rebase, or cycle' }];
   }
   return base;
 }
@@ -248,7 +248,12 @@ export function WorkflowDetailScreen({ workflowId }: WorkflowDetailScreenProps):
 
   return (
     <Box flexDirection="column" flexGrow={1}>
-      <WorkflowHeader workflow={workflow} progress={progress} workspaceCount={workspaces.length} />
+      <WorkflowHeader
+        workflow={workflow}
+        progress={progress}
+        workspaceCount={workspaces.length}
+        workspaces={workspaces}
+      />
 
       <Tabs
         onChange={handleTabChange}

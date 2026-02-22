@@ -1,8 +1,15 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { CycleMode, DatabaseType, MergeMethod } from '@caw/core';
-import { loadConfig, prService, workflowService, workspaceService } from '@caw/core';
 import {
+  loadConfig,
+  prService,
+  resolveCycleMode,
+  workflowService,
+  workspaceService,
+} from '@caw/core';
+import {
+  buildCiFixAgentPrompt,
   buildMcpConfigFile,
   buildRebaseAgentPrompt,
   buildReviewAgentPrompt,
@@ -24,6 +31,8 @@ export interface PrOptions {
   mergeMethod?: MergeMethod;
   ciTimeout?: number;
   ciPoll?: number;
+  /** Maximum CI fix iterations before giving up (default: 3). */
+  ciFixIterations?: number;
 }
 
 export interface SpawnRebaseOptions {
@@ -475,6 +484,155 @@ export function ghMerge(
   }
 }
 
+/**
+ * Get detailed CI failure output for a PR via `gh pr checks` and `gh run view`.
+ */
+function getCiFailureDetails(prUrl: string): string {
+  try {
+    const raw = execFileSync('gh', ['pr', 'checks', prUrl, '--json', 'name,state,bucket,link'], {
+      encoding: 'utf-8',
+      timeout: 30_000,
+    }).trim();
+
+    const checks: Array<{ name: string; state: string; bucket: string; link: string }> =
+      JSON.parse(raw);
+    const failed = checks.filter((c) => c.bucket !== 'pass');
+
+    const details: string[] = ['## Failed CI Checks\n'];
+    for (const check of failed) {
+      details.push(`### ${check.name} (${check.state})`);
+      // Try to get run log for each failed check
+      if (check.link) {
+        try {
+          // Extract run ID from the link if it's a GitHub Actions URL
+          const runMatch = check.link.match(/\/runs\/(\d+)/);
+          if (runMatch) {
+            const log = execFileSync('gh', ['run', 'view', runMatch[1], '--log-failed'], {
+              encoding: 'utf-8',
+              timeout: 30_000,
+            }).trim();
+            details.push('```', log.slice(-5000), '```'); // Last 5000 chars of failure log
+          }
+        } catch {
+          details.push(`Link: ${check.link}`);
+        }
+      }
+    }
+
+    return details.join('\n');
+  } catch (err) {
+    return `Failed to get CI details: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
+interface CiFixVerdict {
+  action: 'fixed' | 'unfixable';
+  summary?: string;
+  reason?: string;
+  sessionId?: string;
+}
+
+/**
+ * Spawn an agent to fix CI failures on a PR.
+ */
+async function spawnCiFixAgent(options: {
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  prUrl: string;
+  ciOutput: string;
+  iteration: number;
+  maxIterations: number;
+  model?: string;
+  /** Resume a prior session to save tokens. */
+  resumeSessionId?: string;
+}): Promise<CiFixVerdict> {
+  const prompt = buildCiFixAgentPrompt({
+    worktreePath: options.worktreePath,
+    branch: options.branch,
+    baseBranch: options.baseBranch,
+    prUrl: options.prUrl,
+    ciOutput: options.ciOutput,
+    iteration: options.iteration,
+    maxIterations: options.maxIterations,
+  });
+
+  const args: string[] = [];
+
+  if (options.resumeSessionId) {
+    args.push('--resume', options.resumeSessionId, '-p', prompt);
+  } else {
+    args.push('-p', prompt);
+  }
+
+  args.push(
+    '--model',
+    options.model ?? 'claude-sonnet-4-5',
+    '--output-format',
+    'stream-json',
+    '--verbose',
+    '--no-session-persistence',
+    '--dangerously-skip-permissions',
+  );
+
+  return new Promise<CiFixVerdict>((resolve, reject) => {
+    const proc = spawn('claude', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      env: cleanEnvForSpawn(),
+      cwd: options.worktreePath,
+    });
+
+    if (!proc.stdout) {
+      reject(new Error('Failed to get stdout from claude process'));
+      return;
+    }
+
+    const rl = createInterface({ input: proc.stdout });
+    let resultContent = '';
+    let sessionId: string | undefined;
+
+    rl.on('line', (line) => {
+      try {
+        const msg = JSON.parse(line);
+        if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
+          sessionId = msg.session_id;
+        }
+        if (msg.type === 'result' && msg.result) {
+          resultContent = typeof msg.result === 'string' ? msg.result : JSON.stringify(msg.result);
+        }
+      } catch {
+        // Skip non-JSON lines
+      }
+    });
+
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        resolve({
+          action: 'unfixable',
+          reason: `CI fix agent exited with code ${code}`,
+          sessionId,
+        });
+        return;
+      }
+
+      const jsonMatch = resultContent.match(/\{[^{}]*"action"\s*:\s*"[^"]+?"[^{}]*\}/);
+      if (jsonMatch) {
+        try {
+          const verdict = JSON.parse(jsonMatch[0]) as CiFixVerdict;
+          resolve({ ...verdict, sessionId });
+          return;
+        } catch {
+          // Fall through
+        }
+      }
+
+      resolve({ action: 'unfixable', reason: 'Failed to parse CI fix verdict', sessionId });
+    });
+
+    proc.on('error', (err) => reject(err));
+  });
+}
+
 interface CycleSummaryEntry {
   branch: string;
   prUrl: string;
@@ -493,9 +651,14 @@ function promptUser(question: string): Promise<string> {
 }
 
 export async function runCycle(db: DatabaseType, options: PrOptions): Promise<void> {
-  // Resolve cycle mode: CLI flag > config > default 'off'
+  // Resolve cycle mode: CLI flag > workspace > workflow > config > default 'off'
   const config = loadConfig(options.repoPath);
-  const mode = options.cycle ?? config.config?.pr?.cycle ?? 'off';
+  const targetWorkflow = options.workflowId ? workflowService.get(db, options.workflowId) : null;
+  const workspaces = options.workflowId
+    ? workspaceService.list(db, options.workflowId, 'active')
+    : [];
+  const activeWorkspace = workspaces[0] ?? null;
+  const mode = resolveCycleMode(options.cycle, activeWorkspace, targetWorkflow, config.config);
 
   if (mode === 'off') {
     console.log('Cycle mode is off. Use --cycle auto|hitl to enable.');
@@ -507,6 +670,7 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
   const ciPoll = options.ciPoll ?? 30;
   const noReview = options.noReview ?? config.config?.pr?.noReview ?? false;
   const dryRun = options.dryRun ?? false;
+  const ciFixIterations = options.ciFixIterations ?? 3;
 
   // Check if HITL is possible
   const isTty = process.stdin.isTTY;
@@ -518,7 +682,10 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
   // Find workflows awaiting merge
   const targetWfId = options.workflowId;
   const allWorkflows = targetWfId
-    ? workflowService.list(db, {}).workflows.filter((w) => w.id === targetWfId)
+    ? (() => {
+        const wf = workflowService.get(db, targetWfId);
+        return wf ? [wf] : [];
+      })()
     : workflowService.list(db, { status: 'awaiting_merge' }).workflows;
 
   if (allWorkflows.length === 0) {
@@ -630,19 +797,74 @@ export async function runCycle(db: DatabaseType, options: PrOptions): Promise<vo
         }
       }
 
-      // 3. Wait for CI
-      console.log(`    Waiting for CI (timeout: ${ciTimeout}s)...`);
+      // 3. Wait for CI (with feedback loop for auto-fix)
+      let ciPassed = false;
+      let lastCiFixSessionId: string | undefined;
       if (dryRun) {
+        console.log(`    Waiting for CI (timeout: ${ciTimeout}s)...`);
         console.log('    [dry-run] Would wait for CI');
+        ciPassed = true;
       } else {
-        const ci = await waitForCi(ws.pr_url, ciTimeout, ciPoll);
-        if (!ci.passed) {
-          entry.reason = `CI: ${ci.summary ?? 'failed'}`;
-          console.log(`    ${entry.reason}`);
-          summary.push(entry);
-          continue;
+        for (let ciAttempt = 0; ciAttempt <= ciFixIterations; ciAttempt++) {
+          console.log(
+            `    Waiting for CI (timeout: ${ciTimeout}s)${ciAttempt > 0 ? ` [fix attempt ${ciAttempt}/${ciFixIterations}]` : ''}...`,
+          );
+          const ci = await waitForCi(ws.pr_url, ciTimeout, ciPoll);
+
+          if (ci.passed) {
+            console.log(`    CI: ${ci.summary}`);
+            ciPassed = true;
+            break;
+          }
+
+          // CI failed — try to auto-fix if we have attempts left
+          if (ciAttempt < ciFixIterations) {
+            console.log(`    CI failed: ${ci.summary ?? 'unknown'}`);
+            console.log(`    Attempting auto-fix (${ciAttempt + 1}/${ciFixIterations})...`);
+
+            const ciOutput = getCiFailureDetails(ws.pr_url);
+            try {
+              const fixResult = await spawnCiFixAgent({
+                worktreePath: ws.path,
+                branch: ws.branch,
+                baseBranch: ws.base_branch ?? 'main',
+                prUrl: ws.pr_url,
+                ciOutput,
+                iteration: ciAttempt + 1,
+                maxIterations: ciFixIterations,
+                model: options.model,
+                resumeSessionId: lastCiFixSessionId,
+              });
+
+              // Capture session ID for resume on next iteration
+              if (fixResult.sessionId) {
+                lastCiFixSessionId = fixResult.sessionId;
+              }
+
+              if (fixResult.action === 'fixed') {
+                console.log(`    Fix applied: ${fixResult.summary ?? 'changes pushed'}`);
+                // Loop continues — will wait for CI again
+              } else {
+                console.log(`    Fix agent: unfixable — ${fixResult.reason ?? 'unknown'}`);
+                break;
+              }
+            } catch (err) {
+              console.error(
+                `    Fix agent error: ${err instanceof Error ? err.message : String(err)}`,
+              );
+              break;
+            }
+          } else {
+            entry.reason = `CI: ${ci.summary ?? 'failed'} (after ${ciFixIterations} fix attempts)`;
+            console.log(`    ${entry.reason}`);
+          }
         }
-        console.log(`    CI: ${ci.summary}`);
+      }
+
+      if (!ciPassed && !dryRun) {
+        if (!entry.reason) entry.reason = 'CI failed';
+        summary.push(entry);
+        continue;
       }
 
       // 4. HITL prompt

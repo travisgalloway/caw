@@ -2,8 +2,9 @@ import type { Task, Workflow } from '@caw/core';
 
 export interface PromptContext {
   agentId: string;
-  workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary'>;
+  workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary' | 'source_content'>;
   task: Pick<Task, 'id' | 'name' | 'description'>;
+  dependencyChain?: string[];
   branch?: string;
   worktreePath?: string;
   issueContext?: string;
@@ -40,6 +41,24 @@ export function buildAgentSystemPrompt(ctx: PromptContext): string {
 
   if (ctx.task.description) {
     lines.push(`- Description: ${ctx.task.description}`);
+  }
+
+  // Goal chain: workflow goal → dependency chain → current task
+  if (ctx.workflow.source_content || ctx.dependencyChain?.length) {
+    lines.push('', '## Goal Chain');
+    if (ctx.workflow.source_content) {
+      // Truncate to first 500 chars to keep prompt lean
+      const goal =
+        ctx.workflow.source_content.length > 500
+          ? `${ctx.workflow.source_content.slice(0, 500)}...`
+          : ctx.workflow.source_content;
+      lines.push(`**Workflow Goal**: ${goal}`);
+    }
+    if (ctx.dependencyChain && ctx.dependencyChain.length > 0) {
+      lines.push(
+        `**Dependency Chain**: ${ctx.dependencyChain.join(' → ')} → **${ctx.task.name}** (you are here)`,
+      );
+    }
   }
 
   lines.push(
@@ -226,6 +245,57 @@ export function buildRebaseAgentPrompt(ctx: RebaseContext): string {
     '- Do NOT modify files outside the worktree',
     '- If the rebase cannot be completed cleanly, abort with: git rebase --abort',
     '- Prefer --force-with-lease over --force for safety',
+  ].join('\n');
+}
+
+export interface CiFixContext {
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  prUrl: string;
+  ciOutput: string;
+  iteration: number;
+  maxIterations: number;
+}
+
+export function buildCiFixAgentPrompt(ctx: CiFixContext): string {
+  return [
+    `You are a CI fix agent (iteration ${ctx.iteration}/${ctx.maxIterations}). Your job is to fix CI failures on a pull request, then push the fix.`,
+    '',
+    '## Context',
+    `- Worktree path: ${ctx.worktreePath}`,
+    `- Feature branch: ${ctx.branch}`,
+    `- Base branch: ${ctx.baseBranch}`,
+    `- PR URL: ${ctx.prUrl}`,
+    `- Fix iteration: ${ctx.iteration} of ${ctx.maxIterations}`,
+    '',
+    '## CI Failure Output',
+    '```',
+    ctx.ciOutput.slice(0, 10_000),
+    '```',
+    '',
+    '## Steps',
+    '',
+    `1. Change to the worktree directory: cd ${ctx.worktreePath}`,
+    '2. Analyze the CI failure output above',
+    '3. Identify the root cause of each failure',
+    '4. Fix the issues (edit code, update config, fix tests, etc.)',
+    '5. Run verification locally:',
+    '   - bun run build',
+    '   - bun run test',
+    '   - bun run lint',
+    '6. If verification passes, commit and push:',
+    `   - git add -A && git commit -m "fix: resolve CI failures (attempt ${ctx.iteration})"`,
+    `   - git push origin ${ctx.branch}`,
+    '',
+    '## Rules',
+    '- Focus exclusively on fixing the CI failures — do not make unrelated changes',
+    '- Do NOT create new branches; push to the existing branch',
+    '- If you cannot fix the issue, output a clear explanation of what went wrong',
+    '- Prefer minimal, targeted fixes over broad refactoring',
+    '- Your final line MUST be valid JSON:',
+    '  - If fixed: {"action": "fixed", "summary": "description of fixes"}',
+    '  - If unfixable: {"action": "unfixable", "reason": "why it cannot be fixed"}',
   ].join('\n');
 }
 

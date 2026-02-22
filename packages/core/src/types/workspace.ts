@@ -10,6 +10,7 @@ export interface Workspace {
   status: WorkspaceStatus;
   merge_commit: string | null;
   pr_url: string | null;
+  config: string | null;
   created_at: number;
   updated_at: number;
 }

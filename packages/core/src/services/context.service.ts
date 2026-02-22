@@ -160,6 +160,21 @@ function buildPriorTasksContext(
   _include: IncludeFlags,
   _budget: number,
 ): PriorTaskContext[] {
+  // When context_from is set, load only the specified tasks' outcomes
+  // instead of all prior tasks
+  if (task.context_from) {
+    const contextFromIds: string[] = JSON.parse(task.context_from);
+    if (contextFromIds.length > 0) {
+      const placeholders = contextFromIds.map(() => '?').join(', ');
+      const rows = db
+        .prepare(
+          `SELECT id, name, outcome, status FROM tasks WHERE id IN (${placeholders}) ORDER BY sequence ASC`,
+        )
+        .all(...contextFromIds) as PriorTaskContext[];
+      return rows;
+    }
+  }
+
   const rows = db
     .prepare(
       'SELECT id, name, outcome, status FROM tasks WHERE workflow_id = ? AND sequence < ? ORDER BY sequence ASC',

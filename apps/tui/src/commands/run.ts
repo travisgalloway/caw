@@ -9,8 +9,10 @@ import {
   type ClaudeMessage,
   cleanEnvForSpawn,
   cleanupMcpConfigFile,
-  WorkflowSpawner,
+  WorkflowRunner,
 } from '@caw/spawner';
+import { createConsoleReporter } from '../utils/console-reporter';
+import { createPrCycleHook } from '../utils/create-pr-cycle-hook';
 
 export interface RunOptions {
   workflowId?: string;
@@ -162,78 +164,39 @@ export async function runWorkflow(db: DatabaseType, options: RunOptions): Promis
   console.log(`  Model: ${options.model ?? 'claude-sonnet-4-5'}`);
   console.log(`  Permission mode: ${permissionMode}`);
 
-  const spawner = new WorkflowSpawner(db, {
-    workflowId: resolvedWorkflowId,
-    maxAgents,
-    model: options.model ?? 'claude-sonnet-4-5',
-    permissionMode,
-    maxTurns: options.maxTurns ?? 50,
-    maxBudgetUsd: options.maxBudgetUsd,
-    ephemeralWorktree: options.ephemeralWorktree,
-    mcpServerUrl: `http://localhost:${port}/mcp`,
-    cwd,
+  let runner: WorkflowRunner;
+  runner = new WorkflowRunner(db, {
+    spawnerConfig: {
+      workflowId: resolvedWorkflowId,
+      maxAgents,
+      model: options.model ?? 'claude-sonnet-4-5',
+      permissionMode,
+      maxTurns: options.maxTurns ?? 50,
+      maxBudgetUsd: options.maxBudgetUsd,
+      ephemeralWorktree: options.ephemeralWorktree,
+      mcpServerUrl: `http://localhost:${port}/mcp`,
+      cwd,
+    },
+    reporter:
+      options.watch !== false
+        ? createConsoleReporter(() => runner.getSpawner().getStatus())
+        : undefined,
+    postCompletionHook: createPrCycleHook(db, { repoPath: cwd, port }),
+    detach: options.detach,
   });
 
-  // Set up event handlers
-  if (options.watch !== false) {
-    spawner.on('agent_started', (data) => {
-      console.log(`[agent] Started: ${data.agentId} → task ${data.taskId}`);
-    });
+  const result = await runner.run();
 
-    spawner.on('agent_completed', (data) => {
-      console.log(`[agent] Completed: ${data.agentId} → task ${data.taskId}`);
-      const status = spawner.getStatus();
-      console.log(
-        `  Progress: ${status.progress.completed}/${status.progress.totalTasks} tasks complete`,
-      );
-    });
-
-    spawner.on('agent_failed', (data) => {
-      console.error(`[agent] Failed: ${data.agentId} → task ${data.taskId}: ${data.error}`);
-    });
-
-    spawner.on('agent_retrying', (data) => {
-      console.log(
-        `[agent] Retrying: ${data.agentId} → task ${data.taskId} (attempt ${data.attempt})`,
-      );
-    });
-
-    spawner.on('workflow_stalled', (data) => {
-      console.warn(`[workflow] Stalled: ${data.reason}`);
-    });
-  }
-
-  // Start execution
-  const result = await spawner.start();
-  if (!result.success) {
-    console.error(`Failed to start workflow: ${result.error}`);
-    process.exit(1);
-  }
-
-  console.log(`Spawned ${result.agentHandles.length} agent(s)`);
-
-  if (options.detach) {
-    console.log('Running in background. Use workflow_execution_status to check progress.');
-    return;
-  }
-
-  // Wait for completion
-  await new Promise<void>((resolve) => {
-    spawner.on('workflow_all_complete', () => {
-      console.log('Workflow completed successfully.');
-      resolve();
-    });
-
-    spawner.on('workflow_failed', (data) => {
-      console.error(`Workflow failed: ${data.error}`);
-      resolve();
-    });
-
-    spawner.on('workflow_stalled', () => {
+  switch (result.outcome) {
+    case 'failed':
+      console.error(`Failed to start workflow: ${result.error}`);
+      process.exit(1);
+      break;
+    case 'detached':
+      console.log('Running in background. Use workflow_execution_status to check progress.');
+      break;
+    case 'stalled':
       console.warn('Workflow stalled. Shutting down...');
-      spawner.shutdown().then(resolve);
-    });
-  });
-
-  await spawner.shutdown();
+      break;
+  }
 }

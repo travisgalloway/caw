@@ -201,8 +201,8 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
 
     const insertTask = db.prepare(
       `INSERT INTO tasks
-        (id, workflow_id, name, description, status, sequence, parallel_group, repository_id, context, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        (id, workflow_id, name, description, status, sequence, parallel_group, repository_id, context, context_from, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     );
 
     const insertWR = db.prepare(
@@ -240,6 +240,7 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
         t.parallel_group ?? null,
         repoId,
         contextJson,
+        null, // context_from resolved in third pass
         now,
         now,
       );
@@ -264,6 +265,22 @@ export function setPlan(db: DatabaseType, id: string, plan: SetPlanParams): SetP
         }
         insertDep.run(tId, depId, 'blocks');
       }
+    }
+
+    // Third pass: resolve context_from names to task IDs
+    const updateContextFrom = db.prepare('UPDATE tasks SET context_from = ? WHERE id = ?');
+    for (const t of plan.tasks) {
+      if (!t.context_from || t.context_from.length === 0) continue;
+      const tId = nameToIdMap.get(t.name) as string;
+      const resolvedIds: string[] = [];
+      for (const ref of t.context_from) {
+        const refId = nameToIdMap.get(ref);
+        if (!refId) {
+          throw new Error(`Unknown context_from reference '${ref}' in task '${t.name}'`);
+        }
+        resolvedIds.push(refId);
+      }
+      updateContextFrom.run(JSON.stringify(resolvedIds), tId);
     }
 
     return {
@@ -420,6 +437,31 @@ export function getSummary(
     summary,
     token_estimate: estimateTokens(summary),
   };
+}
+
+export function patchConfig(
+  db: DatabaseType,
+  id: string,
+  patch: Record<string, unknown>,
+): Workflow {
+  const workflow = db.prepare('SELECT * FROM workflows WHERE id = ?').get(id) as Workflow | null;
+
+  if (!workflow) {
+    throw new Error(`Workflow not found: ${id}`);
+  }
+
+  const existing = workflow.config ? JSON.parse(workflow.config) : {};
+  const merged = { ...existing, ...patch };
+  const configJson = JSON.stringify(merged);
+  const now = Date.now();
+
+  db.prepare('UPDATE workflows SET config = ?, updated_at = ? WHERE id = ?').run(
+    configJson,
+    now,
+    id,
+  );
+
+  return { ...workflow, config: configJson, updated_at: now };
 }
 
 // Re-export extracted modules to preserve the workflowService.* namespace

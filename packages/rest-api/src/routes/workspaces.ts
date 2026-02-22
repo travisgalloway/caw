@@ -55,13 +55,20 @@ export function registerWorkspaceRoutes(router: Router, db: DatabaseType) {
 
   // Update workspace
   router.put('/api/workspaces/:id', async (req, params) => {
-    const body = await parseBody<{ status?: WorkspaceStatus; merge_commit?: string }>(req);
+    const body = await parseBody<{
+      status?: WorkspaceStatus;
+      merge_commit?: string;
+      pr_url?: string;
+      config?: Record<string, unknown>;
+    }>(req);
     if (!body) return badRequest('Invalid JSON body');
 
     try {
       const workspace = workspaceService.update(db, params.id, {
         status: body.status,
         mergeCommit: body.merge_commit,
+        prUrl: body.pr_url,
+        config: body.config,
       });
       return ok(workspace);
     } catch (err) {
