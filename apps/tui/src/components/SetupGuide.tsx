@@ -1,8 +1,10 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { Box, Text } from 'ink';
+import type { CawConfig } from '@caw/core';
+import { getConfigPaths, loadConfig, writeConfig } from '@caw/core';
+import { Box, Text, useInput } from 'ink';
 import type React from 'react';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useDbPath } from '../context/dbPath';
 import { THEME } from '../utils/theme';
 
@@ -37,6 +39,252 @@ function StatusLine({
       <Text color={ok ? THEME.success : THEME.error}>{ok ? '  [ok]' : '  [--]'}</Text>
       <Text> {label}: </Text>
       <Text dimColor>{detail}</Text>
+    </Box>
+  );
+}
+
+type ConfigField = 'transport' | 'port' | 'dbMode' | 'runtime' | 'autoSetup';
+
+interface ConfigEditorProps {
+  repoPath?: string;
+}
+
+function ConfigEditor({ repoPath }: ConfigEditorProps): React.JSX.Element {
+  const [editMode, setEditMode] = useState(false);
+  const [selectedField, setSelectedField] = useState<ConfigField>('transport');
+  const [config, setConfig] = useState<CawConfig>({});
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Load config on mount
+  useEffect(() => {
+    const result = loadConfig(repoPath);
+    setConfig(result.config);
+  }, [repoPath]);
+
+  // Clear save feedback after 3s
+  useEffect(() => {
+    if (saveSuccess || saveError) {
+      const timer = setTimeout(() => {
+        setSaveSuccess(false);
+        setSaveError(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [saveSuccess, saveError]);
+
+  const fields: ConfigField[] = ['transport', 'port', 'dbMode', 'runtime', 'autoSetup'];
+
+  useInput(
+    (input, key) => {
+      if (!editMode) {
+        // In view mode, 'e' or Enter to start editing
+        if (input === 'e' || key.return) {
+          setEditMode(true);
+          setSaveSuccess(false);
+          setSaveError(null);
+        }
+        return;
+      }
+
+      // In edit mode
+      if (key.escape) {
+        setEditMode(false);
+        // Reload config to discard changes
+        const result = loadConfig(repoPath);
+        setConfig(result.config);
+        return;
+      }
+
+      // Arrow keys to navigate fields
+      if (key.upArrow || key.downArrow) {
+        const currentIdx = fields.indexOf(selectedField);
+        if (key.downArrow) {
+          const nextIdx = (currentIdx + 1) % fields.length;
+          const nextField = fields[nextIdx];
+          if (nextField) setSelectedField(nextField);
+        } else {
+          const prevIdx = currentIdx === 0 ? fields.length - 1 : currentIdx - 1;
+          const prevField = fields[prevIdx];
+          if (prevField) setSelectedField(prevField);
+        }
+        return;
+      }
+
+      // Enter or Space to toggle/cycle values
+      if (key.return || input === ' ') {
+        const newConfig = { ...config };
+
+        if (selectedField === 'transport') {
+          const currentTransport = config.transport ?? 'stdio';
+          newConfig.transport = currentTransport === 'stdio' ? 'http' : 'stdio';
+        } else if (selectedField === 'dbMode') {
+          const currentDbMode = config.dbMode ?? 'per-repo';
+          newConfig.dbMode = currentDbMode === 'per-repo' ? 'global' : 'per-repo';
+        } else if (selectedField === 'autoSetup') {
+          const currentAutoSetup = config.agent?.autoSetup ?? false;
+          newConfig.agent = { ...config.agent, autoSetup: !currentAutoSetup };
+        }
+
+        setConfig(newConfig);
+        return;
+      }
+
+      // For port field: allow number input
+      if (selectedField === 'port' && /^[0-9]$/.test(input)) {
+        const currentPort = config.port?.toString() ?? '';
+        const newPortStr = currentPort + input;
+        const newPort = parseInt(newPortStr, 10);
+        if (newPort >= 1 && newPort <= 65535) {
+          const newConfig = { ...config };
+          newConfig.port = newPort;
+          setConfig(newConfig);
+        }
+        return;
+      }
+
+      // For port field: backspace to delete digit
+      if (selectedField === 'port' && key.backspace) {
+        const currentPort = config.port?.toString() ?? '';
+        if (currentPort.length > 0) {
+          const newPortStr = currentPort.slice(0, -1);
+          const newConfig = { ...config };
+          if (newPortStr === '') {
+            newConfig.port = undefined;
+          } else {
+            newConfig.port = parseInt(newPortStr, 10);
+          }
+          setConfig(newConfig);
+        }
+        return;
+      }
+
+      // For runtime field: allow text input
+      if (selectedField === 'runtime') {
+        if (key.backspace) {
+          const currentRuntime = config.agent?.runtime ?? '';
+          if (currentRuntime.length > 0) {
+            const newRuntime = currentRuntime.slice(0, -1);
+            const newConfig = { ...config };
+            if (newRuntime === '') {
+              if (newConfig.agent) {
+                delete newConfig.agent.runtime;
+              }
+            } else {
+              newConfig.agent = { ...config.agent, runtime: newRuntime };
+            }
+            setConfig(newConfig);
+          }
+          return;
+        }
+
+        if (input && /^[a-zA-Z0-9_-]$/.test(input)) {
+          const currentRuntime = config.agent?.runtime ?? '';
+          const newConfig = { ...config };
+          newConfig.agent = { ...config.agent, runtime: currentRuntime + input };
+          setConfig(newConfig);
+          return;
+        }
+      }
+
+      // 's' to save
+      if (input === 's') {
+        try {
+          const paths = getConfigPaths(repoPath);
+          const configPath = paths.repo ?? paths.global;
+          writeConfig(configPath, config);
+          setSaveSuccess(true);
+          setSaveError(null);
+          setEditMode(false);
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err);
+          setSaveError(msg);
+          setSaveSuccess(false);
+        }
+      }
+    },
+    { isActive: true },
+  );
+
+  const renderFieldValue = (field: ConfigField): string => {
+    if (field === 'transport') {
+      return config.transport ?? 'stdio';
+    }
+    if (field === 'port') {
+      return config.port?.toString() ?? '(default)';
+    }
+    if (field === 'dbMode') {
+      return config.dbMode ?? 'per-repo';
+    }
+    if (field === 'runtime') {
+      return config.agent?.runtime ?? 'claude_code';
+    }
+    if (field === 'autoSetup') {
+      return config.agent?.autoSetup ? 'true' : 'false';
+    }
+    return '';
+  };
+
+  const renderFieldHelp = (field: ConfigField): string => {
+    if (field === 'transport') {
+      return 'stdio | http';
+    }
+    if (field === 'port') {
+      return '1-65535';
+    }
+    if (field === 'dbMode') {
+      return 'global | per-repo';
+    }
+    if (field === 'runtime') {
+      return 'agent runtime';
+    }
+    if (field === 'autoSetup') {
+      return 'true | false';
+    }
+    return '';
+  };
+
+  return (
+    <Box flexDirection="column">
+      <Box marginBottom={1}>
+        <Text bold color={THEME.accent}>
+          Configuration Editor
+        </Text>
+        <Text> </Text>
+        {!editMode && <Text dimColor>(Press e or Enter to edit)</Text>}
+        {editMode && (
+          <Text dimColor>(↑↓: navigate, Enter/Space: toggle, s: save, Esc: cancel)</Text>
+        )}
+      </Box>
+
+      {fields.map((field) => {
+        const isSelected = editMode && field === selectedField;
+        const fieldLabel =
+          field === 'runtime' ? 'agent.runtime' : field === 'autoSetup' ? 'agent.autoSetup' : field;
+
+        return (
+          <Box key={field}>
+            <Text color={isSelected ? THEME.accent : undefined} bold={isSelected}>
+              {isSelected ? '▸ ' : '  '}
+            </Text>
+            <Text bold={isSelected}>{fieldLabel}: </Text>
+            <Text color={isSelected ? THEME.brand : THEME.success}>{renderFieldValue(field)}</Text>
+            <Text> </Text>
+            <Text dimColor>({renderFieldHelp(field)})</Text>
+          </Box>
+        );
+      })}
+
+      {saveSuccess && (
+        <Box marginTop={1}>
+          <Text color={THEME.success}>✓ Configuration saved successfully</Text>
+        </Box>
+      )}
+      {saveError && (
+        <Box marginTop={1}>
+          <Text color={THEME.error}>✗ Failed to save: {saveError}</Text>
+        </Box>
+      )}
     </Box>
   );
 }
@@ -194,6 +442,10 @@ export function SetupGuide(): React.JSX.Element {
         <Text dimColor> Environment: CAW_TRANSPORT, CAW_PORT, CAW_DB_MODE, CAW_REPO_PATH</Text>
         <Text dimColor> CLI flags override config; config overrides env vars</Text>
       </Section>
+
+      <Box marginBottom={1}>
+        <ConfigEditor repoPath={process.cwd()} />
+      </Box>
 
       <Section title="Claude Code Integration">
         <Text dimColor> MCP server: .claude/settings.json → mcpServers.caw</Text>
