@@ -1,17 +1,29 @@
 import { Box, Text } from 'ink';
 import type React from 'react';
 import { useTaskDetail } from '../hooks/useTaskDetail';
+import { useAppStore } from '../store';
 import { formatTimestamp } from '../utils/format';
 import { THEME } from '../utils/theme';
 import { CheckpointTimeline } from './CheckpointTimeline';
 import { StatusIndicator } from './StatusIndicator';
+import { TaskDependencyList } from './TaskDependencyList';
 
 interface TaskDetailScreenProps {
+  workflowId: string;
   taskId: string;
 }
 
-export function TaskDetailScreen({ taskId }: TaskDetailScreenProps): React.JSX.Element {
+export function TaskDetailScreen({ workflowId, taskId }: TaskDetailScreenProps): React.JSX.Element {
+  const push = useAppStore((state) => state.push);
   const { data: task, error } = useTaskDetail(taskId);
+
+  const handleSelectTask = (selectedTaskId: string) => {
+    push({
+      screen: 'task-detail',
+      workflowId,
+      taskId: selectedTaskId,
+    });
+  };
 
   if (error) {
     return (
@@ -110,13 +122,27 @@ export function TaskDetailScreen({ taskId }: TaskDetailScreenProps): React.JSX.E
 
       <Box flexDirection="column" marginTop={1} marginX={1}>
         <Text bold dimColor>
+          Depends On
+        </Text>
+        <TaskDependencyList taskId={taskId} direction="dependsOn" onSelectTask={handleSelectTask} />
+      </Box>
+
+      <Box flexDirection="column" marginTop={1} marginX={1}>
+        <Text bold dimColor>
+          Blocks
+        </Text>
+        <TaskDependencyList taskId={taskId} direction="blocks" onSelectTask={handleSelectTask} />
+      </Box>
+
+      <Box flexDirection="column" marginTop={1} marginX={1}>
+        <Text bold dimColor>
           Checkpoints
         </Text>
         <CheckpointTimeline checkpoints={task.checkpoints || []} />
       </Box>
 
-      <Box paddingX={1}>
-        <Text dimColor>Esc back</Text>
+      <Box paddingX={1} marginTop={1}>
+        <Text dimColor>Esc back | ↑↓ navigate dependencies | Enter view task</Text>
       </Box>
     </Box>
   );
