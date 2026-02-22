@@ -2,6 +2,7 @@ export * as agentService from './agent.service';
 export * as checkpointService from './checkpoint.service';
 export * as contextService from './context.service';
 export * as lockService from './lock.service';
+export * as memoryService from './memory.service';
 export * as messageService from './message.service';
 export * as orchestrationService from './orchestration.service';
 export * as prService from './pr.service';

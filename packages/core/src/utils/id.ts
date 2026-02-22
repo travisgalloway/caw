@@ -42,3 +42,7 @@ export function messageId(): string {
 export function sessionId(): string {
   return generateId('ss');
 }
+
+export function memoryId(): string {
+  return generateId('mem');
+}

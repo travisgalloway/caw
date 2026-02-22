@@ -6,6 +6,7 @@ import { sql as agentWorkflowIdSql } from './004_agent_workflow_id';
 import { sql as workspacePrUrlSql } from './005_workspace_pr_url';
 import { sql as workspaceConfigSql } from './006_workspace_config';
 import { sql as taskContextFromSql } from './007_task_context_from';
+import { sql as memoriesSql } from './008_memories';
 
 export interface Migration {
   version: number;
@@ -21,6 +22,7 @@ const migrations: Migration[] = [
   { version: 5, name: '005_workspace_pr_url', sql: workspacePrUrlSql },
   { version: 6, name: '006_workspace_config', sql: workspaceConfigSql },
   { version: 7, name: '007_task_context_from', sql: taskContextFromSql },
+  { version: 8, name: '008_memories', sql: memoriesSql },
 ];
 
 export function ensureMigrationsTable(db: DatabaseType): void {

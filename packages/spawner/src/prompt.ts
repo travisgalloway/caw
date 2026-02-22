@@ -248,6 +248,57 @@ export function buildRebaseAgentPrompt(ctx: RebaseContext): string {
   ].join('\n');
 }
 
+export interface CiFixContext {
+  worktreePath: string;
+  branch: string;
+  baseBranch: string;
+  prUrl: string;
+  ciOutput: string;
+  iteration: number;
+  maxIterations: number;
+}
+
+export function buildCiFixAgentPrompt(ctx: CiFixContext): string {
+  return [
+    `You are a CI fix agent (iteration ${ctx.iteration}/${ctx.maxIterations}). Your job is to fix CI failures on a pull request, then push the fix.`,
+    '',
+    '## Context',
+    `- Worktree path: ${ctx.worktreePath}`,
+    `- Feature branch: ${ctx.branch}`,
+    `- Base branch: ${ctx.baseBranch}`,
+    `- PR URL: ${ctx.prUrl}`,
+    `- Fix iteration: ${ctx.iteration} of ${ctx.maxIterations}`,
+    '',
+    '## CI Failure Output',
+    '```',
+    ctx.ciOutput.slice(0, 10_000),
+    '```',
+    '',
+    '## Steps',
+    '',
+    `1. Change to the worktree directory: cd ${ctx.worktreePath}`,
+    '2. Analyze the CI failure output above',
+    '3. Identify the root cause of each failure',
+    '4. Fix the issues (edit code, update config, fix tests, etc.)',
+    '5. Run verification locally:',
+    '   - bun run build',
+    '   - bun run test',
+    '   - bun run lint',
+    '6. If verification passes, commit and push:',
+    `   - git add -A && git commit -m "fix: resolve CI failures (attempt ${ctx.iteration})"`,
+    `   - git push origin ${ctx.branch}`,
+    '',
+    '## Rules',
+    '- Focus exclusively on fixing the CI failures — do not make unrelated changes',
+    '- Do NOT create new branches; push to the existing branch',
+    '- If you cannot fix the issue, output a clear explanation of what went wrong',
+    '- Prefer minimal, targeted fixes over broad refactoring',
+    '- Your final line MUST be valid JSON:',
+    '  - If fixed: {"action": "fixed", "summary": "description of fixes"}',
+    '  - If unfixable: {"action": "unfixable", "reason": "why it cannot be fixed"}',
+  ].join('\n');
+}
+
 export function buildPlannerSystemPrompt(workflowId: string, prompt: string): string {
   return [
     'You are a caw planner agent. Your job is to create a structured plan for a workflow.',

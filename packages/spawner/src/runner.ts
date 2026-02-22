@@ -71,6 +71,9 @@ export class WorkflowRunner {
     if (r.onAgentQuery) {
       this.spawner.on('agent_query', (data) => r.onAgentQuery?.(data));
     }
+    if (r.onAgentStagnation) {
+      this.spawner.on('agent_stagnation', (data) => r.onAgentStagnation?.(data));
+    }
     if (r.onWorkflowStalled) {
       this.spawner.on('workflow_stalled', (data) => r.onWorkflowStalled?.(data));
     }

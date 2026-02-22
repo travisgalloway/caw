@@ -1,5 +1,6 @@
 export type { Agent, AgentRole, AgentStatus } from './agent';
 export type { Checkpoint, CheckpointType } from './checkpoint';
+export type { Memory, MemoryType } from './memory';
 export type { Message, MessagePriority, MessageStatus, MessageType } from './message';
 export type { Repository } from './repository';
 export type { Session } from './session';

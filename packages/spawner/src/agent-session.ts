@@ -2,6 +2,8 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { cleanEnvForSpawn } from './env';
 import { buildMcpConfigFile, cleanupMcpConfigFile } from './mcp-config';
+import type { StagnationConfig, StagnationEvent } from './stagnation';
+import { StagnationMonitor } from './stagnation';
 import type { AgentHandle, SpawnerConfig } from './types';
 
 export interface ClaudeMessage {
@@ -19,9 +21,19 @@ export interface AgentSessionOptions {
   cwdOverride?: string;
   /** When set, passes --worktree <name> to claude instead of setting cwd. */
   worktreeName?: string;
+  /** Resume a previous Claude Code session instead of starting fresh. */
+  resumeSessionId?: string;
+  /** Override the model for this specific session (for complexity-based routing). */
+  modelOverride?: string;
+  /** Override the max turns for this specific session. */
+  maxTurnsOverride?: number;
+  /** Override the max budget for this specific session. */
+  maxBudgetOverride?: number;
+  stagnationConfig?: StagnationConfig;
   onMessage?: (message: ClaudeMessage) => void;
   onComplete?: (handle: AgentHandle) => void;
   onError?: (handle: AgentHandle, error: Error) => void;
+  onStagnation?: (event: StagnationEvent) => void;
 }
 
 export class AgentSession {
@@ -31,6 +43,8 @@ export class AgentSession {
   private handle: AgentHandle;
   private running = false;
   private mcpConfigPath: string | null = null;
+  private stagnationMonitor: StagnationMonitor;
+  private stagnationTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(private readonly options: AgentSessionOptions) {
     this.agentId = options.agentId;
@@ -45,6 +59,11 @@ export class AgentSession {
       retryCount: 0,
       error: null,
     };
+    this.stagnationMonitor = new StagnationMonitor(
+      options.agentId,
+      options.taskId,
+      options.stagnationConfig,
+    );
   }
 
   getHandle(): AgentHandle {
@@ -61,11 +80,32 @@ export class AgentSession {
     const { config, systemPrompt } = this.options;
     this.mcpConfigPath = buildMcpConfigFile(config.mcpServerUrl);
 
-    const args = [
-      '-p',
-      `IMPORTANT: You MUST begin by calling the MCP tool "task_load_context" with task_id "${this.taskId}" to load your task details. Then call "task_update_status" to set your task to "in_progress". Only then should you start working. When finished, call "task_update_status" with status "completed" and an outcome summary. Your agent ID is ${this.agentId}. See your system prompt for the full protocol.`,
-      '--append-system-prompt',
-      systemPrompt,
+    // Use per-session overrides if set (from model routing), otherwise use config defaults
+    const effectiveModel = this.options.modelOverride ?? config.model;
+    const effectiveMaxTurns = this.options.maxTurnsOverride ?? config.maxTurns;
+    const effectiveMaxBudget = this.options.maxBudgetOverride ?? config.maxBudgetUsd;
+
+    // Build args — use --resume for session continuation, -p for fresh sessions
+    const args: string[] = [];
+
+    if (this.options.resumeSessionId) {
+      // Resume an existing session (saves tokens by reusing context)
+      args.push(
+        '--resume',
+        this.options.resumeSessionId,
+        '-p',
+        `Continue working on task ${this.taskId}. Check task status and resume from where you left off. Your agent ID is ${this.agentId}.`,
+      );
+    } else {
+      args.push(
+        '-p',
+        `IMPORTANT: You MUST begin by calling the MCP tool "task_load_context" with task_id "${this.taskId}" to load your task details. Then call "task_update_status" to set your task to "in_progress". Only then should you start working. When finished, call "task_update_status" with status "completed" and an outcome summary. Your agent ID is ${this.agentId}. See your system prompt for the full protocol.`,
+        '--append-system-prompt',
+        systemPrompt,
+      );
+    }
+
+    args.push(
       '--mcp-config',
       this.mcpConfigPath,
       '--output-format',
@@ -73,13 +113,13 @@ export class AgentSession {
       '--verbose',
       '--no-session-persistence',
       '--model',
-      config.model,
+      effectiveModel,
       '--max-turns',
-      String(config.maxTurns),
-    ];
+      String(effectiveMaxTurns),
+    );
 
-    if (config.maxBudgetUsd) {
-      args.push('--max-budget-usd', String(config.maxBudgetUsd));
+    if (effectiveMaxBudget) {
+      args.push('--max-budget-usd', String(effectiveMaxBudget));
     }
 
     // Use Claude Code's native worktree isolation when requested
@@ -122,12 +162,28 @@ export class AgentSession {
 
       const rl = createInterface({ input: proc.stdout });
 
+      // Start periodic stagnation checks (every 30 seconds)
+      this.stagnationTimer = setInterval(() => this.checkStagnation(), 30_000);
+
       for await (const line of rl) {
         try {
           const msg: ClaudeMessage = JSON.parse(line);
 
           if (msg.type === 'system' && msg.subtype === 'init' && msg.session_id) {
             this.handle.sessionId = msg.session_id;
+          }
+
+          // Track turns for stagnation detection (assistant messages = turns)
+          if (msg.type === 'assistant') {
+            this.stagnationMonitor.recordTurn();
+            // Record state from assistant message content for loop detection
+            const content = typeof msg.message === 'string' ? msg.message : '';
+            const toolUse = typeof msg.tool_name === 'string' ? msg.tool_name : '';
+            this.stagnationMonitor.recordState({
+              phase: toolUse || 'thinking',
+              progress: content.slice(0, 100),
+              iteration: this.stagnationMonitor.getTurnCount(),
+            });
           }
 
           this.options.onMessage?.(msg);
@@ -172,6 +228,10 @@ export class AgentSession {
     } finally {
       this.running = false;
       this.handle.completedAt = Date.now();
+      if (this.stagnationTimer) {
+        clearInterval(this.stagnationTimer);
+        this.stagnationTimer = null;
+      }
       if (this.mcpConfigPath) {
         cleanupMcpConfigFile(this.mcpConfigPath);
         this.mcpConfigPath = null;
@@ -192,6 +252,22 @@ export class AgentSession {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  getStagnationMonitor(): StagnationMonitor {
+    return this.stagnationMonitor;
+  }
+
+  private checkStagnation(): void {
+    const event = this.stagnationMonitor.check();
+    if (!event) return;
+
+    this.options.onStagnation?.(event);
+
+    // On abort level, kill the agent process
+    if (event.level === 'abort') {
+      this.abort();
+    }
   }
 
   private handleResult(message: ClaudeMessage): void {

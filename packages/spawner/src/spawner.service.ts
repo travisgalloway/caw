@@ -452,6 +452,7 @@ export class WorkflowSpawner {
     });
     this.pool.on('agent_failed', (data) => this.emit('agent_failed', data));
     this.pool.on('agent_retrying', (data) => this.emit('agent_retrying', data));
+    this.pool.on('agent_stagnation', (data) => this.emit('agent_stagnation', data));
   }
 
   private detectAgentQueries(): void {
