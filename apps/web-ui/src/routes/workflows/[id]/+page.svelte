@@ -127,28 +127,25 @@ async function handleStatusChange(e: Event) {
 
 async function loadData() {
   try {
-    const promises = [
-      api.getWorkflow(workflowId),
-      api.getWorkflowProgress(workflowId),
-      api.listAgents({ workflow_id: workflowId }),
-      api.listMessages({ limit: 20 }),
-      api.listWorkspaces(workflowId),
-    ];
+    const [workflowResult, progressResult, agentsResult, messagesResult, workspacesResult] =
+      await Promise.all([
+        api.getWorkflow(workflowId),
+        api.getWorkflowProgress(workflowId),
+        api.listAgents({ workflow_id: workflowId }),
+        api.listMessages({ limit: 20 }),
+        api.listWorkspaces(workflowId),
+      ]);
+
+    workflow = workflowResult.data;
+    progress = progressResult.data;
+    agents = agentsResult.data;
+    messages = messagesResult.data;
+    workspaces = workspacesResult.data;
 
     // Fetch dependencies if in tree or dag mode
     if (viewMode === 'tree' || viewMode === 'dag') {
-      promises.push(api.getWorkflowDependencies(workflowId));
-    }
-
-    const results = await Promise.all(promises);
-    workflow = results[0].data;
-    progress = results[1].data;
-    agents = results[2].data;
-    messages = results[3].data;
-    workspaces = results[4].data;
-
-    if (viewMode === 'tree' || viewMode === 'dag') {
-      dependencies = results[5]?.data ?? null;
+      const dependenciesResult = await api.getWorkflowDependencies(workflowId);
+      dependencies = dependenciesResult.data;
     }
 
     error = null;
@@ -638,7 +635,7 @@ const completedTasks = $derived(
         {#if dependencies}
           <TaskTree
             tasks={workflow.tasks}
-            dependencies={dependencies.task_dependencies}
+            dependencies={dependencies.dependencies}
             workflowId={workflowId}
           />
         {:else}
@@ -650,7 +647,7 @@ const completedTasks = $derived(
         {#if dependencies}
           <TaskDag
             tasks={workflow.tasks}
-            dependencies={dependencies.task_dependencies}
+            dependencies={dependencies.dependencies}
             workflowId={workflowId}
           />
         {:else}
