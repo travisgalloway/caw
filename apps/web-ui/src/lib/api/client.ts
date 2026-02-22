@@ -181,6 +181,16 @@ export interface WorkflowTemplate {
   updated_at: number;
 }
 
+export interface ConfigResponse {
+  config: Record<string, unknown>;
+  diagnostics: {
+    dbPath: string;
+    repoConfigPath: string | null;
+    globalConfigPath: string;
+    warnings: string[];
+  };
+}
+
 export const api = {
   // Workflows
   async listWorkflows(params?: { status?: string; limit?: number; offset?: number }) {
@@ -389,5 +399,10 @@ export const api = {
     },
   ) {
     return request<{ workflow_id: string }>('POST', `/api/templates/${id}/apply`, params);
+  },
+
+  // Config
+  async getConfig() {
+    return request<ConfigResponse>('GET', '/api/config');
   },
 };
