@@ -19,7 +19,8 @@ const navItems = [
   { href: '/agents', label: 'Agents', icon: '🤖' },
   { href: '/templates', label: 'Templates', icon: '📋' },
   { href: '/messages', label: 'Messages', icon: '✉' },
-  { href: '/setup', label: 'Setup', icon: '⚙' },
+  { href: '/settings', label: 'Settings', icon: '⚙' },
+  { href: '/setup', label: 'Setup', icon: '🔧' },
   { href: '/help', label: 'Help', icon: '?' },
 ];
 </script>
