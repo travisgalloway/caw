@@ -76,7 +76,7 @@ function App(): React.JSX.Element {
       content = <WorkflowDetailScreen workflowId={screen.workflowId} />;
       break;
     case 'task-detail':
-      content = <TaskDetailScreen taskId={screen.taskId} />;
+      content = <TaskDetailScreen workflowId={screen.workflowId} taskId={screen.taskId} />;
       break;
     case 'agent-detail':
       content = <AgentDetail workflowId={screen.workflowId} agentId={screen.agentId} />;
