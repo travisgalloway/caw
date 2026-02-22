@@ -93,15 +93,16 @@ export function classifyComplexity(task: Task): ComplexityLevel {
     }
   }
 
-  // Keyword heuristic fallback
+  // Keyword heuristic fallback — check HIGH first so complex tasks
+  // aren't misclassified as trivial when both keywords appear.
   const text = `${task.name} ${task.description ?? ''}`.toLowerCase();
-
-  for (const keyword of TRIVIAL_KEYWORDS) {
-    if (text.includes(keyword)) return 'trivial';
-  }
 
   for (const keyword of HIGH_KEYWORDS) {
     if (text.includes(keyword)) return 'high';
+  }
+
+  for (const keyword of TRIVIAL_KEYWORDS) {
+    if (text.includes(keyword)) return 'trivial';
   }
 
   // Default to medium

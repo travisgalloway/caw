@@ -216,7 +216,7 @@ export function useCommandHandler(): (input: string) => void {
               );
             }
           });
-          store.setPromptSuccess(`Resumed workflow ${wfId}`);
+          store.setPromptSuccess(`Resuming workflow ${wfId}...`);
           store.triggerRefresh();
         } catch (err) {
           store.setPromptError(

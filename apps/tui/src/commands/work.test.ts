@@ -40,14 +40,14 @@ describe('expandIssueArgs', () => {
   });
 
   test('caps range expansion at 100 issues', () => {
-    // Range of 101 should pass through unchanged
-    expect(expandIssueArgs(['1-102'])).toEqual(['1-102']);
-    // Range of exactly 101 (0-100) should expand
+    // Range of >100 should throw
+    expect(() => expandIssueArgs(['1-102'])).toThrow('cannot expand more than 100 issues');
+    // Range of exactly 101 (1-101) should expand
     expect(expandIssueArgs(['1-101'])).toHaveLength(101);
   });
 
-  test('reversed range passes through unchanged', () => {
-    expect(expandIssueArgs(['10-5'])).toEqual(['10-5']);
+  test('reversed range throws an error', () => {
+    expect(() => expandIssueArgs(['10-5'])).toThrow('start must be <= end');
   });
 
   test('empty input returns empty', () => {

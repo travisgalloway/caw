@@ -259,6 +259,8 @@ export class AgentSession {
   }
 
   private checkStagnation(): void {
+    if (!this.isRunning()) return;
+
     const event = this.stagnationMonitor.check();
     if (!event) return;
 

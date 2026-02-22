@@ -48,12 +48,16 @@ export function expandIssueArgs(args: string[]): string[] {
     if (rangeMatch) {
       const start = Number(rangeMatch[1]);
       const end = Number(rangeMatch[2]);
-      if (start <= end && end - start <= 100) {
-        for (let i = start; i <= end; i++) {
-          expanded.push(String(i));
-        }
-        continue;
+      if (start > end) {
+        throw new Error(`Invalid issue range "${token}": start must be <= end`);
       }
+      if (end - start > 100) {
+        throw new Error(`Invalid issue range "${token}": cannot expand more than 100 issues`);
+      }
+      for (let i = start; i <= end; i++) {
+        expanded.push(String(i));
+      }
+      continue;
     }
     expanded.push(token);
   }

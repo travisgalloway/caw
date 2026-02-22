@@ -176,16 +176,30 @@ export function recall(db: DatabaseType, filters?: ListFilters): RecallResult {
 export function prune(db: DatabaseType, threshold?: number): number {
   const minConfidence = threshold ?? PRUNE_THRESHOLD;
 
-  // Find memories whose confidence would be below threshold after decay
-  const all = db.prepare('SELECT * FROM memories').all() as Memory[];
-  let pruned = 0;
+  // Process in batches to avoid loading all memories at once.
+  // Decay is computed in JS (SQLite lacks exp()), so we fetch batches
+  // ordered by confidence ASC (lowest first — most likely to prune).
+  const BATCH_SIZE = 500;
+  const stmt = db.prepare('SELECT * FROM memories ORDER BY confidence ASC LIMIT ? OFFSET ?');
+  const delStmt = db.prepare('DELETE FROM memories WHERE id = ?');
 
-  for (const memory of all) {
-    const decayed = applyDecay(memory);
-    if (decayed.confidence < minConfidence) {
-      db.prepare('DELETE FROM memories WHERE id = ?').run(memory.id);
-      pruned++;
+  let pruned = 0;
+  let offset = 0;
+
+  while (true) {
+    const batch = stmt.all(BATCH_SIZE, offset) as Memory[];
+    if (batch.length === 0) break;
+
+    for (const memory of batch) {
+      const decayed = applyDecay(memory);
+      if (decayed.confidence < minConfidence) {
+        delStmt.run(memory.id);
+        pruned++;
+      }
     }
+
+    if (batch.length < BATCH_SIZE) break;
+    offset += BATCH_SIZE;
   }
 
   return pruned;
