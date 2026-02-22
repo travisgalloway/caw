@@ -21,11 +21,13 @@ export {
 } from './registry';
 export type { AutoResumeResult, ResumeOptions } from './resume';
 export { resumeWorkflows } from './resume';
+export { WorkflowRunner } from './runner';
 export { WorkflowSpawner } from './spawner.service';
 export type {
   AgentHandle,
   ExecutionStatus,
   PermissionMode,
+  PostCompletionHook,
   ResumeResult,
   SpawnerConfig,
   SpawnerEvent,
@@ -33,4 +35,7 @@ export type {
   SpawnerMetadata,
   SpawnResult,
   SuspendResult,
+  WorkflowRunnerOptions,
+  WorkflowRunnerReporter,
+  WorkflowRunnerResult,
 } from './types';

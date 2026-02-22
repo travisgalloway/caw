@@ -95,3 +95,31 @@ export interface SpawnerEventData {
   workflow_stalled: { workflowId: string; reason: string };
   workflow_failed: { workflowId: string; error: string };
 }
+
+export interface WorkflowRunnerReporter {
+  onAgentStarted?(data: SpawnerEventData['agent_started']): void;
+  onAgentCompleted?(data: SpawnerEventData['agent_completed']): void;
+  onAgentFailed?(data: SpawnerEventData['agent_failed']): void;
+  onAgentRetrying?(data: SpawnerEventData['agent_retrying']): void;
+  onAgentQuery?(data: SpawnerEventData['agent_query']): void;
+  onWorkflowStalled?(data: SpawnerEventData['workflow_stalled']): void;
+  onWorkflowFailed?(data: SpawnerEventData['workflow_failed']): void;
+  onWorkflowComplete?(data: SpawnerEventData['workflow_all_complete']): void;
+  onWorkflowAwaitingMerge?(data: SpawnerEventData['workflow_awaiting_merge']): void;
+}
+
+export type PostCompletionHook = (workflowId: string, prUrls: string[]) => Promise<void>;
+
+export interface WorkflowRunnerOptions {
+  spawnerConfig: SpawnerConfig;
+  reporter?: WorkflowRunnerReporter;
+  postCompletionHook?: PostCompletionHook;
+  detach?: boolean;
+}
+
+export type WorkflowRunnerResult =
+  | { outcome: 'completed' }
+  | { outcome: 'awaiting_merge'; prUrls: string[] }
+  | { outcome: 'failed'; error: string }
+  | { outcome: 'stalled'; reason: string }
+  | { outcome: 'detached' };

@@ -485,18 +485,15 @@ if (values['web-ui']) {
   // Auto-resume in_progress workflows (daemon only)
   if (daemon.isDaemon) {
     const { resumeWorkflows } = await import('@caw/spawner');
+    const { createPrCycleHook } = await import('../utils/create-pr-cycle-hook');
+    const prCycleHook = createPrCycleHook(db, {
+      repoPath: process.cwd(),
+      port: daemon.port,
+    });
     const resumeResult = await resumeWorkflows(db, {
       mcpServerUrl: `http://localhost:${daemon.port}/mcp`,
       cwd: process.cwd(),
-      onAwaitingMerge: async (workflowId) => {
-        const { runCycle } = await import('../commands/pr');
-        await runCycle(db, {
-          subcommand: 'cycle',
-          workflowId,
-          repoPath: process.cwd(),
-          port: daemon.port,
-        });
-      },
+      onAwaitingMerge: prCycleHook,
     });
     if (resumeResult.resumed.length > 0) {
       console.error(`Resumed ${resumeResult.resumed.length} workflow(s)`);

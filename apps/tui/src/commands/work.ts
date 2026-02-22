@@ -1,14 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import type { CycleMode, DatabaseType } from '@caw/core';
-import {
-  createWorktree,
-  loadConfig,
-  removeWorktree,
-  resolveCycleMode,
-  workflowService,
-  workspaceService,
-} from '@caw/core';
+import { createWorktree, removeWorktree, workflowService, workspaceService } from '@caw/core';
 import { DEFAULT_PORT } from '@caw/mcp-server';
 import {
   buildMcpConfigFile,
@@ -16,8 +9,10 @@ import {
   type ClaudeMessage,
   cleanEnvForSpawn,
   cleanupMcpConfigFile,
-  WorkflowSpawner,
+  WorkflowRunner,
 } from '@caw/spawner';
+import { createConsoleReporter } from '../utils/console-reporter';
+import { createPrCycleHook } from '../utils/create-pr-cycle-hook';
 
 export interface WorkOptions {
   issues: string[];
@@ -309,7 +304,7 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
     process.exit(1);
   }
 
-  // 7. Spawn workers via WorkflowSpawner
+  // 7. Spawn workers via WorkflowRunner
   const maxAgents = options.maxAgents ?? updated.max_parallel_tasks ?? 3;
   const permissionMode = (options.permissionMode ?? 'bypassPermissions') as
     | 'acceptEdits'
@@ -320,119 +315,45 @@ export async function runWork(db: DatabaseType, options: WorkOptions): Promise<v
   console.log(`  Model: ${options.model ?? 'claude-sonnet-4-5'}`);
   console.log(`  Worktrees: ${worktreeRecords.length}`);
 
-  const spawner = new WorkflowSpawner(db, {
-    workflowId: workflow.id,
-    maxAgents,
-    model: options.model ?? 'claude-sonnet-4-5',
-    permissionMode,
-    maxTurns: options.maxTurns ?? 50,
-    maxBudgetUsd: options.maxBudgetUsd,
-    mcpServerUrl,
-    cwd,
-    branch: defaultBranch,
-    issueContext,
+  let runner: WorkflowRunner;
+  runner = new WorkflowRunner(db, {
+    spawnerConfig: {
+      workflowId: workflow.id,
+      maxAgents,
+      model: options.model ?? 'claude-sonnet-4-5',
+      permissionMode,
+      maxTurns: options.maxTurns ?? 50,
+      maxBudgetUsd: options.maxBudgetUsd,
+      mcpServerUrl,
+      cwd,
+      branch: defaultBranch,
+      issueContext,
+    },
+    reporter:
+      options.watch !== false
+        ? createConsoleReporter(() => runner.getSpawner().getStatus())
+        : undefined,
+    postCompletionHook: createPrCycleHook(db, {
+      repoPath: cwd,
+      port,
+      model: options.model,
+      cycleOverride: options.cycle,
+    }),
+    detach: options.detach,
   });
 
-  if (options.watch !== false) {
-    spawner.on('agent_started', (data) => {
-      console.log(`[agent] Started: ${data.agentId} → task ${data.taskId}`);
-    });
+  const result = await runner.run();
 
-    spawner.on('agent_completed', (data) => {
-      console.log(`[agent] Completed: ${data.agentId} → task ${data.taskId}`);
-      const status = spawner.getStatus();
-      console.log(
-        `  Progress: ${status.progress.completed}/${status.progress.totalTasks} tasks complete`,
-      );
-    });
-
-    spawner.on('agent_failed', (data) => {
-      console.error(`[agent] Failed: ${data.agentId} → task ${data.taskId}: ${data.error}`);
-    });
-
-    spawner.on('agent_retrying', (data) => {
-      console.log(
-        `[agent] Retrying: ${data.agentId} → task ${data.taskId} (attempt ${data.attempt})`,
-      );
-    });
-
-    spawner.on('agent_query', (data) => {
-      console.log(`[agent] Question from ${data.agentId}: ${data.message}`);
-      console.log('  Reply via TUI: /reply <your answer> on the message detail screen');
-    });
-
-    spawner.on('workflow_stalled', (data) => {
-      console.warn(`[workflow] Stalled: ${data.reason}`);
-    });
-  }
-
-  const result = await spawner.start();
-  if (!result.success) {
-    console.error(`Failed to start workflow: ${result.error}`);
-    process.exit(1);
-  }
-
-  console.log(`Spawned ${result.agentHandles.length} agent(s)`);
-
-  if (options.detach) {
-    console.log('Running in background. Use workflow_execution_status to check progress.');
-    return;
-  }
-
-  // Wait for completion
-  await new Promise<void>((resolve) => {
-    spawner.on('workflow_all_complete', () => {
-      console.log('Workflow completed successfully.');
-      resolve();
-    });
-
-    spawner.on('workflow_awaiting_merge', async (data) => {
-      console.log('All tasks complete. Workflow is awaiting PR merge.');
-      for (const url of data.prUrls) {
-        console.log(`  PR: ${url}`);
-      }
-
-      // Resolve cycle mode: CLI flag > workspace > workflow > config > default 'off'
-      const config = loadConfig(cwd);
-      const workspaces = workspaceService.list(db, workflow.id, 'active');
-      const activeWorkspace = workspaces[0] ?? null;
-      const currentWorkflow = workflowService.get(db, workflow.id);
-      const cycleMode = resolveCycleMode(
-        options.cycle,
-        activeWorkspace,
-        currentWorkflow,
-        config.config,
-      );
-
-      if (cycleMode === 'auto' || cycleMode === 'hitl') {
-        console.log(`\nStarting PR cycle (mode: ${cycleMode})...`);
-        const { runCycle } = await import('./pr');
-        await runCycle(db, {
-          subcommand: 'cycle',
-          workflowId: workflow.id,
-          repoPath: cwd,
-          port,
-          model: options.model,
-          cycle: cycleMode,
-        });
-      } else {
-        console.log('Run `caw pr check` to check merge status and clean up worktrees.');
-        console.log('Or run `caw pr cycle` to review, merge, and rebase PRs.');
-      }
-
-      resolve();
-    });
-
-    spawner.on('workflow_failed', (data) => {
-      console.error(`Workflow failed: ${data.error}`);
-      resolve();
-    });
-
-    spawner.on('workflow_stalled', () => {
+  switch (result.outcome) {
+    case 'failed':
+      console.error(`Failed to start workflow: ${result.error}`);
+      process.exit(1);
+      break;
+    case 'detached':
+      console.log('Running in background. Use workflow_execution_status to check progress.');
+      break;
+    case 'stalled':
       console.warn('Workflow stalled. Shutting down...');
-      spawner.shutdown().then(resolve);
-    });
-  });
-
-  await spawner.shutdown();
+      break;
+  }
 }

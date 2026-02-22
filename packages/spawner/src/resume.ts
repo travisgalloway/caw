@@ -1,8 +1,8 @@
 import type { DatabaseType } from '@caw/core';
 import { workflowService, workspaceService } from '@caw/core';
 import { getSpawner } from './registry';
-import { WorkflowSpawner } from './spawner.service';
-import type { PermissionMode, SpawnerConfig } from './types';
+import { WorkflowRunner } from './runner';
+import type { PermissionMode, PostCompletionHook, SpawnerConfig } from './types';
 
 export interface AutoResumeResult {
   resumed: string[];
@@ -83,36 +83,42 @@ export async function resumeWorkflows(
         ephemeralWorktree: savedConfig.ephemeral_worktree,
       };
 
-      const spawner = new WorkflowSpawner(db, spawnerConfig);
-
-      // Wire up basic event listeners for logging
-      // Use queueMicrotask to defer shutdown so spawner.start() can finish returning
-      spawner.on('workflow_all_complete', ({ workflowId }) => {
-        console.error(`[auto-resume] Workflow ${workflowId} completed`);
-        queueMicrotask(() => spawner.shutdown());
-      });
-      spawner.on('workflow_awaiting_merge', async ({ workflowId, prUrls }) => {
-        console.error(`[auto-resume] Workflow ${workflowId} awaiting merge: ${prUrls.join(', ')}`);
-        if (options.onAwaitingMerge) {
-          await options.onAwaitingMerge(workflowId, prUrls);
-        }
-        queueMicrotask(() => spawner.shutdown());
-      });
-      spawner.on('workflow_stalled', ({ workflowId, reason }) => {
-        console.error(`[auto-resume] Workflow ${workflowId} stalled: ${reason}`);
-        queueMicrotask(() => spawner.shutdown());
-      });
-      spawner.on('workflow_failed', ({ workflowId, error }) => {
-        console.error(`[auto-resume] Workflow ${workflowId} failed: ${error}`);
-        queueMicrotask(() => spawner.shutdown());
-      });
-
-      const spawnResult = await spawner.start();
-      if (spawnResult.success) {
-        result.resumed.push(wf.id);
-      } else {
-        result.errors.push({ workflowId: wf.id, error: spawnResult.error ?? 'Unknown error' });
+      // Build a PostCompletionHook from the onAwaitingMerge callback
+      let postCompletionHook: PostCompletionHook | undefined;
+      if (options.onAwaitingMerge) {
+        const cb = options.onAwaitingMerge;
+        postCompletionHook = (workflowId, prUrls) => cb(workflowId, prUrls);
       }
+
+      const runner = new WorkflowRunner(db, {
+        spawnerConfig,
+        postCompletionHook,
+        reporter: {
+          onWorkflowComplete({ workflowId }) {
+            console.error(`[auto-resume] Workflow ${workflowId} completed`);
+          },
+          onWorkflowAwaitingMerge({ workflowId, prUrls }) {
+            console.error(
+              `[auto-resume] Workflow ${workflowId} awaiting merge: ${prUrls.join(', ')}`,
+            );
+          },
+          onWorkflowStalled({ workflowId, reason }) {
+            console.error(`[auto-resume] Workflow ${workflowId} stalled: ${reason}`);
+          },
+          onWorkflowFailed({ workflowId, error }) {
+            console.error(`[auto-resume] Workflow ${workflowId} failed: ${error}`);
+          },
+        },
+      });
+
+      // Run in background — don't await since we're resuming multiple workflows
+      runner.run().catch((err) => {
+        console.error(
+          `[auto-resume] Workflow ${wf.id} error: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+
+      result.resumed.push(wf.id);
     } catch (err) {
       result.errors.push({
         workflowId: wf.id,

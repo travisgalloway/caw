@@ -8,6 +8,7 @@ import {
   workflowService,
   workspaceService,
 } from '@caw/core';
+import type { PermissionMode } from '@caw/spawner';
 import { useApp } from 'ink';
 import { useCallback } from 'react';
 import { useDb } from '../context/db';
@@ -158,50 +159,57 @@ export function useCommandHandler(): (input: string) => void {
           if (workflow.status !== 'in_progress') {
             workflowService.updateStatus(db, wfId, 'in_progress');
           }
-          // Start a spawner for this workflow
+          // Start a WorkflowRunner for this workflow
           Promise.resolve().then(async () => {
             try {
-              const { getSpawner, WorkflowSpawner } = await import('@caw/spawner');
+              const { getSpawner, WorkflowRunner } = await import('@caw/spawner');
               if (getSpawner(wfId)) return; // Already running
-              const maxAgents = workflow.max_parallel_tasks ?? 3;
-              const spawner = new WorkflowSpawner(db, {
-                workflowId: wfId,
-                maxAgents,
-                model: 'claude-sonnet-4-5',
-                permissionMode: 'bypassPermissions',
-                maxTurns: 50,
-                mcpServerUrl: `http://localhost:${port}/mcp`,
-                cwd: process.cwd(),
-              });
-              spawner.on('workflow_all_complete', () => {
-                queueMicrotask(() => spawner.shutdown());
-              });
-              spawner.on('workflow_stalled', () => {
-                queueMicrotask(() => spawner.shutdown());
-              });
-              spawner.on('workflow_failed', () => {
-                queueMicrotask(() => spawner.shutdown());
-              });
-              spawner.on('workflow_awaiting_merge', async ({ workflowId }) => {
-                try {
-                  const { runCycle } = await import('../commands/pr');
-                  await runCycle(db, {
-                    subcommand: 'cycle',
-                    workflowId,
-                    repoPath: process.cwd(),
-                    port,
-                  });
-                } catch (err) {
-                  console.error(
-                    `[resume] Cycle error: ${err instanceof Error ? err.message : String(err)}`,
-                  );
+
+              // Read persisted config from workflow
+              let model = 'claude-sonnet-4-5';
+              let permissionMode: PermissionMode = 'bypassPermissions';
+              let maxTurns = 50;
+              let maxBudgetUsd: number | undefined;
+              let ephemeralWorktree = false;
+              try {
+                const cfg = workflow.config ? JSON.parse(workflow.config) : {};
+                const saved = cfg.spawner_config;
+                if (saved) {
+                  model = saved.model ?? model;
+                  permissionMode = (saved.permission_mode as PermissionMode) ?? permissionMode;
+                  maxTurns = saved.max_turns ?? maxTurns;
+                  maxBudgetUsd = saved.max_budget_usd ?? undefined;
+                  ephemeralWorktree = saved.ephemeral_worktree ?? false;
                 }
-                queueMicrotask(() => spawner.shutdown());
-              });
-              const result = await spawner.start();
-              if (!result.success) {
-                console.error(`[resume] Failed to start spawner: ${result.error}`);
+              } catch {
+                // Use defaults
               }
+
+              const { createPrCycleHook } = await import('../utils/create-pr-cycle-hook');
+              const maxAgents = workflow.max_parallel_tasks ?? 3;
+              const runner = new WorkflowRunner(db, {
+                spawnerConfig: {
+                  workflowId: wfId,
+                  maxAgents,
+                  model,
+                  permissionMode,
+                  maxTurns,
+                  maxBudgetUsd,
+                  ephemeralWorktree,
+                  mcpServerUrl: `http://localhost:${port}/mcp`,
+                  cwd: process.cwd(),
+                },
+                postCompletionHook: createPrCycleHook(db, {
+                  repoPath: process.cwd(),
+                  port,
+                  model,
+                }),
+              });
+              const result = await runner.run();
+              if (result.outcome === 'failed') {
+                console.error(`[resume] Workflow failed: ${result.error}`);
+              }
+              store.triggerRefresh();
             } catch (err) {
               console.error(
                 `[resume] Spawner error: ${err instanceof Error ? err.message : String(err)}`,
