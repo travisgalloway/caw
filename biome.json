@@ -1,7 +1,7 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.3.14/schema.json",
   "files": {
-    "includes": ["packages/*/src/**", "apps/*/src/**", "!apps/web-ui/src/**/*.css"]
+    "includes": ["packages/*/src/**", "apps/*/src/**", "!apps/desktop/src/**/*.css"]
   },
   "vcs": {
     "enabled": true,
@@ -27,7 +27,7 @@
   },
   "overrides": [
     {
-      "includes": ["apps/web-ui/src/**/*.svelte"],
+      "includes": ["apps/desktop/src/**/*.svelte"],
       "linter": {
         "rules": {
           "correctness": {

@@ -1,0 +1,1 @@
+{"default":{"identifier":"default","description":"Default capabilities for the main window","local":true,"windows":["main"],"permissions":["core:default","shell:allow-execute",{"identifier":"shell:allow-spawn","allow":[{"args":true,"name":"binaries/caw","sidecar":true}]},"shell:allow-kill"]}}

@@ -4,10 +4,10 @@ import { ok } from '../response';
 import type { Router } from '../router';
 
 export interface StatsSummary {
-  activeWorkflows: number;
-  onlineAgents: number;
-  unreadMessages: number;
-  completedToday: number;
+  active_workflows: number;
+  online_agents: number;
+  unread_messages: number;
+  completed_today: number;
 }
 
 export function registerStatsRoutes(router: Router, db: DatabaseType) {
@@ -35,10 +35,10 @@ export function registerStatsRoutes(router: Router, db: DatabaseType) {
     const completedToday = completedWorkflows.count;
 
     const summary: StatsSummary = {
-      activeWorkflows,
-      onlineAgents,
-      unreadMessages,
-      completedToday,
+      active_workflows: activeWorkflows,
+      online_agents: onlineAgents,
+      unread_messages: unreadMessages,
+      completed_today: completedToday,
     };
 
     return ok(summary);

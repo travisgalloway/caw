@@ -16,17 +16,17 @@ Desktop users have full access to the local Bun runtime, git, and all CLI comman
 
 - **Runtime**: Bun 1.3.8 (see `packageManager` in root `package.json`)
 - **Install**: `bun install` from the repo root
-- **Run the TUI**: `bun run --filter @caw/tui start` or directly via `apps/tui/src/bin/cli.ts`
+- **Run the CLI**: `bun apps/cli/src/bin/cli.ts --server` or use subcommands like `caw run`, `caw work`
 
 ### Web (Claude Code on the web)
 
 Web sessions run in a sandboxed Linux environment. Key differences from desktop:
 
-- **No persistent daemon**: The TUI daemon mode (`caw run --detach`) will not persist between sessions. Prefer `--no-watch` or direct MCP server mode (`caw --server`) for headless operation.
+- **No persistent daemon**: The daemon mode (`caw run --detach`) will not persist between sessions. Prefer `--no-watch` or direct MCP server mode (`caw --server`) for headless operation.
 - **No global `~/.caw/` directory across sessions**: Use per-repo mode (`--db .caw/workflows.db`) to keep data within the repo.
 - **Bun is available**: The runtime environment includes Bun, so all build/test/lint commands work as documented.
 - **Git is available**: Standard git operations work. Push requires proper remote configuration.
-- **No interactive TUI**: The Ink-based terminal UI requires a real TTY. On web, use `caw --server` (headless MCP) or the CLI subcommands (`caw run`, `caw init`, etc.) instead.
+- **Use CLI mode**: On web, use `caw --server` (headless MCP) or the CLI subcommands (`caw run`, `caw init`, etc.).
 
 ---
 
@@ -111,8 +111,8 @@ caw/
 │   ├── rest-api/       @caw/rest-api     — REST API + WebSocket broadcaster
 │   └── spawner/        @caw/spawner      — Agent spawning via claude CLI
 ├── apps/
-│   ├── tui/            @caw/tui          — Unified caw binary (TUI + headless MCP + web UI)
-│   └── web-ui/         @caw/web-ui       — SvelteKit web dashboard (static build)
+│   ├── cli/            @caw/cli          — caw binary (CLI commands + headless server)
+│   └── desktop/        @caw/desktop      — Tauri desktop app (SvelteKit frontend + sidecar)
 ├── tooling/
 │   └── tsconfig/       @caw/tsconfig     — Shared TypeScript configs
 ├── docs/                                 — Design documentation (16 files)
@@ -126,11 +126,11 @@ caw/
 @caw/spawner    → @caw/core
 @caw/rest-api   → @caw/core
 @caw/mcp-server → @caw/core, @caw/spawner
-@caw/tui        → @caw/core, @caw/spawner, @caw/mcp-server, @caw/rest-api
-@caw/web-ui     → (no package deps — pure frontend, talks to REST API at runtime)
+@caw/cli        → @caw/core, @caw/spawner, @caw/mcp-server, @caw/rest-api
+@caw/desktop    → (no package deps — Tauri app, talks to REST API at runtime)
 ```
 
-All packages depend on `@caw/core`. The TUI app depends on all four library packages. The web UI is a standalone SvelteKit app with no package dependencies.
+All packages depend on `@caw/core`. The CLI app depends on all four library packages. The desktop app is a Tauri wrapper around SvelteKit with no package dependencies (communicates with the CLI sidecar via REST API and WebSocket).
 
 ### Package details
 
@@ -138,26 +138,25 @@ All packages depend on `@caw/core`. The TUI app depends on all four library pack
 - **`packages/mcp-server`** (`@caw/mcp-server`) — MCP protocol server library. 12 tool categories (30+ tools), stdio and HTTP transports, `createHttpHandler` for embedding MCP in a combined server. Depends on core and spawner.
 - **`packages/rest-api`** (`@caw/rest-api`) — REST API layer exposing core services as HTTP endpoints. Bun-native router, JSON response helpers, CORS middleware, WebSocket broadcaster for real-time events. Depends on core.
 - **`packages/spawner`** (`@caw/spawner`) — Agent spawning via `claude -p` CLI. Includes `WorkflowSpawner`, `AgentSession`, `AgentPool`, prompt builders, and MCP config management. Depends on core.
-- **`apps/tui`** (`@caw/tui`) — Unified `caw` binary. TUI mode (default, Ink/React), headless MCP server (`--server`), or web UI mode (`--web-ui`). Includes CLI commands (`init`, `setup`, `run`), 24 React components, 11 hooks, Zustand store. Depends on core, mcp-server, spawner, and rest-api.
-- **`apps/web-ui`** (`@caw/web-ui`) — SvelteKit 5 web dashboard with shadcn-svelte components and Tailwind CSS v4. Builds to static files served by the `--web-ui` mode. No package dependencies (communicates with REST API and WebSocket at runtime).
+- **`apps/cli`** (`@caw/cli`) — The `caw` binary. Headless MCP server (`--server`), combined HTTP server (`--server --transport http` with MCP + REST API + WebSocket), and CLI commands (`init`, `setup`, `run`, `work`, `pr`). Depends on core, mcp-server, spawner, and rest-api.
+- **`apps/desktop`** (`@caw/desktop`) — Tauri 2 desktop app wrapping SvelteKit 5 frontend with shadcn-svelte and Tailwind CSS v4. Spawns the `caw` binary as a sidecar for the backend. No package dependencies.
 - **`tooling/tsconfig`** (`@caw/tsconfig`) — Shared TypeScript configs: `base.json` (ES2022, ESM, strict, noEmit) and `library.json` (extends base).
 
 ---
 
 ## CLI Usage
 
-The `caw` binary (`apps/tui/src/bin/cli.ts`) supports these modes:
+The `caw` binary (`apps/cli/src/bin/cli.ts`) supports these modes:
 
 ```bash
-caw                              # Launch interactive TUI (desktop only)
 caw --server                     # Headless MCP server (stdio transport)
-caw --server --transport http    # Headless MCP server (HTTP on port 3100)
-caw --web-ui                     # Web UI + MCP + REST API + WebSocket (port 3100)
+caw --server --transport http    # Combined server: MCP + REST API + WebSocket (port 3100)
 caw init [--yes] [--global]      # Initialize caw in repo or globally
 caw setup claude-code            # Configure Claude Code MCP integration
 caw run <workflow_id>            # Execute a workflow
 caw run --prompt "..."           # Create + plan + run from a prompt
 caw work <issues...>             # Work on GitHub issue(s): plan, execute, PR
+caw pr list|check|merge|cycle    # PR lifecycle management
 caw --template <name> "desc"     # Create workflow from template
 caw --list-templates             # List available templates
 ```
@@ -328,29 +327,24 @@ Single endpoint `ws://host:port/ws`. Channels: `global`, `workflow:<id>`, `agent
 
 ---
 
-## TUI App (`apps/tui/`)
+## CLI App (`apps/cli/`)
 
 ### Architecture
 
-- **React + Ink**: Terminal UI rendered with React 19 and Ink 6
-- **Zustand**: State management (navigation stack, active tab, filters)
-- **Polling**: Custom `usePolling` hook for real-time data refresh
-- **Context providers**: `DbContext`, `DbPathContext`, `SessionContext`
+- **Headless CLI**: No TUI — prints usage and exits when run without flags
+- **Server modes**: `--server` (stdio MCP) or `--server --transport http` (combined MCP + REST + WS)
+- **Subcommands**: `init`, `setup`, `run`, `work`, `pr`
+- **Daemon**: Background MCP server with session tracking and health checks
 
-### Key Components
+### Key Files
 
-| Component | Purpose |
-|-----------|---------|
-| `WorkflowListScreen` | Main list of workflows |
-| `WorkflowDetailScreen` | Workflow detail with tabs (Tasks, Agents, Messages, Workspaces) |
-| `TaskTree` / `TaskDag` | Task dependency visualization |
-| `SelectableTable` | Generic navigable table |
-| `CommandPrompt` | Inline command input |
-| `SetupGuide` | First-run setup wizard |
-
-### Hooks
-
-11 custom hooks for data fetching (`useWorkflows`, `useTasks`, `useAgents`, `useMessages`), UI state (`useKeyBindings`, `useTerminalSize`), and session management (`useSession`, `useCommandHandler`).
+| File | Purpose |
+|------|---------|
+| `bin/cli.ts` | Entry point — arg parsing, mode dispatch |
+| `server.ts` | Headless MCP server (stdio transport) |
+| `api-server.ts` | Combined HTTP server (MCP + REST API + WebSocket) |
+| `daemon.ts` | Background daemon with lock file and heartbeat |
+| `commands/` | CLI subcommands (init, setup, run, work, pr) |
 
 ---
 
@@ -367,16 +361,21 @@ Agents are spawned via `claude -p` with appropriate flags: `--model`, `--permiss
 
 ---
 
-## Web UI App (`apps/web-ui/`)
+## Desktop App (`apps/desktop/`)
 
 ### Architecture
 
+- **Tauri 2**: Native desktop wrapper with sidecar management
 - **SvelteKit 5**: Static SPA built with `adapter-static`, output to `build/`
 - **Svelte 5 runes**: Uses `$state`, `$derived`, `$effect`, `$props` (not legacy stores)
 - **Tailwind CSS v4**: Configured via `@tailwindcss/vite` plugin with `@theme` directive for custom status colors
 - **shadcn-svelte**: Component primitives via `bits-ui` (Button, Card, Table, Tabs, Badge, etc.)
-- **API client** (`src/lib/api/client.ts`): Typed fetch wrapper for all REST endpoints
-- **WebSocket store** (`src/lib/stores/ws.ts`): Svelte writable store with auto-reconnect and channel subscriptions
+- **API client** (`src/lib/api/client.ts`): Typed fetch wrapper with configurable `VITE_API_BASE_URL`
+- **WebSocket store** (`src/lib/stores/ws.ts`): Svelte writable store with auto-reconnect, derives WS URL from API base
+
+### Sidecar
+
+The desktop app spawns `caw --server --transport http --port 3100` as a sidecar process on startup. The Rust backend (`src-tauri/src/lib.rs`) manages the sidecar lifecycle: spawn on app start, health-check polling, SIGTERM on exit.
 
 ### Pages
 
@@ -400,16 +399,22 @@ Agents are spawned via `claude -p` with appropriate flags: `--model`, `--permiss
 
 ```bash
 # Dev server with Vite proxy to backend
-bun run --filter @caw/web-ui dev
+bun run --filter @caw/desktop dev
 
-# Build static output to apps/web-ui/build/
-bun run --filter @caw/web-ui build:web
+# Build static output to apps/desktop/build/
+bun run --filter @caw/desktop build:web
 
 # Type check
-bun run --filter @caw/web-ui check
+bun run --filter @caw/desktop check
+
+# Tauri dev (starts sidecar + native window)
+cd apps/desktop && bun run tauri:dev
+
+# Tauri build (produces installable desktop app)
+cd apps/desktop && bun run tauri:build
 ```
 
-The Vite dev server proxies `/api` and `/ws` to `localhost:3100`, so run `caw --web-ui` in parallel for development.
+For frontend-only development, run `caw --server --transport http --port 3100` in a separate terminal, then `bun run --filter @caw/desktop dev`. The Vite dev server proxies `/api` and `/ws` to `localhost:3100`.
 
 ---
 
@@ -421,15 +426,13 @@ The Vite dev server proxies `/api` and `/ws` to `localhost:3100`, so run `caw --
 | `nanoid` ^5.0.9 | core | ESM-native ID generation |
 | `zod` ^4.3.6 | core, mcp-server | Schema validation |
 | `@modelcontextprotocol/sdk` ^1.25.3 | mcp-server | MCP protocol implementation |
-| `ink` ^6.6.0 | tui | Terminal UI framework |
-| `react` ^19.0.0 | tui | Component model |
-| `zustand` ^5.0.0 | tui | State management |
-| `ink-testing-library` ^4.0.0 | tui (dev) | Component testing |
-| `@sveltejs/kit` ^2.16.0 | web-ui | SvelteKit framework |
-| `svelte` ^5.0.0 | web-ui | Svelte 5 with runes |
-| `tailwindcss` ^4.0.0 | web-ui | Utility-first CSS (v4) |
-| `bits-ui` ^1.0.0 | web-ui | shadcn-svelte component primitives |
-| `lucide-svelte` ^0.469.0 | web-ui | Icon library |
+| `@tauri-apps/cli` ^2 | desktop (dev) | Tauri build tooling |
+| `@tauri-apps/api` ^2 | desktop | Tauri runtime API |
+| `@sveltejs/kit` ^2.16.0 | desktop | SvelteKit framework |
+| `svelte` ^5.0.0 | desktop | Svelte 5 with runes |
+| `tailwindcss` ^4.0.0 | desktop | Utility-first CSS (v4) |
+| `bits-ui` ^2.14.4 | desktop | shadcn-svelte component primitives |
+| `lucide-svelte` ^0.469.0 | desktop | Icon library |
 
 ---
 
@@ -440,7 +443,7 @@ GitHub Actions pipeline (`.github/workflows/ci.yml`):
 - **Triggers**: Push to `main`, PRs targeting `main`
 - **Runner**: `ubuntu-latest`
 - **Bun version**: 1.3.8
-- **Steps**: `bun install` → `bun run lint` → `bun run build` → `bun run test` → `bun run --filter @caw/web-ui build:web`
+- **Steps**: `bun install` → `bun run lint` → `bun run build` → `bun run test` → `bun run --filter @caw/desktop build:web`
 
 ---
 
@@ -492,13 +495,6 @@ Detailed design docs live in `docs/`. Key references:
 3. Register the migration in `packages/core/src/db/migrations/index.ts`
 4. Run `bun run test` to verify migrations apply cleanly
 
-### Adding a TUI component
-
-1. Create `.tsx` file in `apps/tui/src/components/`
-2. Use Ink primitives (`Box`, `Text`) and existing shared components (`SelectableTable`, `ScrollArea`, etc.)
-3. Add tests using `ink-testing-library` in a co-located `.test.tsx` file
-4. Wire into the navigation via the Zustand store (`apps/tui/src/store/index.ts`)
-
 ### Adding a REST API route
 
 1. Create or edit a route file in `packages/rest-api/src/routes/`
@@ -507,9 +503,9 @@ Detailed design docs live in `docs/`. Key references:
 4. Optionally accept a `Broadcaster` parameter and emit events after mutations
 5. Add tests in `packages/rest-api/src/api.test.ts`
 
-### Adding a web UI page
+### Adding a desktop UI page
 
-1. Create a route directory under `apps/web-ui/src/routes/` (e.g. `my-page/+page.svelte`)
+1. Create a route directory under `apps/desktop/src/routes/` (e.g. `my-page/+page.svelte`)
 2. Use Svelte 5 runes (`$state`, `$derived`, `$effect`) — not legacy stores
 3. Import API client from `$lib/api/client` for data fetching
 4. Use shared components (`StatusBadge`, `ProgressBar`, `RelativeTime`) from `$lib/components/`
@@ -521,18 +517,18 @@ Detailed design docs live in `docs/`. Key references:
 
 ### Desktop (Claude Code CLI)
 
-- Full interactive TUI is available (`caw` with no flags)
 - `bun test --watch` works for development
 - Pre-commit hooks (Husky) run automatically on `git commit`
 - Daemon mode (`caw run --detach`) spawns a background process
 - Git worktree operations (`createWorktree`, `removeWorktree`) require local git
+- Desktop app: `cd apps/desktop && bun run tauri:dev` for Tauri development
 
 ### Web (Claude Code on the web)
 
-- Use `caw --server` for headless MCP access (no TUI rendering)
+- Use `caw --server` for headless MCP access
 - Use `caw init --yes` to skip interactive prompts during setup
 - Run tests per-package if full Turbo run times out: `bun run --filter @caw/core test`
-- The `scripts/seed.ts` script can populate test data without a TUI
+- The `scripts/seed.ts` script can populate test data
 - Pre-commit hooks may not fire automatically; run `bun run format` manually before committing
 - Database files (`.caw/*.db`) are ephemeral between web sessions unless committed (not recommended — add to `.gitignore`)
 

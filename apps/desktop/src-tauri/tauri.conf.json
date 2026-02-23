@@ -1,0 +1,46 @@
+{
+  "$schema": "https://raw.githubusercontent.com/nicerdicer/tauri-v2-schema/refs/heads/main/src/tauri.conf.v2.json",
+  "productName": "caw",
+  "version": "0.1.0",
+  "identifier": "com.caw.desktop",
+  "build": {
+    "beforeBuildCommand": "VITE_API_BASE_URL=http://localhost:3100 bun run build:web",
+    "beforeDevCommand": "VITE_API_BASE_URL=http://localhost:3100 bun run dev",
+    "frontendDist": "./build",
+    "devUrl": "http://localhost:5173"
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "externalBin": [
+      "binaries/caw"
+    ]
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "caw",
+        "width": 1200,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false,
+        "visible": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' http://localhost:3100 ws://localhost:3100; style-src 'self' 'unsafe-inline'"
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": true
+    }
+  }
+}
