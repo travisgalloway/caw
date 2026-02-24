@@ -1,5 +1,5 @@
 <script lang="ts">
-import { Dialog as SheetPrimitive } from 'bits-ui';
+import type { Dialog as SheetPrimitive } from 'bits-ui';
 import { cn } from '$lib/utils.js';
 
 let {

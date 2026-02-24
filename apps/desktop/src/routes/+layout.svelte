@@ -1,4 +1,5 @@
 <script lang="ts">
+import { ModeWatcher } from 'mode-watcher';
 import { onDestroy, onMount } from 'svelte';
 import { goto } from '$app/navigation';
 import CommandPalette from '$lib/components/CommandPalette.svelte';
@@ -7,7 +8,6 @@ import { Toaster } from '$lib/components/ui/sonner/index.js';
 import { commandStore } from '$lib/stores/command';
 import { handleWsToast } from '$lib/stores/toast';
 import { wsStore } from '$lib/stores/ws';
-import { ModeWatcher } from 'mode-watcher';
 import '../app.css';
 
 const { children } = $props();
