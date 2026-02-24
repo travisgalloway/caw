@@ -5,7 +5,6 @@ import { onDestroy, onMount } from 'svelte';
 import { api, type WorkflowSummary } from '$lib/api/client';
 import EmptyState from '$lib/components/EmptyState.svelte';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
-import StatsCards from '$lib/components/StatsCards.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
 import { Button } from '$lib/components/ui/button/index.js';
 import * as Card from '$lib/components/ui/card/index.js';
@@ -88,14 +87,8 @@ $effect(() => {
 });
 </script>
 
-<div class="p-6 space-y-6">
-  <StatsCards />
-
+<div class="px-5 py-4 space-y-4">
   <div class="flex items-center justify-between">
-    <div>
-      <h2 class="text-2xl font-bold tracking-tight">Workflows</h2>
-      <p class="text-sm text-muted-foreground">{total} workflow{total !== 1 ? 's' : ''}</p>
-    </div>
     <div class="flex items-center gap-2">
       <input
         type="text"
@@ -114,20 +107,16 @@ $effect(() => {
   </div>
 
   {#if loading}
-    <Card.Root>
-      <Card.Content class="p-0">
-        <div class="space-y-0">
-          {#each Array(5) as _}
-            <div class="flex items-center gap-4 border-b border-border px-4 py-3 last:border-0">
-              <Skeleton class="h-4 w-48" />
-              <Skeleton class="h-5 w-20 rounded-full" />
-              <Skeleton class="h-4 w-16" />
-              <Skeleton class="h-4 w-12" />
-            </div>
-          {/each}
+    <div class="space-y-0">
+      {#each Array(5) as _}
+        <div class="flex items-center gap-4 border-b border-border px-4 py-3 last:border-0">
+          <Skeleton class="h-4 w-48" />
+          <Skeleton class="h-5 w-20 rounded-full" />
+          <Skeleton class="h-4 w-16" />
+          <Skeleton class="h-4 w-12" />
         </div>
-      </Card.Content>
-    </Card.Root>
+      {/each}
+    </div>
   {:else if error}
     <Card.Root class="border-destructive">
       <Card.Content class="p-4 text-sm text-destructive">{error}</Card.Content>
@@ -141,45 +130,41 @@ $effect(() => {
         : 'Create a workflow via MCP, the CLI, or the button above.'}
     />
   {:else}
-    <Card.Root>
-      <Card.Content class="p-0">
-        <Table.Root>
-          <Table.Header>
-            <Table.Row>
-              <Table.Head>Name</Table.Head>
-              <Table.Head>Status</Table.Head>
-              <Table.Head>Source</Table.Head>
-              <Table.Head>Updated</Table.Head>
-              <Table.Head class="text-right">ID</Table.Head>
-            </Table.Row>
-          </Table.Header>
-          <Table.Body>
-            {#each filteredWorkflows as wf}
-              <Table.Row class="cursor-pointer">
-                <Table.Cell>
-                  <a
-                    href="/workflows/{wf.id}"
-                    class="font-medium text-primary hover:underline"
-                  >
-                    {wf.name}
-                  </a>
-                </Table.Cell>
-                <Table.Cell>
-                  <StatusBadge status={wf.status} />
-                </Table.Cell>
-                <Table.Cell class="text-muted-foreground">{wf.source_type}</Table.Cell>
-                <Table.Cell class="text-muted-foreground">
-                  <RelativeTime timestamp={wf.updated_at} />
-                </Table.Cell>
-                <Table.Cell class="text-right font-mono text-xs text-muted-foreground">
-                  {wf.id}
-                </Table.Cell>
-              </Table.Row>
-            {/each}
-          </Table.Body>
-        </Table.Root>
-      </Card.Content>
-    </Card.Root>
+    <Table.Root>
+      <Table.Header>
+        <Table.Row>
+          <Table.Head>Name</Table.Head>
+          <Table.Head>Status</Table.Head>
+          <Table.Head>Source</Table.Head>
+          <Table.Head>Updated</Table.Head>
+          <Table.Head class="text-right">ID</Table.Head>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {#each filteredWorkflows as wf}
+          <Table.Row class="cursor-pointer">
+            <Table.Cell>
+              <a
+                href="/workflows/{wf.id}"
+                class="font-medium text-primary hover:underline"
+              >
+                {wf.name}
+              </a>
+            </Table.Cell>
+            <Table.Cell>
+              <StatusBadge status={wf.status} />
+            </Table.Cell>
+            <Table.Cell class="text-muted-foreground">{wf.source_type}</Table.Cell>
+            <Table.Cell class="text-muted-foreground">
+              <RelativeTime timestamp={wf.updated_at} />
+            </Table.Cell>
+            <Table.Cell class="text-right font-mono text-xs text-muted-foreground">
+              {wf.id}
+            </Table.Cell>
+          </Table.Row>
+        {/each}
+      </Table.Body>
+    </Table.Root>
   {/if}
 </div>
 

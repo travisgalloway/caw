@@ -337,7 +337,7 @@ $effect(() => {
   onSent={() => loadData()}
 />
 
-<div class="p-6 space-y-6">
+<div class="px-5 py-4 space-y-4">
   {#if loading}
     <div class="space-y-4">
       <Skeleton class="h-8 w-64" />
@@ -365,7 +365,7 @@ $effect(() => {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h2 class="text-2xl font-bold tracking-tight">{workflow.name}</h2>
+        <h2 class="text-xl font-bold tracking-tight">{workflow.name}</h2>
         {#if workflow.plan_summary}
           <p class="mt-1 text-sm text-muted-foreground">{workflow.plan_summary}</p>
         {/if}
@@ -469,65 +469,61 @@ $effect(() => {
           {#if workflow.tasks.length === 0}
             <EmptyState icon={ListIcon} title="No tasks" description="Add tasks to this workflow to get started." />
           {:else}
-            <Card.Root>
-              <Card.Content class="p-0">
-                <Table.Root>
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.Head class="w-12">#</Table.Head>
-                      <Table.Head>Name</Table.Head>
-                      <Table.Head>Status</Table.Head>
-                      <Table.Head>Agent</Table.Head>
-                      <Table.Head>Group</Table.Head>
-                      <Table.Head>Updated</Table.Head>
-                      <Table.Head class="w-10"></Table.Head>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
-                    {#each workflow.tasks as task}
-                      <Table.Row>
-                        <Table.Cell class="tabular-nums text-muted-foreground">{task.sequence}</Table.Cell>
-                        <Table.Cell>
-                          <a
-                            href="/workflows/{workflowId}/tasks/{task.id}"
-                            class="font-medium text-primary hover:underline"
-                          >
-                            {task.name}
-                          </a>
-                          {#if task.description}
-                            <p class="mt-0.5 truncate text-xs text-muted-foreground" title={task.description}>
-                              {task.description}
-                            </p>
-                          {/if}
-                        </Table.Cell>
-                        <Table.Cell><StatusBadge status={task.status} /></Table.Cell>
-                        <Table.Cell class="font-mono text-xs text-muted-foreground">
-                          {task.assigned_agent_id ?? '—'}
-                        </Table.Cell>
-                        <Table.Cell class="text-xs text-muted-foreground">
-                          {task.parallel_group ?? '—'}
-                        </Table.Cell>
-                        <Table.Cell class="text-muted-foreground">
-                          <RelativeTime timestamp={task.updated_at} />
-                        </Table.Cell>
-                        <Table.Cell>
-                          {#if REMOVABLE_STATUSES.has(task.status) && !task.assigned_agent_id}
-                            <button
-                              type="button"
-                              onclick={() => { deleteTask = task; deleteError = null; deleteSubmitting = false; }}
-                              class="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-                              title="Delete task"
-                            >
-                              <Trash2Icon class="size-4" />
-                            </button>
-                          {/if}
-                        </Table.Cell>
-                      </Table.Row>
-                    {/each}
-                  </Table.Body>
-                </Table.Root>
-              </Card.Content>
-            </Card.Root>
+            <Table.Root>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head class="w-12">#</Table.Head>
+                  <Table.Head>Name</Table.Head>
+                  <Table.Head>Status</Table.Head>
+                  <Table.Head>Agent</Table.Head>
+                  <Table.Head>Group</Table.Head>
+                  <Table.Head>Updated</Table.Head>
+                  <Table.Head class="w-10"></Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {#each workflow.tasks as task}
+                  <Table.Row>
+                    <Table.Cell class="tabular-nums text-muted-foreground">{task.sequence}</Table.Cell>
+                    <Table.Cell>
+                      <a
+                        href="/workflows/{workflowId}/tasks/{task.id}"
+                        class="font-medium text-primary hover:underline"
+                      >
+                        {task.name}
+                      </a>
+                      {#if task.description}
+                        <p class="mt-0.5 truncate text-xs text-muted-foreground" title={task.description}>
+                          {task.description}
+                        </p>
+                      {/if}
+                    </Table.Cell>
+                    <Table.Cell><StatusBadge status={task.status} /></Table.Cell>
+                    <Table.Cell class="font-mono text-xs text-muted-foreground">
+                      {task.assigned_agent_id ?? '—'}
+                    </Table.Cell>
+                    <Table.Cell class="text-xs text-muted-foreground">
+                      {task.parallel_group ?? '—'}
+                    </Table.Cell>
+                    <Table.Cell class="text-muted-foreground">
+                      <RelativeTime timestamp={task.updated_at} />
+                    </Table.Cell>
+                    <Table.Cell>
+                      {#if REMOVABLE_STATUSES.has(task.status) && !task.assigned_agent_id}
+                        <button
+                          type="button"
+                          onclick={() => { deleteTask = task; deleteError = null; deleteSubmitting = false; }}
+                          class="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                          title="Delete task"
+                        >
+                          <Trash2Icon class="size-4" />
+                        </button>
+                      {/if}
+                    </Table.Cell>
+                  </Table.Row>
+                {/each}
+              </Table.Body>
+            </Table.Root>
           {/if}
         {:else if viewMode === 'tree'}
           {#if dependencies}
@@ -624,32 +620,28 @@ $effect(() => {
         {#if workspaces.length === 0}
           <EmptyState icon={FolderIcon} title="No workspaces" description="No workspaces created for this workflow." />
         {:else}
-          <Card.Root>
-            <Card.Content class="p-0">
-              <Table.Root>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.Head>Path</Table.Head>
-                    <Table.Head>Branch</Table.Head>
-                    <Table.Head>Status</Table.Head>
-                    <Table.Head>Created</Table.Head>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
-                  {#each workspaces as ws}
-                    <Table.Row>
-                      <Table.Cell class="font-mono text-xs">{ws.path}</Table.Cell>
-                      <Table.Cell class="text-xs">{ws.branch}</Table.Cell>
-                      <Table.Cell><StatusBadge status={ws.status} /></Table.Cell>
-                      <Table.Cell class="text-muted-foreground">
-                        <RelativeTime timestamp={ws.created_at} />
-                      </Table.Cell>
-                    </Table.Row>
-                  {/each}
-                </Table.Body>
-              </Table.Root>
-            </Card.Content>
-          </Card.Root>
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>Path</Table.Head>
+                <Table.Head>Branch</Table.Head>
+                <Table.Head>Status</Table.Head>
+                <Table.Head>Created</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {#each workspaces as ws}
+                <Table.Row>
+                  <Table.Cell class="font-mono text-xs">{ws.path}</Table.Cell>
+                  <Table.Cell class="text-xs">{ws.branch}</Table.Cell>
+                  <Table.Cell><StatusBadge status={ws.status} /></Table.Cell>
+                  <Table.Cell class="text-muted-foreground">
+                    <RelativeTime timestamp={ws.created_at} />
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
         {/if}
       </Tabs.Content>
     </Tabs.Root>

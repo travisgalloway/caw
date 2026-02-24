@@ -73,12 +73,8 @@ $effect(() => {
 
 <MessageComposer bind:open={showComposer} onSent={() => loadMessages()} />
 
-<div class="p-6 space-y-6">
+<div class="px-5 py-4 space-y-4">
   <div class="flex items-center justify-between">
-    <div>
-      <h2 class="text-2xl font-bold tracking-tight">Messages</h2>
-      <p class="text-sm text-muted-foreground">{unreadCount} unread</p>
-    </div>
     <div class="flex items-center gap-2">
       <select
         value={priorityFilter}

@@ -389,7 +389,16 @@ if (values.help) {
   process.exit(0);
 }
 
-const dbPath = values.db ?? getDbPath('per-repo', process.cwd());
+const repoRoot = (() => {
+  try {
+    const result = Bun.spawnSync(['git', 'rev-parse', '--show-toplevel']);
+    const output = result.stdout.toString().trim();
+    return output || process.cwd();
+  } catch {
+    return process.cwd();
+  }
+})();
+const dbPath = values.db ?? getDbPath('per-repo', repoRoot);
 const db = createConnection(dbPath);
 runMigrations(db);
 

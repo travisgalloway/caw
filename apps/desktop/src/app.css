@@ -128,6 +128,24 @@
   }
 }
 
+/* Native macOS desktop polish */
+html, body {
+  background: transparent !important;
+  overscroll-behavior: none;
+}
+
+/* Prevent text selection on UI chrome */
+.no-select,
+[data-tauri-drag-region] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Titlebar spacer for overlay traffic lights */
+.titlebar-inset {
+  padding-top: 38px;
+}
+
 /* Animations */
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }

@@ -90,11 +90,8 @@ $effect(() => {
 });
 </script>
 
-<div class="p-6 space-y-6">
-  <div>
-    <h2 class="text-2xl font-bold tracking-tight">Agents</h2>
-    <p class="text-sm text-muted-foreground">All agents across workflows</p>
-  </div>
+<div class="px-5 py-4 space-y-4">
+  <!-- Agent stats and filters below -->
 
   {#if loading}
     <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -107,39 +104,6 @@ $effect(() => {
       <Card.Content class="p-4 text-sm text-destructive">{error}</Card.Content>
     </Card.Root>
   {:else}
-    <!-- Summary Stats -->
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Card.Root>
-        <Card.Content class="p-4">
-          <div class="text-sm text-muted-foreground">Total</div>
-          <div class="mt-1 text-2xl font-bold">{stats.total}</div>
-        </Card.Content>
-      </Card.Root>
-      <Card.Root>
-        <Card.Content class="p-4">
-          <div class="text-sm text-muted-foreground">Online</div>
-          <div class="mt-1 flex items-baseline gap-2">
-            <span class="text-2xl font-bold text-status-completed">{stats.online}</span>
-            <LiveIndicator connected={true} />
-          </div>
-        </Card.Content>
-      </Card.Root>
-      <Card.Root>
-        <Card.Content class="p-4">
-          <div class="text-sm text-muted-foreground">Busy</div>
-          <div class="mt-1 flex items-baseline gap-2">
-            <span class="text-2xl font-bold text-status-in-progress">{stats.busy}</span>
-          </div>
-        </Card.Content>
-      </Card.Root>
-      <Card.Root>
-        <Card.Content class="p-4">
-          <div class="text-sm text-muted-foreground">Offline</div>
-          <div class="mt-1 text-2xl font-bold text-muted-foreground">{stats.offline}</div>
-        </Card.Content>
-      </Card.Root>
-    </div>
-
     <!-- Filters -->
     <div class="flex flex-wrap items-center gap-3">
       {#snippet filterSelect(id: string, label: string, value: string, options: string[], onchange: (v: string) => void)}
@@ -196,7 +160,7 @@ $effect(() => {
           : 'Try adjusting your filters.'}
       />
     {:else}
-      <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {#each filteredAgents as agent}
           <Card.Root class="transition-colors hover:border-primary/50">
             <a href="/agents/{agent.id}" class="block">

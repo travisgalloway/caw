@@ -15,24 +15,14 @@ const navActions: CommandAction[] = [
     onSelect: () => goto('/messages'),
   },
   {
-    id: 'nav-templates',
-    label: 'Go to Templates',
-    group: 'Navigation',
-    onSelect: () => goto('/templates'),
-  },
-  {
-    id: 'nav-repositories',
-    label: 'Go to Repositories',
-    group: 'Navigation',
-    onSelect: () => goto('/repositories'),
-  },
-  {
     id: 'nav-settings',
-    label: 'Go to Settings',
+    label: 'Open Settings',
     group: 'Navigation',
-    onSelect: () => goto('/settings'),
+    onSelect: async () => {
+      const { openSettingsWindow } = await import('$lib/utils/settings-window');
+      openSettingsWindow();
+    },
   },
-  { id: 'nav-help', label: 'Go to Help', group: 'Navigation', onSelect: () => goto('/help') },
 ];
 
 const allActions: CommandAction[] = $derived([...navActions, ...$commandStore.actions]);

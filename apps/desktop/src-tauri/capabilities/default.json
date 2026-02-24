@@ -2,9 +2,10 @@
   "$schema": "https://raw.githubusercontent.com/nicerdicer/tauri-v2-schema/refs/heads/main/src/acl.capability.v2.json",
   "identifier": "default",
   "description": "Default capabilities for the main window",
-  "windows": ["main"],
+  "windows": ["main", "settings"],
   "permissions": [
     "core:default",
+    "core:window:allow-start-dragging",
     "shell:allow-execute",
     {
       "identifier": "shell:allow-spawn",
@@ -16,6 +17,10 @@
         }
       ]
     },
-    "shell:allow-kill"
+    "shell:allow-kill",
+    "window-state:allow-restore-state",
+    "window-state:allow-save-window-state",
+    "core:window:allow-create",
+    "core:webview:allow-create-webview-window"
   ]
 }
