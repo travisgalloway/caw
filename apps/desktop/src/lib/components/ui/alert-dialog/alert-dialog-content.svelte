@@ -3,7 +3,7 @@ import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
 import type { ComponentProps, Snippet } from 'svelte';
 import { cn, type WithoutChildrenOrChild } from '$lib/utils.js';
 import AlertDialogOverlay from './alert-dialog-overlay.svelte';
-import type AlertDialogPortal from './alert-dialog-portal.svelte';
+import AlertDialogPortal from './alert-dialog-portal.svelte';
 
 let {
   ref = $bindable(null),
