@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
 
 const { ...restProps }: AlertDialogPrimitive.TriggerProps = $props();
 </script>

@@ -36,7 +36,8 @@
             "noUnusedFunctionParameters": "off"
           },
           "style": {
-            "useConst": "off"
+            "useConst": "off",
+            "useImportType": "off"
           },
           "complexity": {
             "useLiteralKeys": "off"

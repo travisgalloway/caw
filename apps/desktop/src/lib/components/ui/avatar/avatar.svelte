@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Avatar as AvatarPrimitive } from 'bits-ui';
+import { Avatar as AvatarPrimitive } from 'bits-ui';
 import { cn } from '$lib/utils.js';
 
 let {

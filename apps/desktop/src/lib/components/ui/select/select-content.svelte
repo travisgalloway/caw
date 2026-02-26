@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Select as SelectPrimitive } from 'bits-ui';
+import { Select as SelectPrimitive } from 'bits-ui';
 import type { ComponentProps } from 'svelte';
 import type { WithoutChildrenOrChild } from '$lib/utils.js';
 import { cn, type WithoutChild } from '$lib/utils.js';
