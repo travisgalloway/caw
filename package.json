@@ -8,9 +8,13 @@
     "lint": "turbo lint",
     "format": "biome check --write .",
     "prepare": "husky",
-    "compile": "bun build apps/tui/src/bin/cli.ts --compile --outfile dist/caw && cp -r apps/web-ui/build dist/web-ui",
+    "compile": "bun build apps/cli/src/bin/cli.ts --compile --outfile dist/caw",
     "compile:all": "bun run scripts/compile-all.ts",
-    "clean": "turbo clean && rm -rf node_modules dist"
+    "clean": "turbo clean && rm -rf node_modules dist",
+    "dev:tauri": "bun run --filter @caw/desktop tauri:dev",
+    "dev:server": "bun --watch apps/cli/src/bin/cli.ts --server --transport http",
+    "server": "bun apps/cli/src/bin/cli.ts --server --transport http",
+    "server:mcp": "bun apps/cli/src/bin/cli.ts --server"
   },
   "lint-staged": {
     "*.{ts,tsx}": "biome check --write --no-errors-on-unmatched"
@@ -20,8 +24,7 @@
     "@biomejs/biome": "^2.3.13",
     "husky": "^9.1.7",
     "lint-staged": "^16.2.7",
-    "react-devtools-core": "^7.0.1",
-    "turbo": "^2.3.0",
+"turbo": "^2.3.0",
     "typescript": "^5.7.0"
   }
 }

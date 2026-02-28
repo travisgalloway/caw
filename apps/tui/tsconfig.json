@@ -1,8 +1,0 @@
-{
-  "extends": "@caw/tsconfig/base.json",
-  "compilerOptions": {
-    "jsx": "react-jsx",
-    "composite": true
-  },
-  "include": ["src"]
-}

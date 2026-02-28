@@ -68,10 +68,10 @@ describe('Stats Routes', () => {
       const body = (await res.json()) as { data: unknown };
 
       expect(body.data).toEqual({
-        activeWorkflows: 1,
-        onlineAgents: 2, // agent1 and sender are online, agent2 is offline
-        unreadMessages: 1,
-        completedToday: 1,
+        active_workflows: 1,
+        online_agents: 2, // agent1 and sender are online, agent2 is offline
+        unread_messages: 1,
+        completed_today: 1,
       });
     });
 
@@ -84,10 +84,10 @@ describe('Stats Routes', () => {
       const body = (await res.json()) as { data: unknown };
 
       expect(body.data).toEqual({
-        activeWorkflows: 0,
-        onlineAgents: 0,
-        unreadMessages: 0,
-        completedToday: 0,
+        active_workflows: 0,
+        online_agents: 0,
+        unread_messages: 0,
+        completed_today: 0,
       });
     });
 
@@ -110,9 +110,9 @@ describe('Stats Routes', () => {
       const res = await api.handle(req);
 
       expect(res.status).toBe(200);
-      const body = (await res.json()) as { data: { completedToday: number } };
+      const body = (await res.json()) as { data: { completed_today: number } };
 
-      expect(body.data.completedToday).toBe(0); // Should not count workflows from yesterday
+      expect(body.data.completed_today).toBe(0); // Should not count workflows from yesterday
     });
   });
 });

@@ -12,3 +12,4 @@ coverage/
 .caw/
 .claude/settings.json
 --version/
+.playwright-mcp/
