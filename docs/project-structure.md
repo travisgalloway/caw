@@ -123,69 +123,64 @@ caw/
 │               └── handler.ts     # WebSocket upgrade handler
 │
 ├── apps/
-│   ├── tui/                        # @caw/tui
-│       ├── package.json
-│       ├── tsconfig.json
-│       ├── src/
-│       │   ├── index.ts            # Entry point
-│       │   ├── app.tsx             # Main Ink app component
-│       │   ├── components/
-│       │   │   ├── Dashboard.tsx   # Main dashboard layout
-│       │   │   ├── WorkflowList.tsx
-│       │   │   ├── WorkflowDetail.tsx
-│       │   │   ├── TaskTree.tsx    # DAG visualization
-│       │   │   ├── AgentList.tsx
-│       │   │   ├── AgentDetail.tsx
-│       │   │   ├── MessageInbox.tsx
-│       │   │   ├── ProgressBar.tsx
-│       │   │   ├── StatusIndicator.tsx
-│       │   │   └── common/
-│       │   │       ├── Box.tsx
-│       │   │       ├── Table.tsx
-│       │   │       └── Spinner.tsx
-│       │   ├── hooks/
-│       │   │   ├── useWorkflows.ts
-│       │   │   ├── useAgents.ts
-│       │   │   ├── useMessages.ts
-│       │   │   └── usePolling.ts   # Real-time updates
-│       │   ├── store/
-│       │   │   └── index.ts        # Zustand store
-│       │   └── utils/
-│       │       ├── format.ts       # Display formatting
-│       │       └── keybindings.ts
-│       └── bin/
-│           └── cli.ts              # caw binary entry point
-│
-│   └── web-ui/                     # @caw/web-ui
+│   ├── cli/                        # @caw/cli
+│   │   ├── package.json
+│   │   ├── tsconfig.json
+│   │   └── src/
+│   │       ├── index.ts
+│   │       ├── bin/
+│   │       │   └── cli.ts          # caw binary entry point
+│   │       ├── server.ts           # Headless MCP server (stdio transport)
+│   │       ├── api-server.ts       # Combined HTTP server (MCP + REST API + WS)
+│   │       ├── daemon.ts           # Background daemon with lock file + heartbeat
+│   │       ├── commands/
+│   │       │   ├── init.ts         # caw init
+│   │       │   ├── setup.ts        # caw setup
+│   │       │   ├── setup-claude-code.ts  # caw setup claude-code
+│   │       │   ├── run.ts          # caw run
+│   │       │   ├── work.ts         # caw work
+│   │       │   └── pr.ts           # caw pr
+│   │       └── utils/
+│   │
+│   └── desktop/                    # @caw/desktop
 │       ├── package.json
 │       ├── svelte.config.js
 │       ├── vite.config.ts
 │       ├── tsconfig.json
+│       ├── src-tauri/
+│       │   └── src/
+│       │       ├── lib.rs          # Sidecar management (spawn, health, SIGTERM)
+│       │       └── main.rs
 │       └── src/
 │           ├── app.html
-│           ├── app.css            # Tailwind CSS v4 + theme
+│           ├── app.css             # Tailwind CSS v4 + theme
 │           ├── lib/
 │           │   ├── api/
-│           │   │   └── client.ts  # Typed REST API client
+│           │   │   └── client.ts   # Typed REST API client
 │           │   ├── stores/
-│           │   │   └── ws.ts      # WebSocket store with auto-reconnect
+│           │   │   └── ws.ts       # WebSocket store with auto-reconnect
 │           │   └── components/
 │           │       ├── StatusBadge.svelte
 │           │       ├── ProgressBar.svelte
-│           │       └── RelativeTime.svelte
+│           │       ├── RelativeTime.svelte
+│           │       ├── TaskTree.svelte
+│           │       ├── TaskDag.svelte
+│           │       ├── CommandPalette.svelte
+│           │       └── ...
 │           └── routes/
 │               ├── +layout.svelte
-│               ├── +page.svelte           # Workflow list
-│               ├── workflows/[id]/
-│               │   └── +page.svelte       # Workflow detail
-│               ├── agents/[id]/
-│               │   └── +page.svelte       # Agent detail
-│               ├── messages/
-│               │   └── +page.svelte       # Message inbox
-│               ├── setup/
-│               │   └── +page.svelte       # Setup guide
-│               └── help/
-│                   └── +page.svelte       # Help page
+│               ├── (app)/
+│               │   ├── +layout.svelte         # Nav sidebar
+│               │   ├── +page.svelte           # Workflow list
+│               │   ├── workflows/[id]/
+│               │   │   └── +page.svelte       # Workflow detail
+│               │   ├── agents/[id]/
+│               │   │   └── +page.svelte       # Agent detail
+│               │   └── messages/
+│               │       └── +page.svelte       # Message inbox
+│               └── (standalone)/
+│                   └── settings/
+│                       └── +page.svelte       # Settings page
 │
 └── tooling/
     └── tsconfig/                   # Shared TS configs
@@ -258,11 +253,11 @@ caw/
 }
 ```
 
-**@caw/tui** (unified `caw` binary — TUI, MCP server, or web UI)
+**@caw/cli** (headless `caw` binary — MCP server + CLI subcommands)
 
 ```json
 {
-  "name": "@caw/tui",
+  "name": "@caw/cli",
   "version": "0.1.0",
   "type": "module",
   "bin": {
@@ -272,33 +267,29 @@ caw/
     "@caw/core": "workspace:*",
     "@caw/mcp-server": "workspace:*",
     "@caw/rest-api": "workspace:*",
-    "@caw/spawner": "workspace:*",
-    "ink": "^6.6.0",
-    "ink-scroll-view": "^0.3.5",
-    "ink-tab": "^5.1.0",
-    "react": "^19.0.0",
-    "zustand": "^5.0.0"
+    "@caw/spawner": "workspace:*"
   },
   "devDependencies": {
-    "@types/react": "^19.0.0",
     "typescript": "^5.4.0"
   }
 }
 ```
 
-**@caw/web-ui** (SvelteKit web dashboard — builds to static files)
+**@caw/desktop** (Tauri 2 desktop app — SvelteKit 5 frontend + sidecar)
 
 ```json
 {
-  "name": "@caw/web-ui",
+  "name": "@caw/desktop",
   "version": "0.1.0",
   "type": "module",
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.0",
     "@sveltejs/kit": "^2.16.0",
+    "@tauri-apps/api": "^2.0.0",
+    "@tauri-apps/cli": "^2.0.0",
     "svelte": "^5.0.0",
     "tailwindcss": "^4.0.0",
-    "bits-ui": "^1.0.0",
+    "bits-ui": "^2.14.4",
     "lucide-svelte": "^0.469.0"
   }
 }

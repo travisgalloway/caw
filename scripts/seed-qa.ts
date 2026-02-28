@@ -141,7 +141,6 @@ console.log(`Query message: ${queryMsg.id} — "Cache TTL strategy?" (unread)`);
 console.log('');
 console.log('The worker is asking: Should cache TTLs be global or per-endpoint?');
 console.log('');
-console.log('To reply, launch the TUI and use /reply on the message detail screen,');
-console.log('or send a response message via MCP tools.');
+console.log('To reply, use the desktop app or send a response message via MCP tools.');
 
 db.close();

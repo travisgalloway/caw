@@ -33,17 +33,16 @@ A lightweight MCP server backed by SQLite that provides:
 └─────────────────┘                       │  └───────────┬────────────┘  │
                                           │              │               │
 ┌─────────────────┐                       │  ┌───────────▼────────────┐  │
-│   Terminal       │◄────────────────────►│  │  @caw/core (services)  │  │
-│   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
+│   Desktop App    │◄────────────────────►│  │  @caw/core (services)  │  │
+│   (Tauri/Svelte)│   REST + WS (:3100)  │  └───────────┬────────────┘  │
 └─────────────────┘                       │              │               │
                                           │  ┌───────────▼────────────┐  │
-┌─────────────────┐    REST + WebSocket   │  │     SQLite (bun:sqlite)│  │
-│   Browser        │◄────────────────────►│  └────────────────────────┘  │
-│   (web UI)      │    (--web-ui mode)    │                              │
-└─────────────────┘                       └──────────────────────────────┘
+                                          │  │     SQLite (bun:sqlite)│  │
+                                          │  └────────────────────────┘  │
+                                          └──────────────────────────────┘
 ```
 
-`caw` is a single binary with three modes: TUI (default), MCP server (`--server`), and web UI (`--web-ui`). `@caw/mcp-server` is an embedded library, not a standalone server. The web UI mode starts a combined HTTP server with REST API, WebSocket, and MCP endpoints, serving a static SvelteKit dashboard.
+`caw` is a headless CLI with stdio MCP and combined HTTP server modes. `@caw/mcp-server` is an embedded library, not a standalone server. The HTTP transport mode (`--server --transport http`) starts a combined server with REST API, WebSocket, and MCP endpoints. The desktop app (`@caw/desktop`) provides a native GUI via Tauri 2 wrapping a SvelteKit 5 frontend.
 
 ### Design Principles
 
@@ -83,4 +82,4 @@ This design shares goals with [Gastown](https://github.com/steveyegge/gastown) b
 | **Terminology**   | Mad Max themed            | Industry standard (workflow, task, checkpoint)            |
 | **Recovery**      | GUPP (hook-based)         | Checkpoint-based with replan                              |
 | **Messaging**     | Mailbox system            | Inbox pattern with threads and priorities                 |
-| **UI**            | Web dashboard + tmux      | TUI (Ink-based) with optional web                         |
+| **UI**            | Web dashboard + tmux      | Desktop app (Tauri/SvelteKit) + headless CLI              |

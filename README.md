@@ -14,14 +14,13 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 └─────────────────┘                       │  └───────────┬────────────┘  │
                                           │              │               │
 ┌─────────────────┐                       │  ┌───────────▼────────────┐  │
-│   Terminal       │◄────────────────────►│  │  @caw/core (services)  │  │
-│   (human user)  │    TUI (default)      │  └───────────┬────────────┘  │
+│   Desktop App    │◄────────────────────►│  │  @caw/core (services)  │  │
+│   (Tauri/Svelte)│   REST + WS (:3100)  │  └───────────┬────────────┘  │
 └─────────────────┘                       │              │               │
                                           │  ┌───────────▼────────────┐  │
-┌─────────────────┐    REST + WebSocket   │  │     SQLite (bun:sqlite)│  │
-│   Browser        │◄────────────────────►│  └────────────────────────┘  │
-│   (web UI)      │    (--web-ui mode)    │                              │
-└─────────────────┘                       └──────────────────────────────┘
+                                          │  │     SQLite (bun:sqlite)│  │
+                                          │  └────────────────────────┘  │
+                                          └──────────────────────────────┘
 ```
 
 ## Key Features
@@ -32,8 +31,8 @@ Coding agents frequently hit context limits or need to clear context mid-workflo
 - **DAG-based task scheduling** — Dependency-aware ordering with parallel group support
 - **Multi-agent support** — Agent registration, task claiming, and inter-agent messaging
 - **Workspace isolation** — Git worktree tracking for parallel execution
-- **Terminal UI** — Real-time Ink-based dashboard for monitoring workflows and agents
-- **Web dashboard** — Browser-based UI with real-time WebSocket updates
+- **Desktop app** — Native Tauri/SvelteKit dashboard for monitoring workflows and agents
+- **Headless CLI** — MCP server (stdio or HTTP) with subcommands for workflow execution
 
 ## Quick Start
 
@@ -59,7 +58,7 @@ Add the caw MCP server to your Claude Code settings (`.claude/settings.json`):
   "mcpServers": {
     "caw": {
       "command": "bun",
-      "args": ["./apps/tui/src/bin/cli.ts", "--server"]
+      "args": ["./apps/cli/src/bin/cli.ts", "--server"]
     }
   }
 }
@@ -78,17 +77,14 @@ Or after global install:
 }
 ```
 
-### Launch the TUI
+### Run the CLI
 
 ```bash
-# Default: interactive dashboard
-bun ./apps/tui/src/bin/cli.ts
+# Headless MCP server (stdio transport, for agent integration)
+bun ./apps/cli/src/bin/cli.ts --server
 
-# Focus on a specific workflow
-bun ./apps/tui/src/bin/cli.ts --workflow wf_abc123
-
-# Headless MCP server (for agent integration)
-bun ./apps/tui/src/bin/cli.ts --server
+# Combined HTTP server (MCP + REST API + WebSocket on port 3100)
+bun ./apps/cli/src/bin/cli.ts --server --transport http
 ```
 
 ## Packages
@@ -99,8 +95,8 @@ bun ./apps/tui/src/bin/cli.ts --server
 | `@caw/mcp-server` | [`packages/mcp-server`](packages/mcp-server) | MCP server library (tools, transport, config) |
 | `@caw/rest-api` | [`packages/rest-api`](packages/rest-api) | REST API + WebSocket broadcaster |
 | `@caw/spawner` | [`packages/spawner`](packages/spawner) | Agent spawning via `claude -p` CLI |
-| `@caw/tui` | [`apps/tui`](apps/tui) | Unified `caw` binary — TUI, MCP server, or web UI |
-| `@caw/web-ui` | [`apps/web-ui`](apps/web-ui) | SvelteKit web dashboard (static build) |
+| `@caw/cli` | [`apps/cli`](apps/cli) | Headless `caw` binary — MCP server, CLI subcommands |
+| `@caw/desktop` | [`apps/desktop`](apps/desktop) | Tauri 2 desktop app (SvelteKit 5 frontend + sidecar) |
 
 ## CLI Reference
 
@@ -112,12 +108,10 @@ Usage: caw [options] [description]
        caw run --prompt "..." [options]
 
 Options:
-  --server              Run as headless MCP server (no TUI)
-  --web-ui              Launch web UI dashboard (REST API + WebSocket + static UI)
+  --server              Run as headless MCP server
   --transport <type>    MCP transport: stdio | http (default: stdio)
   --port <number>       HTTP port (default: 3100)
   --db <path>           Database file path
-  --workflow <id>       Focus on a specific workflow
   --template <name>     Create workflow from named template (requires description)
   --list-templates      List available workflow templates
   -h, --help            Show this help message
@@ -142,16 +136,10 @@ Commands:
 **Examples:**
 
 ```bash
-# Launch TUI dashboard
-caw
-
-# Launch web UI dashboard
-caw --web-ui
-
 # Run as MCP server over stdio
 caw --server
 
-# Run as MCP server over HTTP on port 8080
+# Run as combined HTTP server (MCP + REST API + WebSocket) on port 8080
 caw --server --transport http --port 8080
 
 # Initialize caw in the current repository
@@ -274,11 +262,11 @@ Full documentation lives in [`docs/`](docs/):
 | [Agent Protocol](docs/agent-protocol.md) | Full agent lifecycle, coordination, workspace isolation |
 | [Project Structure](docs/project-structure.md) | Directory layout, package dependencies, turbo config |
 | [Error Handling](docs/error-handling.md) | Error handling, ToolError format, testing strategy |
-| [TUI](docs/tui.md) | TUI design — layout, views, keybindings, components |
+| [Desktop](docs/desktop.md) | Desktop app architecture, pages, sidecar |
 | [Examples](docs/examples.md) | Full usage flow examples |
 | [CLAUDE.md Integration](docs/claude-md-integration.md) | CLAUDE.md integration instructions |
 | [Implementation](docs/implementation.md) | Implementation priorities and phases |
-| [Web UI](docs/web-ui.md) | Web UI architecture, REST API, and WebSocket protocol |
+| [REST API](docs/rest-api.md) | REST API and WebSocket architecture |
 | [Future](docs/future.md) | Future considerations |
 | [Testing](TESTING.md) | End-to-end manual test guide |
 

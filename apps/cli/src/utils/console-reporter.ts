@@ -30,7 +30,7 @@ export function createConsoleReporter(
     },
     onAgentQuery(data) {
       console.log(`[agent] Question from ${data.agentId}: ${data.message}`);
-      console.log('  Reply via TUI: /reply <your answer> on the message detail screen');
+      console.log('  Reply via the desktop app or message_send MCP tool');
     },
     onWorkflowStalled(data) {
       console.warn(`[workflow] Stalled: ${data.reason}`);

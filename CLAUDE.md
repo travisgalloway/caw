@@ -331,7 +331,7 @@ Single endpoint `ws://host:port/ws`. Channels: `global`, `workflow:<id>`, `agent
 
 ### Architecture
 
-- **Headless CLI**: No TUI — prints usage and exits when run without flags
+- **Headless CLI**: Prints usage and exits when run without flags
 - **Server modes**: `--server` (stdio MCP) or `--server --transport http` (combined MCP + REST + WS)
 - **Subcommands**: `init`, `setup`, `run`, `work`, `pr`
 - **Daemon**: Background MCP server with session tracking and health checks
@@ -460,14 +460,14 @@ Detailed design docs live in `docs/`. Key references:
 | `docs/data-model.md` | Entity relationships, multi-agent model, global vs per-repo modes |
 | `docs/agent-protocol.md` | Agent communication protocol |
 | `docs/claude-md-integration.md` | Claude.md integration patterns |
-| `docs/tui.md` | Terminal UI architecture and key bindings |
+| `docs/desktop.md` | Desktop app architecture, pages, sidecar |
 | `docs/error-handling.md` | Error handling strategy |
 | `docs/project-structure.md` | Directory layout and package descriptions |
 | `docs/overview.md` | High-level architecture |
 | `docs/examples.md` | Usage examples |
 | `docs/implementation.md` | Implementation notes |
 | `docs/future.md` | Roadmap and future features |
-| `docs/web-ui.md` | Web UI architecture, REST API, and WebSocket protocol |
+| `docs/rest-api.md` | REST API and WebSocket architecture |
 | `docs/self-development.md` | Using `caw work` for self-development |
 
 ---

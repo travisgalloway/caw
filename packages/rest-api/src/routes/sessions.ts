@@ -13,7 +13,7 @@ export function registerSessionRoutes(router: Router, db: DatabaseType) {
     const session = sessionService.register(db, {
       pid: process.pid,
       is_daemon: false,
-      metadata: body?.metadata ?? { source: 'web-ui' },
+      metadata: body?.metadata ?? { source: 'desktop' },
     });
 
     return created(session);

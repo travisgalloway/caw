@@ -445,5 +445,5 @@ console.log('Created 6 messages (4 unread, 2 read).');
 
 db.close();
 
-console.log('\nSeed complete! Launch the TUI to verify:');
-console.log('  bun apps/tui/src/bin/cli.ts');
+console.log('\nSeed complete! Start the server to verify:');
+console.log('  bun apps/cli/src/bin/cli.ts --server --transport http');
