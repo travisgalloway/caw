@@ -1,5 +1,4 @@
 import { type ClassValue, clsx } from 'clsx';
-import type { HTMLAttributes } from 'svelte/elements';
 import { twMerge } from 'tailwind-merge';
 
 export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & {

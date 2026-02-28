@@ -13,7 +13,7 @@ let {
   max?: number;
 } = $props();
 
-const percentage = $derived(Math.min(100, Math.max(0, (value / max) * 100)));
+const percentage = $derived(max > 0 ? Math.min(100, Math.max(0, (value / max) * 100)) : 0);
 </script>
 
 <div

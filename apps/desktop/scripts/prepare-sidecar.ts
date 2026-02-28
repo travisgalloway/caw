@@ -10,7 +10,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 
-const rootDir = resolve(dirname(import.meta.filename), '../../..');
+const rootDir = resolve(import.meta.dir, '../../..');
 const entrypoint = resolve(rootDir, 'apps/cli/src/bin/cli.ts');
 
 // Detect target triple

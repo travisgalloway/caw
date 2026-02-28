@@ -17,7 +17,9 @@ let isTauri = $state(false);
 let serverAction = $state<'restarting' | 'stopping' | null>(null);
 
 $effect(() => {
-  isTauri = '__TAURI_INTERNALS__' in window;
+  if (typeof window !== 'undefined') {
+    isTauri = '__TAURI_INTERNALS__' in window;
+  }
 });
 
 async function startDragging(e: MouseEvent) {

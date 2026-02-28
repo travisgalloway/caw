@@ -54,18 +54,7 @@ async function handleSubmit(e: Event) {
       params.source_ref = sourceRef.trim();
     }
 
-    const response = await fetch('/api/workflows', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.error?.message ?? `HTTP ${response.status}`);
-    }
-
-    const result = await response.json();
+    const result = await api.createWorkflow(params);
     resetForm();
     oncreate?.(result.data.id);
   } catch (err) {
