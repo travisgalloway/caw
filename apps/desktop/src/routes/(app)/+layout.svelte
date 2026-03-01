@@ -1,20 +1,27 @@
 <script lang="ts">
-import RotateCwIcon from '@lucide/svelte/icons/rotate-cw';
-import SettingsIcon from '@lucide/svelte/icons/settings';
-import SquareIcon from '@lucide/svelte/icons/square';
-import WifiIcon from '@lucide/svelte/icons/wifi';
-import { goto } from '$app/navigation';
+import XIcon from '@lucide/svelte/icons/x';
+import { onDestroy, onMount, setContext } from 'svelte';
 import { page } from '$app/stores';
+import AppSidebar from '$lib/components/AppSidebar.svelte';
 import LiveIndicator from '$lib/components/LiveIndicator.svelte';
-import * as DropdownMenu from '$lib/components/ui/dropdown-menu/index.js';
-import * as Tabs from '$lib/components/ui/tabs/index.js';
+import ServerPanel from '$lib/components/panels/ServerPanel.svelte';
+import SettingsSidebar from '$lib/components/SettingsSidebar.svelte';
+import { Button } from '$lib/components/ui/button/index.js';
+import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+import { RightPanelState } from '$lib/stores/right-panel.svelte';
+import { SidebarData } from '$lib/stores/sidebar-data.svelte';
 import { wsStore } from '$lib/stores/ws';
-import { openSettingsWindow } from '$lib/utils/settings-window';
 
 const { children } = $props();
 
 let isTauri = $state(false);
 let serverAction = $state<'restarting' | 'stopping' | null>(null);
+
+const sidebarData = new SidebarData();
+const isSettings = $derived($page.url.pathname.startsWith('/settings'));
+
+const rightPanel = new RightPanelState();
+setContext('rightPanel', rightPanel);
 
 $effect(() => {
   if (typeof window !== 'undefined') {
@@ -28,21 +35,8 @@ async function startDragging(e: MouseEvent) {
     const { getCurrentWindow } = await import('@tauri-apps/api/window');
     await getCurrentWindow().startDragging();
   } catch {
-    // Not running in Tauri (e.g. browser dev mode)
+    // Not running in Tauri
   }
-}
-
-const tabItems = [
-  { value: '/', label: 'Workflows' },
-  { value: '/agents', label: 'Agents' },
-  { value: '/messages', label: 'Messages' },
-];
-
-function getActiveTab(pathname: string): string {
-  if (pathname === '/' || pathname.startsWith('/workflows')) return '/';
-  if (pathname === '/agents' || pathname.startsWith('/agents/')) return '/agents';
-  if (pathname === '/messages' || pathname.startsWith('/messages/')) return '/messages';
-  return '/';
 }
 
 async function restartServer() {
@@ -71,96 +65,81 @@ async function stopServer() {
   }
 }
 
-function reconnectWs() {
-  wsStore.disconnect();
-  wsStore.connect();
+function toggleServerPanel() {
+  if (rightPanel.visible && rightPanel.component === ServerPanel) {
+    rightPanel.hide();
+  } else {
+    rightPanel.show(ServerPanel, {
+      isTauri,
+      restartServer,
+      stopServer,
+      serverAction,
+    });
+  }
 }
+
+onMount(() => {
+  sidebarData.startPolling();
+});
+
+onDestroy(() => {
+  sidebarData.stopPolling();
+});
+
+// Refresh sidebar on WS events
+let lastEventRef: unknown = null;
+$effect(() => {
+  const event = $wsStore.lastEvent;
+  if (event && event !== lastEventRef) {
+    lastEventRef = event;
+    sidebarData.handleWsEvent(event as { type: string });
+  }
+});
 </script>
 
-<div class="flex h-screen flex-col">
-  <header
-    role="toolbar"
-    tabindex="-1"
-    data-tauri-drag-region
-    onmousedown={startDragging}
-    class="relative flex h-[48px] w-full shrink-0 items-center border-b bg-background pl-[78px] pr-4 no-select"
-  >
-    <!-- Centered tab nav -->
-    <div class="absolute left-1/2 -translate-x-1/2">
-      <Tabs.Root
-        value={getActiveTab($page.url.pathname)}
-        onValueChange={(v) => { if (v) goto(v); }}
-      >
-        <Tabs.List>
-          {#each tabItems as tab}
-            <Tabs.Trigger value={tab.value}>
-              {tab.label}
-            </Tabs.Trigger>
-          {/each}
-        </Tabs.List>
-      </Tabs.Root>
-    </div>
+<Sidebar.Provider class="h-screen">
+  {#if isSettings}
+    <SettingsSidebar {isTauri} />
+  {:else}
+    <AppSidebar data={sidebarData} {isTauri} />
+  {/if}
 
-    <!-- Right: status + settings -->
-    <div class="ml-auto flex items-center gap-2">
-      {#if isTauri}
-        <DropdownMenu.Root>
-          <DropdownMenu.Trigger>
-            <button
-              class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
-            >
-              <LiveIndicator connected={$wsStore.connected} />
-              {$wsStore.connected ? 'Active' : 'Offline'}
-            </button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content align="end" class="w-48">
-            <DropdownMenu.Label>
-              {$wsStore.connected ? 'Server active on port 3100' : 'Server offline'}
-            </DropdownMenu.Label>
-            <DropdownMenu.Separator />
-            <DropdownMenu.Item
-              onclick={restartServer}
-              disabled={serverAction !== null}
-            >
-              <RotateCwIcon class={serverAction === 'restarting' ? 'animate-spin' : ''} />
-              {serverAction === 'restarting' ? 'Restarting…' : 'Restart Server'}
-            </DropdownMenu.Item>
-            <DropdownMenu.Item
-              onclick={stopServer}
-              disabled={serverAction !== null}
-              variant="destructive"
-            >
-              <SquareIcon />
-              {serverAction === 'stopping' ? 'Stopping…' : 'Stop Server'}
-            </DropdownMenu.Item>
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
-      {:else}
+  <Sidebar.Inset>
+    <header
+      role="toolbar"
+      tabindex="-1"
+      data-tauri-drag-region
+      onmousedown={startDragging}
+      class="flex h-10 w-full shrink-0 items-center border-b bg-background px-3 no-select"
+    >
+      <Sidebar.Trigger class="size-7" />
+      <div class="ml-auto flex items-center gap-2">
         <button
-          onclick={reconnectWs}
+          onclick={toggleServerPanel}
           class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
-          title={$wsStore.connected ? 'Connected' : 'Click to reconnect'}
+          title={$wsStore.connected ? 'Server active' : 'Server offline'}
         >
           <LiveIndicator connected={$wsStore.connected} />
-          {#if $wsStore.connected}
-            Active
-          {:else}
-            <WifiIcon class="size-3" />
-            Reconnect
-          {/if}
+          {$wsStore.connected ? 'Active' : 'Offline'}
         </button>
-      {/if}
-      <button
-        onclick={openSettingsWindow}
-        class="flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-        aria-label="Settings"
-      >
-        <SettingsIcon class="size-4" />
-      </button>
-    </div>
-  </header>
+      </div>
+    </header>
 
-  <main class="flex-1 overflow-auto overscroll-none">
-    {@render children()}
-  </main>
-</div>
+    <div class="flex flex-1 overflow-hidden">
+      <main class="flex-1 overflow-auto overscroll-none">
+        {@render children()}
+      </main>
+      {#if rightPanel.visible && rightPanel.component}
+        <aside class="w-72 shrink-0 overflow-y-auto border-l bg-background">
+          <div class="flex h-10 items-center justify-between border-b px-3">
+            <span class="text-xs font-semibold">Server Info</span>
+            <Button variant="ghost" size="icon" class="size-6" onclick={() => rightPanel.hide()}>
+              <XIcon class="size-3.5" />
+            </Button>
+          </div>
+          <rightPanel.component {...rightPanel.props} />
+        </aside>
+      {/if}
+    </div>
+  </Sidebar.Inset>
+</Sidebar.Provider>

@@ -2,7 +2,7 @@
 process.title = 'caw';
 
 import { parseArgs } from 'node:util';
-import { createConnection, getDbPath, runMigrations, templateService } from '@caw/core';
+import { createConnection, getDbPath, runMigrations, templateResolver } from '@caw/core';
 
 function printUsage(): void {
   console.log(`Usage: caw [options] [description]
@@ -405,18 +405,16 @@ runMigrations(db);
 // --- Run-and-exit commands ---
 
 if (values['list-templates']) {
-  const templates = templateService.list(db);
+  const templates = templateResolver.listAll(db, repoRoot);
   if (templates.length === 0) {
     console.log('No templates found.');
   } else {
     console.log('Available templates:\n');
-    console.log(`${'Name'.padEnd(24)} ${'Description'.padEnd(32)} ${'Version'.padEnd(10)} ID`);
-    console.log(`${'─'.repeat(24)} ${'─'.repeat(32)} ${'─'.repeat(10)} ${'─'.repeat(16)}`);
+    console.log(`${'Name'.padEnd(24)} ${'Source'.padEnd(14)} ${'Description'.padEnd(32)} ID`);
+    console.log(`${'─'.repeat(24)} ${'─'.repeat(14)} ${'─'.repeat(32)} ${'─'.repeat(20)}`);
     for (const t of templates) {
       const desc = t.description ?? '—';
-      console.log(
-        `${t.name.padEnd(24)} ${desc.padEnd(32)} ${String(t.version).padEnd(10)} ${t.id}`,
-      );
+      console.log(`${t.name.padEnd(24)} ${t.source.padEnd(14)} ${desc.padEnd(32)} ${t.id}`);
     }
   }
   db.close();
@@ -432,21 +430,26 @@ if (values.template) {
     process.exit(1);
   }
 
-  const tmpl = templateService.getByName(db, values.template);
+  const tmpl = templateResolver.getByName(db, values.template, repoRoot);
   if (!tmpl) {
-    const available = templateService.list(db);
+    const available = templateResolver.listAll(db, repoRoot);
     console.error(`Error: Template not found: ${values.template}`);
     if (available.length > 0) {
       console.error('\nAvailable templates:');
       for (const t of available) {
-        console.error(`  - ${t.name}`);
+        console.error(`  - ${t.name} (${t.source})`);
       }
     }
     db.close();
     process.exit(1);
   }
 
-  const result = templateService.apply(db, tmpl.id, { workflowName: description });
+  const result = templateResolver.applyTemplate(
+    db,
+    tmpl.id,
+    { workflowName: description },
+    repoRoot,
+  );
   console.log(result.workflow_id);
   db.close();
   process.exit(0);
@@ -461,13 +464,14 @@ if (values.server) {
     // HTTP transport: combined MCP + REST API + WebSocket server
     const { runApiServer } = await import('../api-server');
     const port = values.port ? Number(values.port) : 3100;
-    await runApiServer(db, { port });
+    await runApiServer(db, { port, repoPath: repoRoot });
   } else {
     // Stdio transport: MCP-only server
     const { runServer } = await import('../server');
     await runServer(db, {
       transport,
       port: values.port,
+      repoPath: repoRoot,
     });
   }
 } else {

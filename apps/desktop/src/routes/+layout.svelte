@@ -54,7 +54,7 @@ function handleKeydown(e: KeyboardEvent) {
   // Cmd+, for settings
   if ((e.metaKey || e.ctrlKey) && e.key === ',') {
     e.preventDefault();
-    import('$lib/utils/settings-window').then((m) => m.openSettingsWindow());
+    goto('/settings');
     return;
   }
 
@@ -72,6 +72,8 @@ function handleKeydown(e: KeyboardEvent) {
       w: '/',
       a: '/agents',
       m: '/messages',
+      t: '/templates',
+      s: '/settings',
     };
     const dest = goMap[e.key];
     if (dest) goto(dest);

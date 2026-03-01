@@ -1,23 +1,23 @@
 import type { DatabaseType } from '@caw/core';
-import { templateService } from '@caw/core';
+import { templateResolver, templateService } from '@caw/core';
 import { badRequest, created, notFound, ok, parseBody } from '../response';
 import type { Router } from '../router';
 
-export function registerTemplateRoutes(router: Router, db: DatabaseType) {
-  // List templates
+export function registerTemplateRoutes(router: Router, db: DatabaseType, repoPath?: string) {
+  // List templates (unified: file + DB)
   router.get('/api/templates', () => {
-    const templates = templateService.list(db);
+    const templates = templateResolver.listAll(db, repoPath);
     return ok(templates);
   });
 
-  // Get template
+  // Get template by ID (routes file:* to loader, tmpl_* to DB)
   router.get('/api/templates/:id', (_, params) => {
-    const template = templateService.get(db, params.id);
+    const template = templateResolver.getById(db, params.id, repoPath);
     if (!template) return notFound(`Template not found: ${params.id}`);
     return ok(template);
   });
 
-  // Create template
+  // Create template (always writes to DB)
   router.post('/api/templates', async (req) => {
     const body = await parseBody<{
       name: string;
@@ -44,7 +44,7 @@ export function registerTemplateRoutes(router: Router, db: DatabaseType) {
     }
   });
 
-  // Apply template
+  // Apply template (supports both file:* and tmpl_* IDs)
   router.post('/api/templates/:id/apply', async (req, params) => {
     const body = await parseBody<{
       workflow_name: string;
@@ -57,12 +57,17 @@ export function registerTemplateRoutes(router: Router, db: DatabaseType) {
     if (!body.workflow_name) return badRequest('workflow_name is required');
 
     try {
-      const result = templateService.apply(db, params.id, {
-        workflowName: body.workflow_name,
-        variables: body.variables,
-        repoPaths: body.repo_paths,
-        maxParallel: body.max_parallel,
-      });
+      const result = templateResolver.applyTemplate(
+        db,
+        params.id,
+        {
+          workflowName: body.workflow_name,
+          variables: body.variables,
+          repoPaths: body.repo_paths,
+          maxParallel: body.max_parallel,
+        },
+        repoPath,
+      );
       return created(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

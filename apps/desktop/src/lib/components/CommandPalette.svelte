@@ -15,13 +15,16 @@ const navActions: CommandAction[] = [
     onSelect: () => goto('/messages'),
   },
   {
+    id: 'nav-templates',
+    label: 'Go to Templates',
+    group: 'Navigation',
+    onSelect: () => goto('/templates'),
+  },
+  {
     id: 'nav-settings',
     label: 'Open Settings',
     group: 'Navigation',
-    onSelect: async () => {
-      const { openSettingsWindow } = await import('$lib/utils/settings-window');
-      openSettingsWindow();
-    },
+    onSelect: () => goto('/settings'),
   },
 ];
 

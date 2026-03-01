@@ -3,7 +3,11 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import type { ZodTypeAny } from 'zod';
 
-export type ToolRegistrar = (server: McpServer, db: DatabaseType) => void;
+export interface ToolContext {
+  repoPath?: string;
+}
+
+export type ToolRegistrar = (server: McpServer, db: DatabaseType, context?: ToolContext) => void;
 
 export interface ToolErrorInfo {
   code: string;
