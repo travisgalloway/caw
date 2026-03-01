@@ -1,6 +1,6 @@
-# Web UI Architecture
+# REST API & WebSocket Architecture
 
-Browser-based dashboard for caw workflows, served via `caw --web-ui` on a single Bun.serve() instance.
+Browser-based dashboard for caw workflows, served via `caw --server --transport http` on a single Bun.serve() instance.
 
 ## System Overview
 
@@ -15,10 +15,10 @@ Bun.serve() on :3100
   |-- /health    ──> 200 OK (existing, unchanged)
   |-- /api/*     ──> REST API router
   |-- /ws        ──> WebSocket upgrade
-  |-- /*         ──> Static files from apps/web-ui/build/
+  |-- /*         ──> Static files from apps/desktop/build/
 ```
 
-All endpoints share a single port. The combined server lives in `apps/tui/src/web-server.ts`.
+All endpoints share a single port. The combined server lives in `apps/cli/src/api-server.ts`.
 
 ## Packages
 
@@ -48,11 +48,12 @@ REST API and WebSocket layer. Depends only on `@caw/core`.
 { "error": { "code": "BAD_REQUEST", "message": "..." } }
 ```
 
-### `@caw/web-ui` (`apps/web-ui/`)
+### `@caw/desktop` (`apps/desktop/`)
 
-SvelteKit 5 static SPA. No runtime package dependencies.
+Tauri 2 desktop app wrapping a SvelteKit 5 static SPA. No package dependencies on other caw packages — communicates with the CLI sidecar via REST API and WebSocket at runtime.
 
 **Tech stack:**
+- Tauri 2 native wrapper (`@tauri-apps/cli`, `@tauri-apps/api`)
 - SvelteKit 5 with `adapter-static` (output: `build/`)
 - Svelte 5 runes (`$state`, `$derived`, `$effect`, `$props`)
 - Tailwind CSS v4 with `@theme` directive
@@ -192,30 +193,25 @@ Events are dispatched by an in-process EventEmitter (`Broadcaster`). REST mutati
 | `/setup` | Setup/connection checks | `GET /health`, WS connect test |
 | `/help` | Static help docs | (none) |
 
-## Combined Server (`apps/tui/src/web-server.ts`)
+## Combined Server (`apps/cli/src/api-server.ts`)
 
-The `--web-ui` flag starts a single `Bun.serve()` that routes requests:
+The `--server --transport http` flags start a single `Bun.serve()` that routes requests:
 
 1. `/ws` — WebSocket upgrade via `createWsHandler`
 2. `/mcp` — MCP protocol via `createHttpHandler` from `@caw/mcp-server`
 3. `/health` — 200 OK
 4. `/api/*` — REST API via `createRestApi` from `@caw/rest-api`
-5. `/*` — Static files from `apps/web-ui/build/` with SPA fallback to `index.html`
-
-Static file resolution searches multiple paths to support both development and compiled binary scenarios.
 
 ## Development
 
 ```bash
 # Start backend (REST + MCP + WS)
-caw --web-ui --port 3100
+caw --server --transport http --port 3100
 
-# Start frontend dev server (separate terminal)
-cd apps/web-ui && bun run dev
+# Start desktop frontend dev server (separate terminal)
+cd apps/desktop && bun run dev
 # Vite proxies /api and /ws to localhost:3100
 
-# Or build and serve everything from one port
-bun run --filter @caw/web-ui build:web
-caw --web-ui
-# Open http://localhost:3100
+# Or run Tauri dev (starts sidecar + native window)
+cd apps/desktop && bun run tauri:dev
 ```

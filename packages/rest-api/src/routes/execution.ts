@@ -4,7 +4,7 @@ import type { Router } from '../router';
 import type { Broadcaster } from '../ws/broadcaster';
 
 /**
- * Spawner interface — injected by the host (TUI app) to avoid
+ * Spawner interface — injected by the host (CLI app) to avoid
  * a direct dependency on @caw/spawner in the rest-api package.
  */
 export interface SpawnerProvider {

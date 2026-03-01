@@ -25,7 +25,7 @@
 - OpenTelemetry integration for tracing
 - Metrics export (task duration, failure rates, context load times)
 - Structured logging with correlation IDs
-- TUI integration with external dashboards (Grafana, etc.)
+- Desktop app integration with external dashboards (Grafana, etc.)
 
 ## Recovery Enhancements
 
@@ -57,7 +57,7 @@
 
 ## Web Dashboard Enhancements
 
-The basic web dashboard is implemented (`@caw/web-ui` + `@caw/rest-api`, launched via `caw --web-ui`). Remaining enhancements:
+The desktop app is implemented (`@caw/desktop` + `@caw/rest-api`, backed by `caw --server --transport http`). Remaining enhancements:
 
 - Interactive DAG visualization for task dependencies
 - Mobile-friendly responsive design

@@ -1,6 +1,6 @@
 # @caw/mcp-server
 
-MCP server library for caw — tool definitions, transport handling, and configuration. This is a library package imported by `@caw/tui`, not a standalone binary.
+MCP server library for caw — tool definitions, transport handling, and configuration. This is a library package imported by `@caw/cli`, not a standalone binary.
 
 ## Directory Structure
 

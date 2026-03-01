@@ -23,20 +23,21 @@
 3. Structured ToolCallError for error responses
 4. Transport layer (stdio + HTTP)
 
-## Phase 4: TUI Foundation (M4)
+## Phase 4: CLI Foundation (M4)
 
-1. Unified `caw` binary entry point (`caw` for TUI, `caw --server` for headless MCP)
+1. Headless `caw` binary entry point (`caw --server` for MCP, subcommands for workflow operations)
 2. Headless MCP server mode (stdio/HTTP transport)
-3. Ink app component with Zustand store
-4. Keybinding system and navigation
-5. Dashboard view with workflow and agent lists
-6. `usePolling` hook for data refresh
+3. Combined HTTP server (MCP + REST API + WebSocket)
+4. CLI subcommands: `init`, `setup`, `run`, `work`, `pr`
+5. Daemon mode with lock file and heartbeat
 
-## Phase 5: TUI Views (M5)
+## Phase 5: Desktop App (M5)
 
-1. Task tree (DAG visualization)
-2. Workflow detail view
-3. Agent detail and message views
+1. Tauri 2 native wrapper with sidecar management
+2. SvelteKit 5 frontend with shadcn-svelte and Tailwind CSS v4
+3. Workflow list, detail, task detail pages
+4. Agent and message views
+5. Real-time updates via WebSocket
 
 ## Phase 6: Agent Protocol & Worktrees (M6)
 
@@ -46,7 +47,7 @@
 
 ## Phase 7: Testing & Quality (M7)
 
-1. Comprehensive test suite (core services, MCP tools, TUI components)
+1. Comprehensive test suite (core services, MCP tools, desktop UI pages)
 2. Remove `apps/orchestrator` package
 3. Update CLAUDE.md for current architecture
 
@@ -62,7 +63,7 @@
 1. `@caw/rest-api` package — Bun-native REST router, JSON response helpers, CORS middleware
 2. Route modules for all core entities (workflows, tasks, agents, messages, etc.)
 3. WebSocket broadcaster with channel-based subscribe/unsubscribe protocol
-4. `@caw/web-ui` SvelteKit 5 app — static SPA with shadcn-svelte and Tailwind CSS v4
+4. `@caw/desktop` Tauri 2 desktop app — SvelteKit 5 SPA with shadcn-svelte and Tailwind CSS v4
 5. Pages: workflow list, workflow detail (tabbed), task detail, agent detail, message inbox, setup, help
 6. Real-time updates via WebSocket store with auto-reconnect
-7. Combined `--web-ui` server mode in `@caw/tui` (REST API + WebSocket + MCP + static file serving)
+7. Combined `--server --transport http` mode in `@caw/cli` (REST API + WebSocket + MCP)

@@ -31,8 +31,8 @@ planning → ready → in_progress → completed
 
 If an agent needs human input, it pauses the task and sends a message.
 
-- **Check messages**: `/unread` in TUI, or visit the Messages tab in the web UI
-- **Reply**: Navigate to the message detail screen, then use `/reply <response>`
+- **Check messages**: Visit the Messages tab in the desktop app, or use `message_list` / `message_count_unread` MCP tools
+- **Reply**: Use the desktop app or `message_send` MCP tool
 - The spawner automatically detects the response and resumes the paused task with a new agent that has full context (including your answer)
 
 ## CLI Options
@@ -59,7 +59,7 @@ Options:
 
 - Use `--max-agents 1` for sequential work, higher for parallel tasks
 - Agents have full git/gh access — they commit, push, and create PRs
-- Check progress: caw TUI, web UI (`caw --web-ui`), or DB queries
+- Check progress: desktop app, REST API (`caw --server --transport http`), or DB queries
 - If a task fails, the spawner retries up to 3 times before marking it failed
 - The planner decides PR scoping: one PR per issue typically, but it may split epics into multiple PRs
 - Issue references accept `#123`, `123`, or full GitHub URLs (`https://github.com/owner/repo/issues/123`)

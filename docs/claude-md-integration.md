@@ -19,7 +19,7 @@ Add the caw MCP server to your Claude Code settings (`.claude/settings.json` or 
   "mcpServers": {
     "caw": {
       "command": "bun",
-      "args": ["./apps/tui/src/bin/cli.ts", "--server"]
+      "args": ["./apps/cli/src/bin/cli.ts", "--server"]
     }
   }
 }

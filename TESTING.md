@@ -1,20 +1,20 @@
 # End-to-End Manual Test: caw Full Lifecycle
 
-Test the complete caw flow: create a project, launch the TUI, plan a workflow in Claude Code, execute with spawned agents, watch progress, and verify results.
+Test the complete caw flow: create a project, start the caw server, plan a workflow in Claude Code, execute with spawned agents, watch progress, and verify results.
 
 ## Architecture
 
 ```
-Terminal 1: caw (TUI)          Terminal 2: Claude Code
-   │                              │
-   ├─ HTTP daemon :3100            ├─ stdio MCP server (bunx @caw/tui --server)
-   │   (agents connect here)      │   (you call MCP tools here)
-   │                              │
-   └───── shared SQLite DB ───────┘
-          .caw/workflows.db
+Terminal 1: caw --server --transport http    Terminal 2: Claude Code
+   │                                            │
+   ├─ HTTP server :3100                          ├─ stdio MCP server (caw --server)
+   │   (agents connect here)                    │   (you call MCP tools here)
+   │                                            │
+   └──────────── shared SQLite DB ──────────────┘
+                 .caw/workflows.db
 ```
 
-- TUI daemon on port 3100 serves MCP tools to spawned worker agents
+- caw HTTP server on port 3100 serves MCP tools to spawned worker agents
 - Claude Code runs its own stdio MCP server process for interactive use
 - Both share the same per-repo SQLite DB
 - `workflow_start` connects agents to `http://localhost:3100/mcp`
@@ -60,25 +60,25 @@ git init && git add -A && git commit -m "initial"
 cd /tmp/caw-test
 
 # Initialize caw config (creates .caw/config.json, updates .gitignore)
-bunx @caw/tui init --yes
+caw init --yes
 
 # Configure Claude Code integration (writes .claude/settings.json + CLAUDE.md)
-bunx @caw/tui setup claude-code
+caw setup claude-code
 ```
 
 This writes `.claude/settings.json`:
 ```json
-{ "mcpServers": { "caw": { "command": "bunx", "args": ["@caw/tui", "--server"] } } }
+{ "mcpServers": { "caw": { "command": "caw", "args": ["--server"] } } }
 ```
 
-## Step 3: Launch caw TUI (Terminal 1)
+## Step 3: Start caw HTTP server (Terminal 1)
 
 ```bash
 cd /tmp/caw-test
-bunx @caw/tui
+caw --server --transport http
 ```
 
-This starts the TUI and an embedded HTTP daemon on port 3100. Leave this running.
+This starts the combined HTTP server (MCP + REST API + WebSocket) on port 3100. Leave this running.
 
 ## Step 4: Launch Claude Code (Terminal 2)
 
@@ -126,17 +126,15 @@ Call workflow_start with:
   - cwd: "/tmp/caw-test"
 ```
 
-This spawns `claude -p` worker agents that connect to the TUI daemon on port 3100.
+This spawns `claude -p` worker agents that connect to the caw server on port 3100.
 
-## Step 7: Watch progress in the TUI (Terminal 1)
+## Step 7: Watch progress
 
-Switch to Terminal 1 (the caw TUI). You should see the workflow appear.
+Monitor workflow progress via the desktop app or REST API:
 
-- Navigate to the workflow detail screen (select it from the list)
-- `/tasks` — see task statuses updating in real time
-- `/dag` — visualize the dependency graph
-- `/agents` — see spawned worker agents
-- `/refresh` — force a data refresh
+- **Desktop app**: Open the desktop app — it connects to port 3100 automatically
+- **REST API**: `curl http://localhost:3100/api/workflows` to list workflows
+- **Execution status**: Use `workflow_execution_status` MCP tool from Claude Code
 
 Tasks transition: `pending → planning → in_progress → completed`
 
@@ -152,7 +150,7 @@ Shows active agents, progress counts, and spawner state.
 
 ## Step 9: Verify final state
 
-After the workflow completes (TUI shows "completed" status):
+After the workflow completes:
 
 ```bash
 # Check the files were modified
@@ -181,7 +179,7 @@ sqlite3 "$DB" "SELECT task_id, type, summary FROM checkpoints ORDER BY created_a
 ## Step 10: Cleanup
 
 ```bash
-# Kill TUI (Ctrl+C in Terminal 1, or /quit)
+# Stop caw server (Ctrl+C in Terminal 1)
 # Exit Claude Code (Ctrl+C in Terminal 2)
 
 rm -rf /tmp/caw-test
@@ -200,4 +198,4 @@ pkill -f "caw.*--server" 2>/dev/null || true
 | Claude Code doesn't see caw tools | Check `.claude/settings.json` exists, restart Claude Code |
 | Agent hangs / no progress | Increase `--max-turns` (default 50 should be fine) |
 | `workflow_start` fails "not found" | Verify workflow ID; call `workflow_list` to check |
-| Agents can't connect to MCP | Ensure TUI is running (daemon on port 3100) |
+| Agents can't connect to MCP | Ensure caw HTTP server is running (port 3100) |
