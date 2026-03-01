@@ -19,7 +19,7 @@ The desktop app (`@caw/desktop`) provides a native GUI for monitoring and managi
 │  Rust Backend (src-tauri/src/lib.rs)                      │
 │    - Spawns sidecar: caw --server --transport http        │
 │    - Health-check polling                                 │
-│    - SIGTERM on exit                                      │
+│    - Kills sidecar process on exit                                      │
 └─────────────────────────────────────────────────────────┘
           │
           ▼

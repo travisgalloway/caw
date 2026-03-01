@@ -140,6 +140,8 @@ Commands:
 caw --server
 
 # Run as combined HTTP server (MCP + REST API + WebSocket) on port 8080
+# Note: HTTP transport binds to localhost by default. For production use,
+# ensure proper access controls are in place before exposing to a network.
 caw --server --transport http --port 8080
 
 # Initialize caw in the current repository
