@@ -10,6 +10,8 @@ let { open = $bindable(false), onOpenChange }: Props = $props();
 
 const shortcuts = [
   { keys: ['⌘', 'K'], description: 'Open command palette' },
+  { keys: ['⌘', 'B'], description: 'Toggle sidebar' },
+  { keys: ['⌘', ','], description: 'Open settings' },
   { keys: ['?'], description: 'Show keyboard shortcuts' },
   { keys: ['g', 'w'], description: 'Go to Workflows' },
   { keys: ['g', 'a'], description: 'Go to Agents' },

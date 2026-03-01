@@ -4,6 +4,7 @@ import { createMcpServer, resolveConfig, startServer } from '@caw/mcp-server';
 export interface ServerOptions {
   transport?: string;
   port?: string;
+  repoPath?: string;
 }
 
 export async function runServer(db: DatabaseType, opts: ServerOptions): Promise<void> {
@@ -12,7 +13,8 @@ export async function runServer(db: DatabaseType, opts: ServerOptions): Promise<
     port: opts.port,
   });
 
-  const server = createMcpServer(db);
+  const mcpOptions = opts.repoPath ? { repoPath: opts.repoPath } : undefined;
+  const server = createMcpServer(db, mcpOptions);
 
   const shutdown = () => {
     db.close();
@@ -22,5 +24,5 @@ export async function runServer(db: DatabaseType, opts: ServerOptions): Promise<
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  await startServer(server, config, db);
+  await startServer(server, config, db, mcpOptions);
 }

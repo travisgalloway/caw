@@ -5,18 +5,20 @@ import { createBroadcaster, createRestApi, createWsHandler } from '@caw/rest-api
 export interface ApiServerOptions {
   port: number;
   quiet?: boolean;
+  repoPath?: string;
 }
 
 export async function runApiServer(db: DatabaseType, opts: ApiServerOptions): Promise<void> {
   const port = opts.port;
+  const mcpOptions = opts.repoPath ? { repoPath: opts.repoPath } : undefined;
 
   // MCP server + HTTP handler (pass db for multi-session support)
-  const mcpServer = createMcpServer(db);
-  const mcpHandler = await createHttpHandler(mcpServer, db);
+  const mcpServer = createMcpServer(db, mcpOptions);
+  const mcpHandler = await createHttpHandler(mcpServer, db, mcpOptions);
 
   // REST API with broadcaster
   const broadcaster = createBroadcaster();
-  const restApi = createRestApi(db, broadcaster);
+  const restApi = createRestApi(db, broadcaster, { repoPath: opts.repoPath });
 
   // WebSocket handler
   const wsHandler = createWsHandler(broadcaster);

@@ -3,10 +3,18 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import type { ServerConfig } from './config';
 import { registerAllTools } from './tools/index';
+import type { ToolContext } from './tools/types';
 
-export function createMcpServer(db: DatabaseType): McpServer {
+export interface McpServerOptions {
+  repoPath?: string;
+}
+
+export function createMcpServer(db: DatabaseType, options?: McpServerOptions): McpServer {
   const server = new McpServer({ name: 'caw', version: '0.1.0' });
-  registerAllTools(server, db);
+  const context: ToolContext | undefined = options?.repoPath
+    ? { repoPath: options.repoPath }
+    : undefined;
+  registerAllTools(server, db, context);
   return server;
 }
 
@@ -17,6 +25,7 @@ export interface McpHttpHandler {
 export async function createHttpHandler(
   server: McpServer,
   db?: DatabaseType,
+  options?: McpServerOptions,
 ): Promise<McpHttpHandler> {
   const { WebStandardStreamableHTTPServerTransport } = await import(
     '@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js'
@@ -33,7 +42,7 @@ export async function createHttpHandler(
       },
     });
 
-    const sessionServer = db ? createMcpServer(db) : server;
+    const sessionServer = db ? createMcpServer(db, options) : server;
     await sessionServer.connect(transport);
     return transport;
   }
@@ -74,6 +83,7 @@ export async function startServer(
   server: McpServer,
   config: ServerConfig,
   db?: DatabaseType,
+  options?: McpServerOptions,
 ): Promise<StartServerResult> {
   if (config.transport === 'stdio') {
     const transport = new StdioServerTransport();
@@ -101,7 +111,7 @@ export async function startServer(
 
       // Create a new server instance with the same tools for this session.
       // If db was provided, create a fresh server; otherwise reuse the original.
-      const sessionServer = db ? createMcpServer(db) : server;
+      const sessionServer = db ? createMcpServer(db, options) : server;
       await sessionServer.connect(transport);
       return transport;
     }

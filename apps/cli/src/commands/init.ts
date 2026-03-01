@@ -1,8 +1,8 @@
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { CawConfig, DbMode } from '@caw/core';
-import { ensureGitignore, writeConfig } from '@caw/core';
+import { EXAMPLE_TEMPLATES, ensureGitignore, stringifyYaml, writeConfig } from '@caw/core';
 import { setupClaudeCode } from './setup-claude-code';
 
 export interface InitOptions {
@@ -23,6 +23,25 @@ function prompt(rl: ReturnType<typeof createInterface>, question: string): Promi
   return new Promise((resolve) => {
     rl.question(question, resolve);
   });
+}
+
+function writeExampleTemplates(configDir: string): string[] {
+  const templatesDir = join(configDir, 'templates');
+  const messages: string[] = [];
+
+  if (!existsSync(templatesDir)) {
+    mkdirSync(templatesDir, { recursive: true });
+  }
+
+  for (const [name, def] of Object.entries(EXAMPLE_TEMPLATES)) {
+    const filePath = join(templatesDir, `${name}.yaml`);
+    if (!existsSync(filePath)) {
+      writeFileSync(filePath, stringifyYaml(def), 'utf-8');
+      messages.push(`Created example template: ${filePath}`);
+    }
+  }
+
+  return messages;
 }
 
 async function runInteractive(repoPath: string, configDir: string): Promise<InitResult> {
@@ -80,6 +99,9 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
       messages.push(...result.messages);
     }
 
+    // Write example templates
+    messages.push(...writeExampleTemplates(configDir));
+
     return { configPath, config, gitignoreUpdated, claudeCodeSetup, messages };
   } finally {
     rl.close();
@@ -108,6 +130,9 @@ function runNonInteractive(repoPath: string, configDir: string, isGlobal: boolea
   const result = setupClaudeCode({ repoPath });
   messages.push(...result.messages);
   const claudeCodeSetup = result.mcpConfigured || result.claudeMdUpdated;
+
+  // Write example templates
+  messages.push(...writeExampleTemplates(configDir));
 
   return { configPath, config, gitignoreUpdated, claudeCodeSetup, messages };
 }

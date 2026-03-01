@@ -161,6 +161,90 @@ export function list(db: DatabaseType): WorkflowTemplate[] {
   return db.prepare('SELECT * FROM workflow_templates ORDER BY name').all() as WorkflowTemplate[];
 }
 
+/**
+ * Core apply logic extracted so both DB-backed `apply()` and file-based
+ * `templateResolver.applyTemplate()` can reuse it.
+ */
+export function applyDefinition(
+  db: DatabaseType,
+  templateDef: TemplateDefinition,
+  params: ApplyParams,
+  sourceRef: string,
+  sourceName: string,
+): ApplyResult {
+  // Collect required variables from template
+  const requiredVars = templateDef.variables ?? [];
+
+  // Also scan task names and descriptions for {{variable}} patterns
+  const variablePattern = /\{\{(\w+)\}\}/g;
+  const discoveredVars = new Set<string>(requiredVars);
+
+  for (const task of templateDef.tasks) {
+    for (const match of task.name.matchAll(variablePattern)) {
+      discoveredVars.add(match[1]);
+    }
+    if (task.description) {
+      for (const match of task.description.matchAll(variablePattern)) {
+        discoveredVars.add(match[1]);
+      }
+    }
+    if (task.depends_on) {
+      for (const dep of task.depends_on) {
+        for (const match of dep.matchAll(variablePattern)) {
+          discoveredVars.add(match[1]);
+        }
+      }
+    }
+  }
+
+  // Validate all required variables are provided
+  const providedVars = params.variables ?? {};
+  const missingVars = [...discoveredVars].filter((v) => !(v in providedVars));
+  if (missingVars.length > 0) {
+    throw new Error(`Missing required variables: ${missingVars.join(', ')}`);
+  }
+
+  // Interpolate variables
+  function interpolate(text: string): string {
+    return text.replace(variablePattern, (_, varName) => {
+      return providedVars[varName] ?? '';
+    });
+  }
+
+  const interpolatedTasks: workflowService.PlanTask[] = templateDef.tasks.map((task) => {
+    const planTask: workflowService.PlanTask = {
+      name: interpolate(task.name),
+    };
+
+    if (task.description) planTask.description = interpolate(task.description);
+    if (task.parallel_group) planTask.parallel_group = task.parallel_group;
+    if (task.estimated_complexity) planTask.estimated_complexity = task.estimated_complexity;
+    if (task.files_likely_affected) planTask.files_likely_affected = task.files_likely_affected;
+    if (task.depends_on) {
+      planTask.depends_on = task.depends_on.map((dep) => interpolate(dep));
+    }
+
+    return planTask;
+  });
+
+  // Create workflow
+  const workflow = workflowService.create(db, {
+    name: params.workflowName,
+    source_type: 'template',
+    source_ref: sourceRef,
+    repository_paths: params.repoPaths,
+    max_parallel_tasks: params.maxParallel,
+  });
+
+  // Set plan
+  workflowService.setPlan(db, workflow.id, {
+    summary: `Applied template: ${sourceName}`,
+    tasks: interpolatedTasks,
+  });
+
+  return { workflow_id: workflow.id };
+}
+
 export function apply(db: DatabaseType, templateIdValue: string, params: ApplyParams): ApplyResult {
   const run = db.transaction(() => {
     const tmpl = db.prepare('SELECT * FROM workflow_templates WHERE id = ?').get(templateIdValue) as
@@ -172,78 +256,7 @@ export function apply(db: DatabaseType, templateIdValue: string, params: ApplyPa
     }
 
     const templateDef = JSON.parse(tmpl.template) as TemplateDefinition;
-
-    // Collect required variables from template
-    const requiredVars = templateDef.variables ?? [];
-
-    // Also scan task names and descriptions for {{variable}} patterns
-    const variablePattern = /\{\{(\w+)\}\}/g;
-    const discoveredVars = new Set<string>(requiredVars);
-
-    for (const task of templateDef.tasks) {
-      for (const match of task.name.matchAll(variablePattern)) {
-        discoveredVars.add(match[1]);
-      }
-      if (task.description) {
-        for (const match of task.description.matchAll(variablePattern)) {
-          discoveredVars.add(match[1]);
-        }
-      }
-      if (task.depends_on) {
-        for (const dep of task.depends_on) {
-          for (const match of dep.matchAll(variablePattern)) {
-            discoveredVars.add(match[1]);
-          }
-        }
-      }
-    }
-
-    // Validate all required variables are provided
-    const providedVars = params.variables ?? {};
-    const missingVars = [...discoveredVars].filter((v) => !(v in providedVars));
-    if (missingVars.length > 0) {
-      throw new Error(`Missing required variables: ${missingVars.join(', ')}`);
-    }
-
-    // Interpolate variables
-    function interpolate(text: string): string {
-      return text.replace(variablePattern, (_, varName) => {
-        return providedVars[varName] ?? '';
-      });
-    }
-
-    const interpolatedTasks: workflowService.PlanTask[] = templateDef.tasks.map((task) => {
-      const planTask: workflowService.PlanTask = {
-        name: interpolate(task.name),
-      };
-
-      if (task.description) planTask.description = interpolate(task.description);
-      if (task.parallel_group) planTask.parallel_group = task.parallel_group;
-      if (task.estimated_complexity) planTask.estimated_complexity = task.estimated_complexity;
-      if (task.files_likely_affected) planTask.files_likely_affected = task.files_likely_affected;
-      if (task.depends_on) {
-        planTask.depends_on = task.depends_on.map((dep) => interpolate(dep));
-      }
-
-      return planTask;
-    });
-
-    // Create workflow
-    const workflow = workflowService.create(db, {
-      name: params.workflowName,
-      source_type: 'template',
-      source_ref: tmpl.id,
-      repository_paths: params.repoPaths,
-      max_parallel_tasks: params.maxParallel,
-    });
-
-    // Set plan
-    workflowService.setPlan(db, workflow.id, {
-      summary: `Applied template: ${tmpl.name}`,
-      tasks: interpolatedTasks,
-    });
-
-    return { workflow_id: workflow.id };
+    return applyDefinition(db, templateDef, params, tmpl.id, tmpl.name);
   });
 
   return run();
