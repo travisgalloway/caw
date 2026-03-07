@@ -72,12 +72,16 @@ function toggleServerPanel() {
   if (rightPanel.visible && rightPanel.component === ServerPanel) {
     rightPanel.hide();
   } else {
-    rightPanel.show(ServerPanel, {
-      isTauri,
-      restartServer,
-      stopServer,
-      serverAction,
-    }, 'Server Info');
+    rightPanel.show(
+      ServerPanel,
+      {
+        isTauri,
+        restartServer,
+        stopServer,
+        serverAction,
+      },
+      'Server Info',
+    );
   }
 }
 
