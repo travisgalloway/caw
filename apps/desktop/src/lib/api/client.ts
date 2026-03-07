@@ -179,6 +179,7 @@ export interface WorkflowTemplate {
   version: number;
   created_at: number;
   updated_at: number;
+  source?: string;
 }
 
 export interface ConfigResponse {

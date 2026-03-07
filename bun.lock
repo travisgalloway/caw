@@ -66,6 +66,7 @@
       "version": "0.1.0",
       "dependencies": {
         "nanoid": "^5.0.9",
+        "yaml": "^2.7.0",
         "zod": "^4.3.6",
       },
       "devDependencies": {

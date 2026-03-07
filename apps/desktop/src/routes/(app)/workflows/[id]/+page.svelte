@@ -25,7 +25,6 @@ import ExecutionPanel from '$lib/components/ExecutionPanel.svelte';
 import MessageComposer from '$lib/components/MessageComposer.svelte';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
-import TaskDag from '$lib/components/TaskDag.svelte';
 import TaskTree from '$lib/components/TaskTree.svelte';
 import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
 import { Button } from '$lib/components/ui/button/index.js';
@@ -33,7 +32,6 @@ import * as Card from '$lib/components/ui/card/index.js';
 import * as Dialog from '$lib/components/ui/dialog/index.js';
 import { Input } from '$lib/components/ui/input/index.js';
 import { Label } from '$lib/components/ui/label/index.js';
-import { Separator } from '$lib/components/ui/separator/index.js';
 import { Skeleton } from '$lib/components/ui/skeleton/index.js';
 import * as Table from '$lib/components/ui/table/index.js';
 import * as Tabs from '$lib/components/ui/tabs/index.js';
@@ -49,7 +47,7 @@ let dependencies = $state<WorkflowDependencies | null>(null);
 let loading = $state(true);
 let error = $state<string | null>(null);
 let activeTab = $state('tasks');
-let viewMode = $state<'table' | 'tree' | 'dag'>('table');
+let viewMode = $state<'table' | 'tree'>('table');
 let pollInterval: ReturnType<typeof setInterval>;
 
 // Action state
@@ -147,7 +145,7 @@ async function loadData() {
     messages = messagesResult.data;
     workspaces = workspacesResult.data;
 
-    if (viewMode === 'tree' || viewMode === 'dag') {
+    if (viewMode === 'tree') {
       const dependenciesResult = await api.getWorkflowDependencies(workflowId);
       dependencies = dependenciesResult.data;
     }
@@ -222,7 +220,7 @@ async function handleDeleteTask() {
 
 onMount(() => {
   const savedViewMode = localStorage.getItem('workflow-view-mode');
-  if (savedViewMode === 'tree' || savedViewMode === 'dag' || savedViewMode === 'table') {
+  if (savedViewMode === 'tree' || savedViewMode === 'table') {
     viewMode = savedViewMode;
   }
   loadData();
@@ -247,7 +245,7 @@ $effect(() => {
 });
 
 $effect(() => {
-  if (viewMode === 'tree' || viewMode === 'dag') {
+  if (viewMode === 'tree') {
     loadData();
   }
 });
@@ -337,7 +335,7 @@ $effect(() => {
   onSent={() => loadData()}
 />
 
-<div class="px-5 py-4 space-y-4">
+<div class="min-w-0 px-5 py-4 space-y-4">
   {#if loading}
     <div class="space-y-4">
       <Skeleton class="h-8 w-64" />
@@ -363,14 +361,32 @@ $effect(() => {
     </Breadcrumb.Root>
 
     <!-- Header -->
-    <div class="flex items-center justify-between">
-      <div>
-        <h2 class="text-xl font-bold tracking-tight">{workflow.name}</h2>
+    <div class="flex items-start justify-between gap-4">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-3">
+          <h2 class="text-xl font-bold tracking-tight truncate">{workflow.name}</h2>
+          <StatusBadge status={workflow.status} />
+          {#if workflow.locked_by_session_id}
+            <span class="rounded bg-yellow-100 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+              Locked
+            </span>
+          {/if}
+        </div>
         {#if workflow.plan_summary}
-          <p class="mt-1 text-sm text-muted-foreground">{workflow.plan_summary}</p>
+          <p class="mt-1 text-sm text-muted-foreground line-clamp-2">{workflow.plan_summary}</p>
         {/if}
+        <div class="mt-2 flex items-center gap-4 text-xs text-muted-foreground">
+          {#if progress}
+            <span>{progress.by_status['completed'] ?? 0}/{progress.total_tasks} tasks</span>
+          {/if}
+          <span>{agents.length} agent{agents.length !== 1 ? 's' : ''}</span>
+          <span>{workflow.source_type}</span>
+          <span>Updated <RelativeTime timestamp={workflow.updated_at} /></span>
+          <span class="font-mono">{workflow.id}</span>
+        </div>
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex shrink-0 items-center gap-2">
+        <ExecutionPanel {workflow} onRefresh={loadData} />
         {#if validTransitions.length > 0}
           <select
             class="flex h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
@@ -407,17 +423,9 @@ $effect(() => {
       </div>
     {/if}
 
-    <!-- Execution Panel -->
-    <ExecutionPanel
-      {workflow}
-      {progress}
-      agentCount={agents.length}
-      onRefresh={loadData}
-    />
-
     <!-- Tabs -->
     <Tabs.Root bind:value={activeTab}>
-      <Tabs.List>
+      <Tabs.List class="w-full">
         <Tabs.Trigger value="tasks">
           <ListIcon class="mr-1.5 size-4" />
           Tasks
@@ -428,7 +436,9 @@ $effect(() => {
         <Tabs.Trigger value="agents">
           <BotIcon class="mr-1.5 size-4" />
           Agents
-          <span class="ml-1 text-xs text-muted-foreground">({agents.length})</span>
+          <span class="ml-1 text-xs text-muted-foreground">
+            ({agents.filter((a) => a.status === 'online' || a.status === 'busy').length} active{agents.length > 0 ? `, ${agents.length} total` : ''})
+          </span>
         </Tabs.Trigger>
         <Tabs.Trigger value="messages">
           <MailIcon class="mr-1.5 size-4" />
@@ -446,7 +456,7 @@ $effect(() => {
       <Tabs.Content value="tasks">
         <div class="mb-3 flex items-center justify-between">
           <div class="inline-flex rounded-lg border border-border p-1">
-            {#each ['table', 'tree', 'dag'] as mode}
+            {#each ['table', 'tree'] as mode}
               <button
                 type="button"
                 onclick={() => viewMode = mode as typeof viewMode}
@@ -485,7 +495,7 @@ $effect(() => {
                 {#each workflow.tasks as task}
                   <Table.Row>
                     <Table.Cell class="tabular-nums text-muted-foreground">{task.sequence}</Table.Cell>
-                    <Table.Cell>
+                    <Table.Cell class="max-w-xs truncate">
                       <a
                         href="/workflows/{workflowId}/tasks/{task.id}"
                         class="font-medium text-primary hover:underline"
@@ -533,14 +543,6 @@ $effect(() => {
               <span class="text-muted-foreground">Loading dependencies...</span>
             </div>
           {/if}
-        {:else if viewMode === 'dag'}
-          {#if dependencies}
-            <TaskDag tasks={workflow.tasks} dependencies={dependencies.dependencies} {workflowId} />
-          {:else}
-            <div class="flex items-center justify-center rounded-lg border border-border py-12">
-              <span class="text-muted-foreground">Loading dependencies...</span>
-            </div>
-          {/if}
         {/if}
       </Tabs.Content>
 
@@ -549,28 +551,65 @@ $effect(() => {
         {#if agents.length === 0}
           <EmptyState icon={BotIcon} title="No agents" description="No agents registered for this workflow." />
         {:else}
-          <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {#each agents as agent}
-              <Card.Root class="transition-colors hover:border-primary/50">
-                <a href="/agents/{agent.id}" class="block">
-                  <Card.Header class="pb-2">
-                    <div class="flex items-center justify-between">
-                      <Card.Title class="text-sm">{agent.name}</Card.Title>
-                      <StatusBadge status={agent.status} />
-                    </div>
-                  </Card.Header>
-                  <Card.Content class="space-y-1 text-xs text-muted-foreground">
-                    <p>Runtime: {agent.runtime}</p>
-                    <p>Role: {agent.role}</p>
-                    {#if agent.current_task_id}
-                      <p>Task: <span class="font-mono">{agent.current_task_id}</span></p>
-                    {/if}
-                    <p>Heartbeat: <RelativeTime timestamp={agent.last_heartbeat} /></p>
-                  </Card.Content>
-                </a>
-              </Card.Root>
-            {/each}
-          </div>
+          {@const activeAgents = agents.filter((a) => a.status === 'online' || a.status === 'busy')}
+          {@const offlineAgents = agents.filter((a) => a.status === 'offline')}
+          <Table.Root>
+            <Table.Header>
+              <Table.Row>
+                <Table.Head>Name</Table.Head>
+                <Table.Head>Status</Table.Head>
+                <Table.Head>Runtime</Table.Head>
+                <Table.Head>Role</Table.Head>
+                <Table.Head>Task</Table.Head>
+                <Table.Head>Heartbeat</Table.Head>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {#each activeAgents as agent}
+                <Table.Row>
+                  <Table.Cell>
+                    <span class="font-medium">
+                      {agent.name}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell><StatusBadge status={agent.status} /></Table.Cell>
+                  <Table.Cell class="text-xs text-muted-foreground">{agent.runtime}</Table.Cell>
+                  <Table.Cell class="text-xs text-muted-foreground">{agent.role}</Table.Cell>
+                  <Table.Cell class="font-mono text-xs text-muted-foreground">
+                    {agent.current_task_id ?? '—'}
+                  </Table.Cell>
+                  <Table.Cell class="text-muted-foreground">
+                    <RelativeTime timestamp={agent.last_heartbeat} />
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+              {#if offlineAgents.length > 0 && activeAgents.length > 0}
+                <Table.Row>
+                  <Table.Cell colspan={6} class="bg-muted/50 py-1.5 text-xs font-medium text-muted-foreground">
+                    Completed ({offlineAgents.length})
+                  </Table.Cell>
+                </Table.Row>
+              {/if}
+              {#each offlineAgents as agent}
+                <Table.Row class="opacity-60">
+                  <Table.Cell>
+                    <span class="font-medium">
+                      {agent.name}
+                    </span>
+                  </Table.Cell>
+                  <Table.Cell><StatusBadge status={agent.status} /></Table.Cell>
+                  <Table.Cell class="text-xs text-muted-foreground">{agent.runtime}</Table.Cell>
+                  <Table.Cell class="text-xs text-muted-foreground">{agent.role}</Table.Cell>
+                  <Table.Cell class="font-mono text-xs text-muted-foreground">
+                    {agent.current_task_id ?? '—'}
+                  </Table.Cell>
+                  <Table.Cell class="text-muted-foreground">
+                    <RelativeTime timestamp={agent.last_heartbeat} />
+                  </Table.Cell>
+                </Table.Row>
+              {/each}
+            </Table.Body>
+          </Table.Root>
         {/if}
       </Tabs.Content>
 
@@ -645,26 +684,5 @@ $effect(() => {
         {/if}
       </Tabs.Content>
     </Tabs.Root>
-
-    <!-- Metadata -->
-    <Separator />
-    <div class="grid grid-cols-2 gap-4 text-sm sm:grid-cols-4">
-      <div>
-        <span class="text-muted-foreground">Source</span>
-        <p class="font-medium">{workflow.source_type}</p>
-      </div>
-      <div>
-        <span class="text-muted-foreground">Created</span>
-        <p class="font-medium"><RelativeTime timestamp={workflow.created_at} /></p>
-      </div>
-      <div>
-        <span class="text-muted-foreground">Updated</span>
-        <p class="font-medium"><RelativeTime timestamp={workflow.updated_at} /></p>
-      </div>
-      <div>
-        <span class="text-muted-foreground">ID</span>
-        <p class="font-mono text-xs">{workflow.id}</p>
-      </div>
-    </div>
   {/if}
 </div>

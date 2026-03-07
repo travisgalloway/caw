@@ -122,6 +122,19 @@ export type {
   UpdateParams as WorkspaceUpdateParams,
 } from './services/workspace.service';
 export type {
+  FileTemplateDefinition,
+  ResolvedFileTemplate,
+  TemplateSource,
+  TemplateVariable,
+  UnifiedTemplate,
+} from './templates/index';
+export {
+  EXAMPLE_TEMPLATES,
+  fileTemplateSchema,
+  stringifyYaml,
+  templateResolver,
+} from './templates/index';
+export type {
   Agent,
   AgentRole,
   AgentStatus,

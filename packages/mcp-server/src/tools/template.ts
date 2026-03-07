@@ -1,4 +1,4 @@
-import { templateService } from '@caw/core';
+import { templateResolver, templateService } from '@caw/core';
 import { z } from 'zod';
 import type { ToolRegistrar } from './types';
 import { defineTool, handleToolCall, ToolCallError } from './types';
@@ -59,7 +59,9 @@ function toToolCallError(err: unknown): never {
   throw err;
 }
 
-export const register: ToolRegistrar = (server, db) => {
+export const register: ToolRegistrar = (server, db, context?) => {
+  const repoPath = context?.repoPath;
+
   defineTool(
     server,
     'template_create',
@@ -105,11 +107,11 @@ export const register: ToolRegistrar = (server, db) => {
     server,
     'template_list',
     {
-      description: 'List available templates',
+      description: 'List available templates (includes file-based and database templates)',
     },
     () =>
       handleToolCall(() => {
-        const templates = templateService.list(db);
+        const templates = templateResolver.listAll(db, repoPath);
         return { templates };
       }),
   );
@@ -120,7 +122,7 @@ export const register: ToolRegistrar = (server, db) => {
     {
       description: 'Create a workflow from a template',
       inputSchema: {
-        template_id: z.string().describe('Template ID'),
+        template_id: z.string().describe('Template ID (tmpl_* for DB, file:* for file-based)'),
         workflow_name: z.string().describe('Name for the new workflow'),
         variables: z.record(z.string(), z.string()).optional().describe('Template variables'),
         repository_paths: z.array(z.string()).optional().describe('Repository paths to associate'),
@@ -130,12 +132,17 @@ export const register: ToolRegistrar = (server, db) => {
     (args) =>
       handleToolCall(() => {
         try {
-          return templateService.apply(db, args.template_id, {
-            workflowName: args.workflow_name,
-            variables: args.variables,
-            repoPaths: args.repository_paths,
-            maxParallel: args.max_parallel_tasks,
-          });
+          return templateResolver.applyTemplate(
+            db,
+            args.template_id,
+            {
+              workflowName: args.workflow_name,
+              variables: args.variables,
+              repoPaths: args.repository_paths,
+              maxParallel: args.max_parallel_tasks,
+            },
+            repoPath,
+          );
         } catch (err) {
           toToolCallError(err);
         }

@@ -7,7 +7,6 @@ let search = $state('');
 
 const navActions: CommandAction[] = [
   { id: 'nav-workflows', label: 'Go to Workflows', group: 'Navigation', onSelect: () => goto('/') },
-  { id: 'nav-agents', label: 'Go to Agents', group: 'Navigation', onSelect: () => goto('/agents') },
   {
     id: 'nav-messages',
     label: 'Go to Messages',
@@ -15,13 +14,16 @@ const navActions: CommandAction[] = [
     onSelect: () => goto('/messages'),
   },
   {
+    id: 'nav-templates',
+    label: 'Go to Templates',
+    group: 'Navigation',
+    onSelect: () => goto('/templates'),
+  },
+  {
     id: 'nav-settings',
     label: 'Open Settings',
     group: 'Navigation',
-    onSelect: async () => {
-      const { openSettingsWindow } = await import('$lib/utils/settings-window');
-      openSettingsWindow();
-    },
+    onSelect: () => goto('/settings'),
   },
 ];
 

@@ -21,6 +21,7 @@ import type { Broadcaster } from './ws/broadcaster';
 
 export interface RestApiOptions {
   spawner?: SpawnerProvider;
+  repoPath?: string;
 }
 
 export interface RestApi {
@@ -42,7 +43,7 @@ export function createRestApi(
   registerAgentRoutes(router, db, broadcaster);
   registerMessageRoutes(router, db, broadcaster);
   registerWorkspaceRoutes(router, db);
-  registerTemplateRoutes(router, db);
+  registerTemplateRoutes(router, db, options?.repoPath);
   registerCheckpointRoutes(router, db);
   registerLockRoutes(router, db);
   registerSetupRoutes(router, db);

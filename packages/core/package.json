@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "nanoid": "^5.0.9",
+    "yaml": "^2.7.0",
     "zod": "^4.3.6"
   },
   "devDependencies": {

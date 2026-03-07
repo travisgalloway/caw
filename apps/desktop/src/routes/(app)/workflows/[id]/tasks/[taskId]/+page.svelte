@@ -303,7 +303,7 @@ $effect(() => {
         {#if task.assigned_agent_id}
           <div class="flex items-center gap-3">
             <span class="text-sm">
-              Assigned to: <a href="/agents/{task.assigned_agent_id}" class="font-mono font-medium text-primary hover:underline">{task.assigned_agent_id}</a>
+              Assigned to: <a href="/workflows/{workflowId}" class="font-mono font-medium text-primary hover:underline">{task.assigned_agent_id}</a>
             </span>
             <Button
               variant="outline"

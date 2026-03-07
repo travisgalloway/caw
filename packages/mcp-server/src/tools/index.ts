@@ -10,10 +10,11 @@ import { register as registerRepository } from './repository';
 import { register as registerSpawner } from './spawner';
 import { register as registerTask } from './task';
 import { register as registerTemplate } from './template';
+import type { ToolContext } from './types';
 import { register as registerWorkflow } from './workflow';
 import { register as registerWorkspace } from './workspace';
 
-export function registerAllTools(server: McpServer, db: DatabaseType): void {
+export function registerAllTools(server: McpServer, db: DatabaseType, context?: ToolContext): void {
   registerWorkflow(server, db);
   registerTask(server, db);
   registerCheckpoint(server, db);
@@ -21,7 +22,7 @@ export function registerAllTools(server: McpServer, db: DatabaseType): void {
   registerOrchestration(server, db);
   registerWorkspace(server, db);
   registerRepository(server, db);
-  registerTemplate(server, db);
+  registerTemplate(server, db, context);
   registerAgent(server, db);
   registerMessaging(server, db);
   registerReplanning(server, db);

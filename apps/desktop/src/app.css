@@ -146,6 +146,12 @@ html, body {
   padding-top: 38px;
 }
 
+/* Sidebar wrapper: use viewport height instead of min-h-svh */
+[data-slot="sidebar-wrapper"] {
+  min-height: 100vh;
+  height: 100vh;
+}
+
 /* Animations */
 @keyframes pulse-dot {
   0%, 100% { opacity: 1; }
