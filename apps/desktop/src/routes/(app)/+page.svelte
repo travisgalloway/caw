@@ -20,20 +20,9 @@ let loading = $state(true);
 let error = $state<string | null>(null);
 let showAll = $state(false);
 let showCreateDialog = $state(false);
-let searchQuery = $state('');
 let pollInterval: ReturnType<typeof setInterval>;
 
 const activeStatuses = 'planning,ready,in_progress,paused,awaiting_merge';
-
-const filteredWorkflows = $derived(
-  searchQuery
-    ? workflows.filter(
-        (w) =>
-          w.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          w.id.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : workflows,
-);
 
 async function loadWorkflows() {
   try {
@@ -87,15 +76,9 @@ $effect(() => {
 });
 </script>
 
-<div class="px-5 py-4 space-y-4">
+<div class="min-w-0 px-5 py-4 space-y-4">
   <div class="flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <input
-        type="text"
-        placeholder="Search..."
-        bind:value={searchQuery}
-        class="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-      />
       <Button variant="outline" size="sm" onclick={() => { showAll = !showAll; loadWorkflows(); }}>
         {showAll ? 'All' : 'Active'}
       </Button>
@@ -121,13 +104,11 @@ $effect(() => {
     <Card.Root class="border-destructive">
       <Card.Content class="p-4 text-sm text-destructive">{error}</Card.Content>
     </Card.Root>
-  {:else if filteredWorkflows.length === 0}
+  {:else if workflows.length === 0}
     <EmptyState
       icon={ListIcon}
       title="No workflows found"
-      description={searchQuery
-        ? 'Try a different search term.'
-        : 'Create a workflow via MCP, the CLI, or the button above.'}
+      description="Create a workflow via MCP, the CLI, or the button above."
     />
   {:else}
     <Table.Root>
@@ -141,7 +122,7 @@ $effect(() => {
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {#each filteredWorkflows as wf}
+        {#each workflows as wf}
           <Table.Row class="cursor-pointer">
             <Table.Cell>
               <a
