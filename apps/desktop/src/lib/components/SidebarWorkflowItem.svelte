@@ -44,7 +44,6 @@ const dotColor = $derived(statusColors[workflow.status] ?? 'bg-muted-foreground'
       <Collapsible.Content>
         <Sidebar.MenuSub>
           {#each agents as agent}
-            {@const agentActive = pathname === `/agents/${agent.id}`}
             {@const agentDot =
               agent.status === 'online'
                 ? 'bg-green-500'
@@ -52,7 +51,7 @@ const dotColor = $derived(statusColors[workflow.status] ?? 'bg-muted-foreground'
                   ? 'bg-amber-500'
                   : 'bg-muted-foreground'}
             <Sidebar.MenuSubItem>
-              <Sidebar.MenuSubButton href="/agents/{agent.id}" isActive={agentActive}>
+              <Sidebar.MenuSubButton href="/workflows/{workflow.id}" isActive={isActive}>
                 <BotIcon class="size-3 shrink-0 text-muted-foreground" />
                 <span class="truncate">{agent.name}</span>
                 <span class="ml-auto size-1.5 shrink-0 rounded-full {agentDot}"></span>

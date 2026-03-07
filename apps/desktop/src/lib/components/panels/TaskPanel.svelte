@@ -38,7 +38,7 @@ const { task, deps, workflowId }: Props = $props();
       <div class="flex items-center justify-between">
         <span class="text-muted-foreground">Agent</span>
         {#if task.assigned_agent_id}
-          <a href="/agents/{task.assigned_agent_id}" class="font-mono text-primary hover:underline">
+          <a href="/workflows/{workflowId}" class="font-mono text-primary hover:underline">
             {task.assigned_agent_id}
           </a>
         {:else}

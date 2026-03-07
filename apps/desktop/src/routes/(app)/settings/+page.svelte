@@ -554,7 +554,7 @@ $effect(() => {
               { keys: '\u2318,', desc: 'Open settings' },
               { keys: '?', desc: 'Show shortcuts dialog' },
               { keys: 'g w', desc: 'Go to Workflows' },
-              { keys: 'g a', desc: 'Go to Agents' },
+
               { keys: 'g m', desc: 'Go to Messages' },
               { keys: 'g t', desc: 'Go to Templates' },
               { keys: 'g s', desc: 'Go to Settings' },

@@ -14,7 +14,6 @@ const shortcuts = [
   { keys: ['⌘', ','], description: 'Open settings' },
   { keys: ['?'], description: 'Show keyboard shortcuts' },
   { keys: ['g', 'w'], description: 'Go to Workflows' },
-  { keys: ['g', 'a'], description: 'Go to Agents' },
   { keys: ['g', 'm'], description: 'Go to Messages' },
   { keys: ['g', 't'], description: 'Go to Templates' },
   { keys: ['g', 's'], description: 'Go to Settings' },

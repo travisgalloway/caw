@@ -70,7 +70,6 @@ function handleKeydown(e: KeyboardEvent) {
     e.preventDefault();
     const goMap: Record<string, string> = {
       w: '/',
-      a: '/agents',
       m: '/messages',
       t: '/templates',
       s: '/settings',

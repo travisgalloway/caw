@@ -7,7 +7,6 @@ let search = $state('');
 
 const navActions: CommandAction[] = [
   { id: 'nav-workflows', label: 'Go to Workflows', group: 'Navigation', onSelect: () => goto('/') },
-  { id: 'nav-agents', label: 'Go to Agents', group: 'Navigation', onSelect: () => goto('/agents') },
   {
     id: 'nav-messages',
     label: 'Go to Messages',
