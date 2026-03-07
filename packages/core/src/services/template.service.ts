@@ -164,6 +164,10 @@ export function list(db: DatabaseType): WorkflowTemplate[] {
 /**
  * Core apply logic extracted so both DB-backed `apply()` and file-based
  * `templateResolver.applyTemplate()` can reuse it.
+ *
+ * @internal Exported for use within `@caw/core` only (called by `templateResolver`).
+ * Callers **must** wrap invocations in `db.transaction()` — this function
+ * performs multiple inserts but does not open its own transaction.
  */
 export function applyDefinition(
   db: DatabaseType,

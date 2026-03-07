@@ -20,8 +20,11 @@ let serverAction = $state<'restarting' | 'stopping' | null>(null);
 const sidebarData = new SidebarData();
 const isSettings = $derived($page.url.pathname.startsWith('/settings'));
 
+let sidebarOpen = $state(true);
 const rightPanel = new RightPanelState();
 setContext('rightPanel', rightPanel);
+
+const headerPaddingClass = $derived(isTauri ? 'pl-[80px]' : '');
 
 $effect(() => {
   if (typeof window !== 'undefined') {
@@ -74,9 +77,16 @@ function toggleServerPanel() {
       restartServer,
       stopServer,
       serverAction,
-    });
+    }, 'Server Info');
   }
 }
+
+$effect(() => {
+  const action = serverAction;
+  if (rightPanel.visible && rightPanel.component === ServerPanel) {
+    rightPanel.props = { ...(rightPanel.props ?? {}), serverAction: action };
+  }
+});
 
 onMount(() => {
   sidebarData.startPolling();
@@ -97,49 +107,51 @@ $effect(() => {
 });
 </script>
 
-<Sidebar.Provider class="h-screen">
-  {#if isSettings}
-    <SettingsSidebar {isTauri} />
-  {:else}
-    <AppSidebar data={sidebarData} {isTauri} />
-  {/if}
-
-  <Sidebar.Inset>
-    <header
-      role="toolbar"
-      tabindex="-1"
-      data-tauri-drag-region
-      onmousedown={startDragging}
-      class="flex h-10 w-full shrink-0 items-center border-b bg-background px-3 no-select"
-    >
-      <Sidebar.Trigger class="size-7" />
-      <div class="ml-auto flex items-center gap-2">
-        <button
-          onclick={toggleServerPanel}
-          class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
-          title={$wsStore.connected ? 'Server active' : 'Server offline'}
-        >
-          <LiveIndicator connected={$wsStore.connected} />
-          {$wsStore.connected ? 'Active' : 'Offline'}
-        </button>
-      </div>
-    </header>
-
-    <div class="flex flex-1 overflow-hidden">
-      <main class="flex-1 overflow-auto overscroll-none">
-        {@render children()}
-      </main>
-      {#if rightPanel.visible && rightPanel.component}
-        <aside class="w-72 shrink-0 overflow-y-auto border-l bg-background">
-          <div class="flex h-10 items-center justify-between border-b px-3">
-            <span class="text-xs font-semibold">Server Info</span>
-            <Button variant="ghost" size="icon" class="size-6" onclick={() => rightPanel.hide()}>
-              <XIcon class="size-3.5" />
-            </Button>
-          </div>
-          <rightPanel.component {...rightPanel.props} />
-        </aside>
-      {/if}
+<Sidebar.Provider class="h-screen !flex-col !min-h-0" bind:open={sidebarOpen}>
+  <header
+    role="toolbar"
+    tabindex="-1"
+    data-tauri-drag-region
+    onmousedown={startDragging}
+    class="flex h-12 w-full shrink-0 items-center border-b bg-background px-3 no-select {headerPaddingClass}"
+  >
+    <Sidebar.Trigger class="size-7" />
+    <div class="ml-auto flex items-center gap-2">
+      <button
+        onclick={toggleServerPanel}
+        class="flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-accent"
+        title={$wsStore.connected ? 'Server active' : 'Server offline'}
+      >
+        <LiveIndicator connected={$wsStore.connected} />
+        {$wsStore.connected ? 'Active' : 'Offline'}
+      </button>
     </div>
-  </Sidebar.Inset>
+  </header>
+
+  <div class="flex flex-1 min-h-0 w-full">
+    {#if isSettings}
+      <SettingsSidebar {isTauri} />
+    {:else}
+      <AppSidebar data={sidebarData} {isTauri} />
+    {/if}
+
+    <Sidebar.Inset>
+      <div class="flex flex-1 min-w-0 overflow-hidden">
+        <div class="flex-1 overflow-auto overscroll-none min-w-0">
+          {@render children()}
+        </div>
+        {#if rightPanel.visible && rightPanel.component}
+          <aside class="w-72 shrink-0 overflow-y-auto border-l bg-background">
+            <div class="flex h-10 items-center justify-between border-b px-3">
+              <span class="text-xs font-semibold">{rightPanel.title || 'Panel'}</span>
+              <Button variant="ghost" size="icon" class="size-6" onclick={() => rightPanel.hide()}>
+                <XIcon class="size-3.5" />
+              </Button>
+            </div>
+            <rightPanel.component {...rightPanel.props} />
+          </aside>
+        {/if}
+      </div>
+    </Sidebar.Inset>
+  </div>
 </Sidebar.Provider>

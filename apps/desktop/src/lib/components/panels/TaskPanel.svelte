@@ -1,5 +1,5 @@
 <script lang="ts">
-import type { Agent, Task } from '$lib/api/client';
+import type { Task } from '$lib/api/client';
 import RelativeTime from '$lib/components/RelativeTime.svelte';
 import StatusBadge from '$lib/components/StatusBadge.svelte';
 import { Badge } from '$lib/components/ui/badge/index.js';
@@ -7,7 +7,6 @@ import { Separator } from '$lib/components/ui/separator/index.js';
 
 interface Props {
   task: Task;
-  agents: Agent[];
   deps: {
     dependencies: Array<{ task_id: string; depends_on_id: string; dependency_type: string }>;
     dependents: Array<{ task_id: string; depends_on_id: string; dependency_type: string }>;
