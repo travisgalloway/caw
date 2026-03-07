@@ -12,26 +12,38 @@ export function validateConfig(raw: unknown): ValidationResult {
     return { valid: false, config: {}, warnings: ['Config must be a JSON object'] };
   }
 
+  const deprecationWarnings: string[] = [];
+  const obj = raw as Record<string, unknown>;
+
+  // Strip deprecated fields before validation
+  if ('dbMode' in obj) {
+    deprecationWarnings.push(
+      "'dbMode' is deprecated and ignored. Database is always stored globally at ~/.caw/workflows.db.",
+    );
+    const { dbMode: _, ...rest } = obj;
+    raw = rest;
+  }
+
   const result = cawConfigSchema.safeParse(raw);
 
   if (result.success) {
-    return { valid: true, config: result.data, warnings: [] };
+    return { valid: true, config: result.data, warnings: deprecationWarnings };
   }
 
   // Zod parse failed — collect per-field warnings and build a partial config
   // by stripping only the invalid fields
-  const warnings: string[] = [];
-  const obj = raw as Record<string, unknown>;
+  const warnings: string[] = [...deprecationWarnings];
+  const rawObj = raw as Record<string, unknown>;
 
   for (const issue of result.error.issues) {
     const pathParts = issue.path.map(String);
     const path = pathParts.join('.');
-    const value = path ? getNestedValue(obj, pathParts) : obj;
+    const value = path ? getNestedValue(rawObj, pathParts) : rawObj;
     warnings.push(formatWarning(path, value, issue));
   }
 
   // Build partial config: re-parse with valid fields only by removing bad paths
-  const cleaned = structuredClone(obj);
+  const cleaned = structuredClone(rawObj);
   for (const issue of result.error.issues) {
     removeNestedKey(cleaned, issue.path.map(String));
   }

@@ -20,18 +20,18 @@ describe('mergeConfigs', () => {
   });
 
   test('preserves earlier values when later config omits them', () => {
-    const result = mergeConfigs({ transport: 'http', port: 8080 }, { dbMode: 'global' });
+    const result = mergeConfigs({ transport: 'http', port: 8080 }, { agent: { autoSetup: true } });
     expect(result.transport).toBe('http');
     expect(result.port).toBe(8080);
-    expect(result.dbMode).toBe('global');
+    expect(result.agent?.autoSetup).toBe(true);
   });
 
   test('deep merges agent config', () => {
     const result = mergeConfigs(
-      { agent: { runtime: 'claude_code' } },
+      { agent: { runtime: 'claude-code' } },
       { agent: { autoSetup: true } },
     );
-    expect(result.agent).toEqual({ runtime: 'claude_code', autoSetup: true });
+    expect(result.agent).toEqual({ runtime: 'claude-code', autoSetup: true });
   });
 });
 
@@ -144,10 +144,10 @@ describe('writeConfig', () => {
 
   test('creates parent directories', () => {
     const configPath = join(tmpDir, 'deep', 'nested', 'config.json');
-    writeConfig(configPath, { dbMode: 'global' });
+    writeConfig(configPath, { transport: 'http' });
     expect(existsSync(configPath)).toBe(true);
     const parsed = JSON.parse(readFileSync(configPath, 'utf-8'));
-    expect(parsed.dbMode).toBe('global');
+    expect(parsed.transport).toBe('http');
   });
 
   test('writes pretty-printed JSON with trailing newline', () => {

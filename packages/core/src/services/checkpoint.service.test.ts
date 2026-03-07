@@ -9,7 +9,7 @@ import * as workflowService from './workflow.service';
 function setupWorkflowWithTask(db: DatabaseType): { workflowId: string; taskId: string } {
   const wf = workflowService.create(db, {
     name: 'Test Workflow',
-    source_type: 'issue',
+    source_type: 'custom',
   });
   workflowService.setPlan(db, wf.id, {
     summary: 'Test plan',
@@ -108,7 +108,7 @@ describe('checkpointService', () => {
     it('sequences are scoped per task', () => {
       const wf = workflowService.create(db, {
         name: 'Multi-task Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',

@@ -1,12 +1,10 @@
 import { loadConfig } from '@caw/core';
 
 export type TransportType = 'stdio' | 'http';
-export type DbMode = 'global' | 'per-repo';
 
 export interface ServerConfig {
   transport: TransportType;
   port: number;
-  dbMode: DbMode;
   repoPath?: string;
   dbPath?: string;
   quiet?: boolean;
@@ -17,7 +15,6 @@ export const DEFAULT_PORT = 3100;
 export function resolveConfig(args: {
   transport?: string;
   port?: string;
-  mode?: string;
   repoPath?: string;
   dbPath?: string;
 }): ServerConfig {
@@ -35,14 +32,10 @@ export function resolveConfig(args: {
   const port = parsePort(
     args.port ?? process.env.CAW_PORT ?? (fc.port !== undefined ? String(fc.port) : undefined),
   );
-  const dbMode = parseDbMode(args.mode ?? process.env.CAW_DB_MODE ?? fc.dbMode ?? 'per-repo');
-  const repoPath =
-    args.repoPath ??
-    process.env.CAW_REPO_PATH ??
-    (dbMode === 'per-repo' ? process.cwd() : undefined);
+  const repoPath = args.repoPath ?? process.env.CAW_REPO_PATH ?? process.cwd();
   const dbPath = args.dbPath ?? process.env.CAW_DB_PATH;
 
-  return { transport, port, dbMode, repoPath, dbPath };
+  return { transport, port, repoPath, dbPath };
 }
 
 function parseTransport(value: string): TransportType {
@@ -57,9 +50,4 @@ function parsePort(value: string | undefined): number {
     throw new Error(`Invalid port: '${value}'. Must be an integer between 1 and 65535.`);
   }
   return port;
-}
-
-function parseDbMode(value: string): DbMode {
-  if (value === 'global' || value === 'per-repo') return value;
-  throw new Error(`Invalid db mode: '${value}'. Must be 'global' or 'per-repo'.`);
 }

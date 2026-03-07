@@ -10,7 +10,7 @@ import * as workflowService from './workflow.service';
 function createBasicWorkflow(db: DatabaseType, overrides?: Partial<workflowService.CreateParams>) {
   return workflowService.create(db, {
     name: 'Test Workflow',
-    source_type: 'issue',
+    source_type: 'custom',
     ...overrides,
   });
 }
@@ -30,7 +30,7 @@ describe('workflowService', () => {
       const wf = createBasicWorkflow(db);
       expect(wf.id).toMatch(/^wf_[0-9a-z]{12}$/);
       expect(wf.name).toBe('Test Workflow');
-      expect(wf.source_type).toBe('issue');
+      expect(wf.source_type).toBe('custom');
       expect(wf.status).toBe('planning');
     });
 

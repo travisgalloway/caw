@@ -4,7 +4,7 @@ import ChevronUpIcon from '@lucide/svelte/icons/chevron-up';
 import FileTextIcon from '@lucide/svelte/icons/file-text';
 import PlayIcon from '@lucide/svelte/icons/play';
 import { onDestroy, onMount } from 'svelte';
-import { api, type WorkflowTemplate } from '$lib/api/client';
+import { api, type Repository, type WorkflowTemplate } from '$lib/api/client';
 import ApplyTemplateDialog from '$lib/components/ApplyTemplateDialog.svelte';
 import EmptyState from '$lib/components/EmptyState.svelte';
 import { Badge } from '$lib/components/ui/badge/index.js';
@@ -15,6 +15,7 @@ import { commandStore } from '$lib/stores/command';
 import { wsStore } from '$lib/stores/ws';
 
 let templates = $state<WorkflowTemplate[]>([]);
+let repositories = $state<Repository[]>([]);
 let loading = $state(true);
 let error = $state<string | null>(null);
 let sourceFilter = $state<'all' | 'file' | 'db'>('all');
@@ -63,6 +64,15 @@ async function loadTemplates() {
   }
 }
 
+async function loadRepositories() {
+  try {
+    const result = await api.listRepositories();
+    repositories = result.data;
+  } catch {
+    // Non-critical
+  }
+}
+
 function toggleExpanded(id: string) {
   const next = new Set(expandedCards);
   if (next.has(id)) {
@@ -95,6 +105,7 @@ function sourceBadgeClass(source?: string): string {
 
 onMount(() => {
   loadTemplates();
+  loadRepositories();
   pollInterval = setInterval(loadTemplates, 5000);
 
   commandStore.registerActions([
@@ -241,6 +252,22 @@ $effect(() => {
     </div>
   {/if}
 </div>
+
+{#if repositories.length > 0}
+  <div class="px-5 pb-4 space-y-3">
+    <h3 class="text-sm font-semibold text-muted-foreground">Registered Repositories</h3>
+    <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+      {#each repositories as repo}
+        <Card.Root>
+          <Card.Content class="p-3">
+            <p class="text-sm font-medium">{repo.name}</p>
+            <p class="text-xs text-muted-foreground font-mono truncate">{repo.path}</p>
+          </Card.Content>
+        </Card.Root>
+      {/each}
+    </div>
+  </div>
+{/if}
 
 <ApplyTemplateDialog
   template={applyTemplate}

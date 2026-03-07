@@ -17,6 +17,13 @@ export interface SetupDiagnostics {
 }
 
 export function registerSetupRoutes(router: Router, db: DatabaseType) {
+  // Get initialization status
+  router.get('/api/setup/status', () => {
+    const globalConfig = join(homedir(), '.caw', 'config.json');
+    const initialized = existsSync(globalConfig);
+    return ok({ initialized });
+  });
+
   // Get setup diagnostics
   router.get('/api/setup/diagnostics', () => {
     const checks: DiagnosticCheck[] = [];
@@ -91,57 +98,22 @@ export function registerSetupRoutes(router: Router, db: DatabaseType) {
       });
     }
 
-    // Check 4: Config file exists (.caw/config.json)
+    // Check 4: Config file exists (~/.caw/config.json)
     try {
-      const cwd = process.cwd();
-      const configPath = join(cwd, '.caw', 'config.json');
-      const configExists = existsSync(configPath);
+      const globalConfigPath = join(homedir(), '.caw', 'config.json');
+      const configExists = existsSync(globalConfigPath);
       checks.push({
         name: 'config_file',
         status: configExists ? 'pass' : 'fail',
         message: configExists
-          ? 'Config file exists at .caw/config.json'
-          : 'Config file not found at .caw/config.json',
+          ? `Config file exists at ${globalConfigPath}`
+          : `Config file not found at ${globalConfigPath}. Run 'caw init' to create it.`,
       });
     } catch (err) {
       checks.push({
         name: 'config_file',
         status: 'fail',
         message: `Failed to check config file: ${err instanceof Error ? err.message : String(err)}`,
-      });
-    }
-
-    // Check 5: .gitignore includes .caw/
-    try {
-      const cwd = process.cwd();
-      const gitignorePath = join(cwd, '.gitignore');
-      const gitignoreExists = existsSync(gitignorePath);
-
-      if (!gitignoreExists) {
-        checks.push({
-          name: 'gitignore',
-          status: 'fail',
-          message: '.gitignore file not found',
-        });
-      } else {
-        const content = readFileSync(gitignorePath, 'utf-8');
-        const hasCawEntry = content.split('\n').some((line) => {
-          const trimmed = line.trim();
-          return trimmed === '.caw/' || trimmed === '.caw' || trimmed.startsWith('.caw/');
-        });
-        checks.push({
-          name: 'gitignore',
-          status: hasCawEntry ? 'pass' : 'fail',
-          message: hasCawEntry
-            ? '.gitignore includes .caw/ directory'
-            : '.gitignore does not include .caw/ directory',
-        });
-      }
-    } catch (err) {
-      checks.push({
-        name: 'gitignore',
-        status: 'fail',
-        message: `Failed to check .gitignore: ${err instanceof Error ? err.message : String(err)}`,
       });
     }
 

@@ -6,9 +6,9 @@ import { createMcpServer, startServer } from '../server';
 const args = parseArgs(process.argv.slice(2));
 const config = resolveConfig(args);
 
-const dbPath = config.dbPath ?? getDbPath(config.dbMode, config.repoPath);
+const dbPath = config.dbPath ?? getDbPath();
 console.error(`caw: database at ${dbPath}`);
-console.error(`caw: transport=${config.transport}, mode=${config.dbMode}`);
+console.error(`caw: transport=${config.transport}`);
 
 const db = createConnection(dbPath);
 runMigrations(db);

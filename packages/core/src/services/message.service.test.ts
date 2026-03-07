@@ -122,7 +122,7 @@ describe('messageService', () => {
       const recipient = registerAgent(db, 'recipient');
 
       // Create real workflow + task for FK constraints
-      const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+      const wf = workflowService.create(db, { name: 'WF', source_type: 'custom' });
       workflowService.setPlan(db, wf.id, { summary: 'Plan', tasks: [{ name: 'Task' }] });
       const tasks = db.prepare('SELECT id FROM tasks WHERE workflow_id = ?').all(wf.id) as {
         id: string;
@@ -449,8 +449,8 @@ describe('messageService', () => {
       const sender = registerAgent(db, 'sender');
       const recipient = registerAgent(db, 'recipient');
 
-      const wf1 = workflowService.create(db, { name: 'WF1', source_type: 'issue' });
-      const wf2 = workflowService.create(db, { name: 'WF2', source_type: 'issue' });
+      const wf1 = workflowService.create(db, { name: 'WF1', source_type: 'custom' });
+      const wf2 = workflowService.create(db, { name: 'WF2', source_type: 'custom' });
 
       messageService.send(db, {
         sender_id: sender.id,

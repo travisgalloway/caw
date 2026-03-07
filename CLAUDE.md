@@ -23,7 +23,7 @@ Desktop users have full access to the local Bun runtime, git, and all CLI comman
 Web sessions run in a sandboxed Linux environment. Key differences from desktop:
 
 - **No persistent daemon**: The daemon mode (`caw run --detach`) will not persist between sessions. Prefer `--no-watch` or direct MCP server mode (`caw --server`) for headless operation.
-- **No global `~/.caw/` directory across sessions**: Use per-repo mode (`--db .caw/workflows.db`) to keep data within the repo.
+- **No global `~/.caw/` directory across sessions**: The database is always stored at `~/.caw/workflows.db`. Use `--db` flag to override if needed.
 - **Bun is available**: The runtime environment includes Bun, so all build/test/lint commands work as documented.
 - **Git is available**: Standard git operations work. Push requires proper remote configuration.
 - **Use CLI mode**: On web, use `caw --server` (headless MCP) or the CLI subcommands (`caw run`, `caw init`, etc.).
@@ -151,7 +151,7 @@ The `caw` binary (`apps/cli/src/bin/cli.ts`) supports these modes:
 ```bash
 caw --server                     # Headless MCP server (stdio transport)
 caw --server --transport http    # Combined server: MCP + REST API + WebSocket (port 3100)
-caw init [--yes] [--global]      # Initialize caw in repo or globally
+caw init [--yes]                 # Initialize caw (~/.caw/ config, templates)
 caw setup claude-code            # Configure Claude Code MCP integration
 caw run <workflow_id>            # Execute a workflow
 caw run --prompt "..."           # Create + plan + run from a prompt
@@ -182,7 +182,7 @@ caw --list-templates             # List available templates
 
 ### Database Layer (`packages/core/src/db/`)
 
-- **`connection.ts`** — `createConnection(dbPath)` creates a SQLite connection with WAL mode, foreign keys, and 5s busy timeout. `getDbPath(mode, repoPath?)` resolves to `~/.caw/workflows.db` (global) or `{repoPath}/.caw/workflows.db` (per-repo).
+- **`connection.ts`** — `createConnection(dbPath)` creates a SQLite connection with WAL mode, foreign keys, and 5s busy timeout. `getDbPath()` always returns `~/.caw/workflows.db` (global database).
 - **`migrations/`** — Numbered migration files (001–004) export SQL as string constants (no filesystem reads). `runMigrations(db)` applies unapplied migrations in transactions. The `schema_migrations` table is managed by the runner, not included in migration SQL.
 
 ### Migrations
@@ -246,11 +246,18 @@ One file per entity, matching the SQLite schema exactly. Barrel-exported through
 
 ### Config System (`packages/core/src/config/`)
 
-Zod-validated configuration loaded from `.caw/config.json` (per-repo) or `~/.caw/config.json` (global). Schema defined in `config/schema.ts`:
+Zod-validated configuration loaded from `~/.caw/config.json` (global) with optional `.caw/config.json` (per-repo override). Schema defined in `config/schema.ts`:
 
 ```typescript
-{ transport?: 'stdio' | 'http', port?: number, dbMode?: 'global' | 'per-repo', agent?: { runtime?, autoSetup? } }
+{
+  transport?: 'stdio' | 'http',
+  port?: number,
+  agent?: { runtime?: 'claude-code', autoSetup?, maxParallelAgents?, agentsPerWorkflow? },
+  pr?: { pollEnabled?, pollInterval?, cycle?, mergeMethod?, ciTimeout?, noReview? }
+}
 ```
+
+`AGENT_DEFAULTS`: `{ runtime: 'claude-code', maxParallelAgents: 10, agentsPerWorkflow: 3 }`
 
 ---
 

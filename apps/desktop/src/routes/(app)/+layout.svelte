@@ -1,7 +1,9 @@
 <script lang="ts">
+import AlertTriangleIcon from '@lucide/svelte/icons/alert-triangle';
 import XIcon from '@lucide/svelte/icons/x';
 import { onDestroy, onMount, setContext } from 'svelte';
 import { page } from '$app/stores';
+import { api } from '$lib/api/client';
 import AppSidebar from '$lib/components/AppSidebar.svelte';
 import LiveIndicator from '$lib/components/LiveIndicator.svelte';
 import ServerPanel from '$lib/components/panels/ServerPanel.svelte';
@@ -16,6 +18,9 @@ const { children } = $props();
 
 let isTauri = $state(false);
 let serverAction = $state<'restarting' | 'stopping' | null>(null);
+let initChecked = $state(false);
+let initialized = $state(true);
+let initRunning = $state(false);
 
 const sidebarData = new SidebarData();
 const isSettings = $derived($page.url.pathname.startsWith('/settings'));
@@ -92,8 +97,34 @@ $effect(() => {
   }
 });
 
+async function checkInit() {
+  try {
+    const result = await api.getInitStatus();
+    initialized = result.data.initialized;
+  } catch {
+    // Server may not be ready yet
+  } finally {
+    initChecked = true;
+  }
+}
+
+async function handleInit() {
+  if (initRunning || !isTauri) return;
+  initRunning = true;
+  try {
+    const { invoke } = await import('@tauri-apps/api/core');
+    await invoke('run_init');
+    await checkInit();
+  } catch {
+    // Init may have failed
+  } finally {
+    initRunning = false;
+  }
+}
+
 onMount(() => {
   sidebarData.startPolling();
+  checkInit();
 });
 
 onDestroy(() => {
@@ -142,6 +173,17 @@ $effect(() => {
     <Sidebar.Inset>
       <div class="flex flex-1 min-w-0 overflow-hidden">
         <div class="flex-1 overflow-auto overscroll-none min-w-0">
+          {#if initChecked && !initialized}
+            <div class="flex items-center gap-3 border-b bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:bg-amber-950/50 dark:text-amber-200">
+              <AlertTriangleIcon class="size-4 shrink-0" />
+              <span class="flex-1">caw is not initialized. Run <code class="rounded bg-amber-100 px-1 dark:bg-amber-900">caw init</code> in your terminal to set up.</span>
+              {#if isTauri}
+                <Button size="sm" variant="outline" onclick={handleInit} disabled={initRunning}>
+                  {initRunning ? 'Initializing...' : 'Initialize'}
+                </Button>
+              {/if}
+            </div>
+          {/if}
           {@render children()}
         </div>
         {#if rightPanel.visible && rightPanel.component}

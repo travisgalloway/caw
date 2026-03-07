@@ -58,7 +58,7 @@ describe('templateService', () => {
     it('creates a template from existing workflow', () => {
       const wf = workflowService.create(db, {
         name: 'Source Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
@@ -84,7 +84,7 @@ describe('templateService', () => {
     it('captures estimated_complexity and files_likely_affected from workflow', () => {
       const wf = workflowService.create(db, {
         name: 'Source',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
@@ -110,7 +110,7 @@ describe('templateService', () => {
     it('throws when providing both fromWorkflowId and template', () => {
       const wf = workflowService.create(db, {
         name: 'Source',
-        source_type: 'issue',
+        source_type: 'custom',
       });
 
       expect(() =>

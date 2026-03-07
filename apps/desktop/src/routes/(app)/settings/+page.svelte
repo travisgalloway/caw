@@ -29,9 +29,10 @@ let configError = $state<string | null>(null);
 let saving = $state(false);
 let transport = $state('stdio');
 let port = $state('3100');
-let dbMode = $state('global');
 let agentRuntime = $state('claude-code');
 let agentAutoSetup = $state(true);
+let maxParallelAgents = $state('10');
+let agentsPerWorkflow = $state('3');
 
 // === Repositories tab state ===
 let repositories = $state<Repository[]>([]);
@@ -68,10 +69,18 @@ async function loadConfig() {
     config = result.data;
     transport = String(config.config.transport ?? 'stdio');
     port = String(config.config.port ?? '3100');
-    dbMode = String(config.config.dbMode ?? 'global');
-    const agent = config.config.agent as { runtime?: string; autoSetup?: boolean } | undefined;
+    const agent = config.config.agent as
+      | {
+          runtime?: string;
+          autoSetup?: boolean;
+          maxParallelAgents?: number;
+          agentsPerWorkflow?: number;
+        }
+      | undefined;
     agentRuntime = agent?.runtime ?? 'claude-code';
     agentAutoSetup = agent?.autoSetup ?? true;
+    maxParallelAgents = String(agent?.maxParallelAgents ?? 10);
+    agentsPerWorkflow = String(agent?.agentsPerWorkflow ?? 3);
   } catch (err) {
     configError = err instanceof Error ? err.message : 'Failed to fetch configuration';
   } finally {
@@ -85,8 +94,12 @@ async function handleSave() {
     await api.updateConfig({
       transport,
       port: Number(port),
-      dbMode,
-      agent: { runtime: agentRuntime, autoSetup: agentAutoSetup },
+      agent: {
+        runtime: agentRuntime,
+        autoSetup: agentAutoSetup,
+        maxParallelAgents: Number(maxParallelAgents),
+        agentsPerWorkflow: Number(agentsPerWorkflow),
+      },
     });
     toast.success('Configuration saved');
   } catch (err) {
@@ -187,8 +200,7 @@ const actionableHints: Record<string, string> = {
   Database: 'Run `caw init` to create the database',
   'MCP Server': 'Run `caw setup claude-code` to configure MCP integration',
   'CLAUDE.md': 'Add a CLAUDE.md file with caw integration section',
-  'Config file': 'Run `caw init` to create the config file',
-  Gitignore: 'Add `.caw/` to your .gitignore file',
+  'Config file': 'Run `caw init` to create ~/.caw/config.json',
 };
 
 onMount(() => {
@@ -250,17 +262,6 @@ $effect(() => {
                 <Input id="port" type="number" bind:value={port} />
               </div>
             </div>
-            <div class="space-y-2">
-              <Label for="dbMode">Database Mode</Label>
-              <select
-                id="dbMode"
-                bind:value={dbMode}
-                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <option value="global">global</option>
-                <option value="per-repo">per-repo</option>
-              </select>
-            </div>
           </Card.Content>
         </Card.Root>
 
@@ -278,9 +279,17 @@ $effect(() => {
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
                 <option value="claude-code">claude-code</option>
-                <option value="codex">codex</option>
-                <option value="opencode">opencode</option>
               </select>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+              <div class="space-y-2">
+                <Label for="maxParallelAgents">Max Parallel Agents (global)</Label>
+                <Input id="maxParallelAgents" type="number" min="1" max="50" bind:value={maxParallelAgents} />
+              </div>
+              <div class="space-y-2">
+                <Label for="agentsPerWorkflow">Agents Per Workflow</Label>
+                <Input id="agentsPerWorkflow" type="number" min="1" max="20" bind:value={agentsPerWorkflow} />
+              </div>
             </div>
             <div class="flex items-center gap-3">
               <input

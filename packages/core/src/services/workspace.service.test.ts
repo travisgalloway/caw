@@ -9,7 +9,7 @@ import * as workspaceService from './workspace.service';
 function createWorkflowWithTasks(db: DatabaseType) {
   const wf = workflowService.create(db, {
     name: 'Test Workflow',
-    source_type: 'issue',
+    source_type: 'custom',
   });
   workflowService.setPlan(db, wf.id, {
     summary: 'Test plan',
@@ -353,7 +353,7 @@ describe('workspaceService', () => {
       const { workflow } = createWorkflowWithTasks(db);
       const wf2 = workflowService.create(db, {
         name: 'Other Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
 
       workspaceService.create(db, {

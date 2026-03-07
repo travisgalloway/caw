@@ -28,7 +28,7 @@ import {
   workspaceService,
 } from '../packages/core/src/index';
 
-const dbPath = getDbPath('per-repo', process.cwd());
+const dbPath = getDbPath();
 console.log(`Seeding database at: ${dbPath}`);
 
 const db = createConnection(dbPath);
@@ -174,7 +174,7 @@ console.log(`Workflow 1: ${wf1.id} — "Add user authentication" (in_progress, $
 // Workflow 2: "Refactor database layer" — completed
 const wf2 = workflowService.create(db, {
   name: 'Refactor database layer',
-  source_type: 'issue',
+  source_type: 'github_issue',
   source_ref: 'https://github.com/example/acme-api/issues/42',
   source_content: 'Replace raw SQL queries with a query builder for better maintainability.',
   repository_paths: [path.join(process.cwd(), '..', 'acme-api')],

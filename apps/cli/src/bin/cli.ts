@@ -6,7 +6,7 @@ import { createConnection, getDbPath, runMigrations, templateResolver } from '@c
 
 function printUsage(): void {
   console.log(`Usage: caw [options] [description]
-       caw init [--yes] [--global]
+       caw init [--yes]
        caw setup claude-code [--print] [--mcp-only] [--claude-md-only]
        caw run <workflow_id> [options]
        caw run --prompt "..." [options]
@@ -18,15 +18,13 @@ Options:
   --transport <type>    MCP transport: stdio | http (default: stdio)
                         HTTP mode also serves REST API + WebSocket
   --port <number>       HTTP port (default: 3100)
-  --db <path>           Database file path
   --template <name>     Create workflow from named template (requires description)
   --list-templates      List available workflow templates
   -h, --help            Show this help message
 
 Commands:
-  init                  Initialize caw in the current repository
+  init                  Initialize caw (~/.caw/ config, templates)
     --yes, -y           Skip prompts, use defaults
-    --global            Initialize global config (~/.caw/) instead of per-repo
 
   setup claude-code     Configure Claude Code to use caw
     --print             Print what would be added without modifying files
@@ -59,7 +57,6 @@ if (subcommand === 'init') {
     args: process.argv.slice(3),
     options: {
       yes: { type: 'boolean', short: 'y', default: false },
-      global: { type: 'boolean', default: false },
       help: { type: 'boolean', short: 'h', default: false },
     },
     strict: true,
@@ -74,7 +71,6 @@ if (subcommand === 'init') {
   const { runInit } = await import('../commands/init');
   await runInit({
     yes: initValues.yes,
-    global: initValues.global,
     repoPath: process.cwd(),
   });
   process.exit(0);
@@ -108,6 +104,22 @@ if (subcommand === 'setup') {
     claudeMdOnly: setupValues['claude-md-only'],
   });
   process.exit(0);
+}
+
+// --- Initialization check (all commands except init/setup/--help/--db) ---
+{
+  const rawArgs = process.argv.slice(2);
+  const skipInit = rawArgs.includes('--help') || rawArgs.includes('-h') || rawArgs.includes('--db');
+  if (!skipInit) {
+    const { existsSync } = await import('node:fs');
+    const { homedir } = await import('node:os');
+    const { join } = await import('node:path');
+    const globalConfig = join(homedir(), '.caw', 'config.json');
+    if (!existsSync(globalConfig)) {
+      console.error("caw is not initialized. Run 'caw init' to set up.");
+      process.exit(1);
+    }
+  }
 }
 
 if (subcommand === 'run') {
@@ -152,7 +164,10 @@ Options:
     process.exit(0);
   }
 
-  const runDbPath = runValues.db ?? getDbPath('per-repo', process.cwd());
+  if (runValues.db) {
+    console.warn('[caw] --db is deprecated. Database is always stored at ~/.caw/workflows.db.');
+  }
+  const runDbPath = runValues.db ?? getDbPath();
   const runDb = createConnection(runDbPath);
   runMigrations(runDb);
 
@@ -246,7 +261,10 @@ Options:
     process.exit(prValues.help ? 0 : 1);
   }
 
-  const prDbPath = prValues.db ?? getDbPath('per-repo', process.cwd());
+  if (prValues.db) {
+    console.warn('[caw] --db is deprecated. Database is always stored at ~/.caw/workflows.db.');
+  }
+  const prDbPath = prValues.db ?? getDbPath();
   const prDb = createConnection(prDbPath);
   runMigrations(prDb);
 
@@ -327,7 +345,10 @@ Options:
     process.exit(workValues.help ? 0 : 1);
   }
 
-  const workDbPath = workValues.db ?? getDbPath('per-repo', process.cwd());
+  if (workValues.db) {
+    console.warn('[caw] --db is deprecated. Database is always stored at ~/.caw/workflows.db.');
+  }
+  const workDbPath = workValues.db ?? getDbPath();
   const workDb = createConnection(workDbPath);
   runMigrations(workDb);
 
@@ -398,7 +419,10 @@ const repoRoot = (() => {
     return process.cwd();
   }
 })();
-const dbPath = values.db ?? getDbPath('per-repo', repoRoot);
+if (values.db) {
+  console.warn('[caw] --db is deprecated. Database is always stored at ~/.caw/workflows.db.');
+}
+const dbPath = values.db ?? getDbPath();
 const db = createConnection(dbPath);
 runMigrations(db);
 
