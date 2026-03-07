@@ -579,6 +579,258 @@ describe('config routes', () => {
   });
 });
 
+// --- Session Routes ---
+
+describe('session routes', () => {
+  test('GET /api/sessions lists sessions', async () => {
+    const res = await req('GET', '/api/sessions');
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: unknown[] };
+    expect(Array.isArray(body.data)).toBe(true);
+  });
+});
+
+// --- Repository Routes ---
+
+describe('repository routes', () => {
+  test('GET /api/repositories lists repositories', async () => {
+    const res = await req('GET', '/api/repositories');
+    expect(res.status).toBe(200);
+  });
+});
+
+// --- Workflow config update ---
+
+describe('workflow config routes', () => {
+  test('PUT /api/workflows/:id/config patches config', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    const res = await req('PUT', `/api/workflows/${wf.id}/config`, {
+      config: { retries: 3 },
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string; config: string } };
+    const config = JSON.parse(body.data.config);
+    expect(config.retries).toBe(3);
+  });
+
+  test('PUT /api/workflows/:id/config returns 404 for missing workflow', async () => {
+    const res = await req('PUT', '/api/workflows/wf_nonexistent/config', {
+      config: { test: true },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test('GET /api/workflows/:id/summary returns summary', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    workflowService.setPlan(db, wf.id, {
+      summary: 'Test plan',
+      tasks: [{ name: 'T1' }],
+    });
+    const res = await req('GET', `/api/workflows/${wf.id}/summary`);
+    expect(res.status).toBe(200);
+  });
+});
+
+// --- Task plan and release ---
+
+describe('task plan and release routes', () => {
+  function createWorkflowWithTasks() {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    workflowService.setPlan(db, wf.id, {
+      summary: 'Test',
+      tasks: [{ name: 'Task 1' }],
+    });
+    return wf;
+  }
+
+  test('PUT /api/tasks/:id/plan sets task plan', async () => {
+    const wf = createWorkflowWithTasks();
+    const tasks = db.prepare('SELECT id FROM tasks WHERE workflow_id = ?').all(wf.id) as Array<{
+      id: string;
+    }>;
+
+    // Task must be in 'planning' status first
+    await req('PUT', `/api/tasks/${tasks[0].id}/status`, { status: 'planning' });
+
+    const res = await req('PUT', `/api/tasks/${tasks[0].id}/plan`, {
+      plan: { approach: 'Direct implementation', files_to_modify: ['src/index.ts'] },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  test('PUT /api/tasks/:id/plan returns 404 for missing task', async () => {
+    const res = await req('PUT', '/api/tasks/tk_nonexistent/plan', {
+      plan: { approach: 'test' },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  test('POST /api/tasks/:id/release releases a claimed task', async () => {
+    const wf = createWorkflowWithTasks();
+    const agent = agentService.register(db, {
+      name: 'Agent 1',
+      runtime: 'claude',
+      workflow_id: wf.id,
+    });
+    const tasks = db
+      .prepare('SELECT id FROM tasks WHERE workflow_id = ? ORDER BY sequence')
+      .all(wf.id) as Array<{ id: string }>;
+
+    // Claim first
+    await req('POST', `/api/tasks/${tasks[0].id}/claim`, { agent_id: agent.id });
+
+    // Release
+    const res = await req('POST', `/api/tasks/${tasks[0].id}/release`, { agent_id: agent.id });
+    expect(res.status).toBe(200);
+  });
+});
+
+// --- Message thread and unread routes ---
+
+describe('message thread routes', () => {
+  test('GET /api/messages/:id returns a message', async () => {
+    const a1 = agentService.register(db, { name: 'A1', runtime: 'claude' });
+    const a2 = agentService.register(db, { name: 'A2', runtime: 'claude' });
+    const msg = messageService_send(db, a1.id, a2.id, 'Hello');
+
+    const res = await req('GET', `/api/messages/${msg.id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string; body: string } };
+    expect(body.data.id).toBe(msg.id);
+  });
+
+  test('GET /api/threads/:id returns thread messages', async () => {
+    const a1 = agentService.register(db, { name: 'A1', runtime: 'claude' });
+    const a2 = agentService.register(db, { name: 'A2', runtime: 'claude' });
+    const msg = messageService_send(db, a1.id, a2.id, 'Hello');
+
+    // Reply in same thread via reply_to_id
+    messageService.send(db, {
+      sender_id: a2.id,
+      recipient_id: a1.id,
+      message_type: 'response',
+      body: 'Hi back',
+      reply_to_id: msg.id,
+    });
+
+    const res = await req('GET', `/api/threads/${msg.thread_id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: unknown[] };
+    expect(body.data).toHaveLength(2);
+  });
+
+  test('GET /api/agents/:id/messages/unread returns unread count', async () => {
+    const a1 = agentService.register(db, { name: 'A1', runtime: 'claude' });
+    const a2 = agentService.register(db, { name: 'A2', runtime: 'claude' });
+    messageService_send(db, a1.id, a2.id, 'Hello');
+
+    const res = await req('GET', `/api/agents/${a2.id}/messages/unread`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { count: number } };
+    expect(body.data.count).toBe(1);
+  });
+});
+
+// --- Lock unlock ---
+
+describe('lock unlock routes', () => {
+  test('POST /api/workflows/:id/unlock releases lock', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    const session = sessionService.register(db, { pid: process.pid, is_daemon: false });
+
+    // Lock first
+    await req('POST', `/api/workflows/${wf.id}/lock`, { session_id: session.id });
+
+    // Unlock
+    const res = await req('POST', `/api/workflows/${wf.id}/unlock`, { session_id: session.id });
+    expect(res.status).toBe(200);
+
+    // Verify unlocked
+    const lockRes = await req('GET', `/api/workflows/${wf.id}/lock`);
+    const body = (await lockRes.json()) as { data: { locked: boolean } };
+    expect(body.data.locked).toBe(false);
+  });
+});
+
+// --- Template get by ID ---
+
+describe('template detail routes', () => {
+  test('GET /api/templates/:id returns a template', async () => {
+    const tmplRes = await req('POST', '/api/templates', {
+      name: 'Tmpl',
+      template: { tasks: [{ name: 'T1' }] },
+    });
+    const tmpl = (await tmplRes.json()) as { data: { id: string } };
+
+    const res = await req('GET', `/api/templates/${tmpl.data.id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string; name: string } };
+    expect(body.data.name).toBe('Tmpl');
+  });
+
+  test('GET /api/templates/:id returns 404 for missing template', async () => {
+    const res = await req('GET', '/api/templates/tmpl_nonexistent');
+    expect(res.status).toBe(404);
+  });
+});
+
+// --- Agent filter and heartbeat ---
+
+describe('agent filter routes', () => {
+  test('GET /api/agents?workflow_id filters by workflow', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    agentService.register(db, { name: 'A1', runtime: 'claude', workflow_id: wf.id });
+    agentService.register(db, { name: 'A2', runtime: 'claude' });
+
+    const res = await req('GET', `/api/agents?workflow_id=${wf.id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: Array<{ name: string }> };
+    expect(body.data).toHaveLength(1);
+    expect(body.data[0].name).toBe('A1');
+  });
+});
+
+// --- Workspace get by ID ---
+
+describe('workspace detail routes', () => {
+  test('GET /api/workspaces/:id returns workspace', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    const wsRes = await req('POST', `/api/workflows/${wf.id}/workspaces`, {
+      path: '/tmp/ws',
+      branch: 'feat/test',
+    });
+    const ws = (await wsRes.json()) as { data: { id: string } };
+
+    const res = await req('GET', `/api/workspaces/${ws.data.id}`);
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { data: { id: string; branch: string } };
+    expect(body.data.branch).toBe('feat/test');
+  });
+
+  test('PUT /api/workspaces/:id updates workspace', async () => {
+    const wf = workflowService.create(db, { name: 'WF', source_type: 'prompt' });
+    const wsRes = await req('POST', `/api/workflows/${wf.id}/workspaces`, {
+      path: '/tmp/ws',
+      branch: 'feat/test',
+    });
+    const ws = (await wsRes.json()) as { data: { id: string } };
+
+    const res = await req('PUT', `/api/workspaces/${ws.data.id}`, {
+      prUrl: 'https://github.com/org/repo/pull/1',
+    });
+    expect(res.status).toBe(200);
+  });
+});
+
+// --- Stats Routes ---
+
+describe('stats routes', () => {
+  test('GET /api/stats/summary returns summary', async () => {
+    const res = await req('GET', '/api/stats/summary');
+    expect(res.status).toBe(200);
+  });
+});
+
 // --- 404 ---
 
 describe('routing', () => {
