@@ -1,20 +1,19 @@
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
-import type { CawConfig, DbMode } from '@caw/core';
-import { EXAMPLE_TEMPLATES, ensureGitignore, stringifyYaml, writeConfig } from '@caw/core';
+import type { CawConfig } from '@caw/core';
+import { EXAMPLE_TEMPLATES, stringifyYaml, writeConfig } from '@caw/core';
 import { setupClaudeCode } from './setup-claude-code';
 
 export interface InitOptions {
   yes?: boolean;
-  global?: boolean;
   repoPath: string;
 }
 
 interface InitResult {
   configPath: string;
   config: CawConfig;
-  gitignoreUpdated: boolean;
   claudeCodeSetup: boolean;
   messages: string[];
 }
@@ -58,38 +57,24 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
         return {
           configPath,
           config: {},
-          gitignoreUpdated: false,
           claudeCodeSetup: false,
           messages,
         };
       }
     }
 
-    // Database mode
-    const modeAnswer = await prompt(rl, 'Database mode? (per-repo/global) [per-repo] ');
-    const dbMode: DbMode = modeAnswer.trim().toLowerCase() === 'global' ? 'global' : 'per-repo';
-
     // Claude Code setup
     const setupAnswer = await prompt(rl, 'Set up Claude Code integration? (Y/n) ');
     const doSetup = setupAnswer.trim().toLowerCase() !== 'n';
 
     // Write config
-    const config: CawConfig = { dbMode };
+    const config: CawConfig = {};
     if (doSetup) {
-      config.agent = { runtime: 'claude_code', autoSetup: true };
+      config.agent = { runtime: 'claude-code', autoSetup: true };
     }
 
     writeConfig(configPath, config);
     messages.push(`Created ${configPath}`);
-
-    // Gitignore (only for per-repo)
-    let gitignoreUpdated = false;
-    if (dbMode === 'per-repo') {
-      gitignoreUpdated = ensureGitignore(repoPath, '.caw/');
-      if (gitignoreUpdated) {
-        messages.push('Added .caw/ to .gitignore');
-      }
-    }
 
     // Claude Code setup
     let claudeCodeSetup = false;
@@ -102,30 +87,21 @@ async function runInteractive(repoPath: string, configDir: string): Promise<Init
     // Write example templates
     messages.push(...writeExampleTemplates(configDir));
 
-    return { configPath, config, gitignoreUpdated, claudeCodeSetup, messages };
+    return { configPath, config, claudeCodeSetup, messages };
   } finally {
     rl.close();
   }
 }
 
-function runNonInteractive(repoPath: string, configDir: string, isGlobal: boolean): InitResult {
+function runNonInteractive(repoPath: string, configDir: string): InitResult {
   const messages: string[] = [];
   const configPath = join(configDir, 'config.json');
   const config: CawConfig = {
-    dbMode: isGlobal ? 'global' : 'per-repo',
-    agent: { runtime: 'claude_code', autoSetup: true },
+    agent: { runtime: 'claude-code', autoSetup: true },
   };
 
   writeConfig(configPath, config);
   messages.push(`Created ${configPath}`);
-
-  let gitignoreUpdated = false;
-  if (!isGlobal) {
-    gitignoreUpdated = ensureGitignore(repoPath, '.caw/');
-    if (gitignoreUpdated) {
-      messages.push('Added .caw/ to .gitignore');
-    }
-  }
 
   const result = setupClaudeCode({ repoPath });
   messages.push(...result.messages);
@@ -134,23 +110,18 @@ function runNonInteractive(repoPath: string, configDir: string, isGlobal: boolea
   // Write example templates
   messages.push(...writeExampleTemplates(configDir));
 
-  return { configPath, config, gitignoreUpdated, claudeCodeSetup, messages };
+  return { configPath, config, claudeCodeSetup, messages };
 }
 
 export async function runInit(opts: InitOptions): Promise<void> {
   const { repoPath } = opts;
 
-  let configDir: string;
-  if (opts.global) {
-    const { homedir } = await import('node:os');
-    configDir = join(homedir(), '.caw');
-  } else {
-    configDir = join(repoPath, '.caw');
-  }
+  // Always target ~/.caw/
+  const configDir = join(homedir(), '.caw');
 
   let result: InitResult;
   if (opts.yes) {
-    result = runNonInteractive(repoPath, configDir, opts.global ?? false);
+    result = runNonInteractive(repoPath, configDir);
   } else {
     result = await runInteractive(repoPath, configDir);
   }

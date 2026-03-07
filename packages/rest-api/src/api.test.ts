@@ -530,7 +530,6 @@ describe('setup routes', () => {
     expect(checkNames).toContain('mcp_server');
     expect(checkNames).toContain('claude_md');
     expect(checkNames).toContain('config_file');
-    expect(checkNames).toContain('gitignore');
 
     // Each check should have the required structure
     for (const check of body.data.checks) {

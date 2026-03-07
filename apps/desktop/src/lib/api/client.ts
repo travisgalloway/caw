@@ -30,11 +30,13 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 // --- Workflows ---
 
+export type WorkflowSourceType = 'prompt' | 'github_issue' | 'spec_file' | 'template' | 'custom';
+
 export interface WorkflowSummary {
   id: string;
   name: string;
   status: string;
-  source_type: string;
+  source_type: WorkflowSourceType;
   created_at: number;
   updated_at: number;
 }
@@ -42,7 +44,7 @@ export interface WorkflowSummary {
 export interface Workflow {
   id: string;
   name: string;
-  source_type: string;
+  source_type: WorkflowSourceType;
   source_ref: string | null;
   source_content: string | null;
   status: string;
@@ -548,6 +550,10 @@ export const api = {
   },
 
   // Setup
+  async getInitStatus() {
+    return request<{ initialized: boolean }>('GET', '/api/setup/status');
+  },
+
   async getDiagnostics() {
     return request<DiagnosticsResponse>('GET', '/api/setup/diagnostics');
   },

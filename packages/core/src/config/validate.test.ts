@@ -13,15 +13,13 @@ describe('validateConfig', () => {
     const result = validateConfig({
       transport: 'http',
       port: 3100,
-      dbMode: 'global',
-      agent: { runtime: 'claude_code', autoSetup: true },
+      agent: { runtime: 'claude-code', autoSetup: true },
     });
     expect(result.valid).toBe(true);
     expect(result.config).toEqual({
       transport: 'http',
       port: 3100,
-      dbMode: 'global',
-      agent: { runtime: 'claude_code', autoSetup: true },
+      agent: { runtime: 'claude-code', autoSetup: true },
     });
     expect(result.warnings).toEqual([]);
   });
@@ -69,16 +67,20 @@ describe('validateConfig', () => {
     expect(result.warnings[0]).toContain('Invalid port');
   });
 
-  test('accepts valid dbMode', () => {
+  test('strips dbMode with deprecation warning', () => {
     const result = validateConfig({ dbMode: 'per-repo' });
     expect(result.valid).toBe(true);
-    expect(result.config.dbMode).toBe('per-repo');
+    expect(result.config).toEqual({});
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain("'dbMode' is deprecated");
   });
 
-  test('warns on invalid dbMode', () => {
-    const result = validateConfig({ dbMode: 'local' });
-    expect(result.valid).toBe(false);
-    expect(result.warnings[0]).toContain('Invalid dbMode');
+  test('strips dbMode and validates remaining fields', () => {
+    const result = validateConfig({ dbMode: 'global', transport: 'http' });
+    expect(result.valid).toBe(true);
+    expect(result.config.transport).toBe('http');
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]).toContain("'dbMode' is deprecated");
   });
 
   test('warns on non-object agent', () => {
@@ -87,8 +89,8 @@ describe('validateConfig', () => {
     expect(result.warnings[0]).toContain('Invalid agent');
   });
 
-  test('warns on non-string agent.runtime', () => {
-    const result = validateConfig({ agent: { runtime: 123 } });
+  test('warns on invalid agent.runtime', () => {
+    const result = validateConfig({ agent: { runtime: 'codex' } });
     expect(result.valid).toBe(false);
     expect(result.warnings[0]).toContain('agent.runtime');
   });
@@ -97,6 +99,23 @@ describe('validateConfig', () => {
     const result = validateConfig({ agent: { autoSetup: 'yes' } });
     expect(result.valid).toBe(false);
     expect(result.warnings[0]).toContain('agent.autoSetup');
+  });
+
+  test('accepts agent parallelism settings', () => {
+    const result = validateConfig({
+      agent: { maxParallelAgents: 10, agentsPerWorkflow: 3 },
+    });
+    expect(result.valid).toBe(true);
+    expect(result.config.agent?.maxParallelAgents).toBe(10);
+    expect(result.config.agent?.agentsPerWorkflow).toBe(3);
+  });
+
+  test('warns on out-of-range parallelism', () => {
+    const result = validateConfig({
+      agent: { maxParallelAgents: 100 },
+    });
+    expect(result.valid).toBe(false);
+    expect(result.warnings[0]).toContain('agent.maxParallelAgents');
   });
 
   test('returns invalid for null input', () => {
@@ -111,9 +130,9 @@ describe('validateConfig', () => {
   });
 
   test('collects multiple warnings', () => {
-    const result = validateConfig({ transport: 'bad', port: -1, dbMode: 'bad' });
+    const result = validateConfig({ transport: 'bad', port: -1 });
     expect(result.valid).toBe(false);
-    expect(result.warnings.length).toBe(3);
+    expect(result.warnings.length).toBe(2);
   });
 
   test('ignores unknown keys without warning', () => {

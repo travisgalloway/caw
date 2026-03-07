@@ -34,7 +34,7 @@ describe('cross-service integration', () => {
       // Create workflow
       const wf = workflowService.create(db, {
         name: 'Lifecycle Test',
-        source_type: 'issue',
+        source_type: 'custom',
         source_content: 'Build a feature end to end',
       });
       expect(wf.status).toBe('planning');
@@ -249,7 +249,7 @@ describe('cross-service integration', () => {
       // Create workflow with parallel tasks
       const wf = workflowService.create(db, {
         name: 'Multi-Agent Test',
-        source_type: 'issue',
+        source_type: 'custom',
         max_parallel_tasks: 2,
       });
 
@@ -498,7 +498,7 @@ describe('cross-service integration', () => {
       // Create source workflow with plan (3 tasks with deps)
       const srcWf = workflowService.create(db, {
         name: 'Source Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
 
       workflowService.setPlan(db, srcWf.id, {
@@ -587,7 +587,7 @@ describe('cross-service integration', () => {
       // Create workflow with max_parallel=2 and 4 parallel tasks
       const wf = workflowService.create(db, {
         name: 'Parallel Test',
-        source_type: 'issue',
+        source_type: 'custom',
         max_parallel_tasks: 2,
       });
 
@@ -634,7 +634,7 @@ describe('cross-service integration', () => {
       // Create workflow with sequential tasks
       const wf = workflowService.create(db, {
         name: 'Context Test',
-        source_type: 'issue',
+        source_type: 'custom',
         source_content: 'Build a widget with three steps',
       });
 

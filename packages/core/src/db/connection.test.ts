@@ -44,16 +44,7 @@ describe('createConnection', () => {
 
 describe('getDbPath', () => {
   it('returns global path', () => {
-    const result = getDbPath('global');
+    const result = getDbPath();
     expect(result).toBe(join(homedir(), '.caw', 'workflows.db'));
-  });
-
-  it('returns per-repo path', () => {
-    const result = getDbPath('per-repo', '/home/user/my-project');
-    expect(result).toBe(join('/home/user/my-project', '.caw', 'workflows.db'));
-  });
-
-  it('throws if per-repo mode missing repoPath', () => {
-    expect(() => getDbPath('per-repo')).toThrow('repoPath is required for per-repo mode');
   });
 });

@@ -23,14 +23,6 @@ export function createConnection(dbPath: string): DatabaseType {
   return db;
 }
 
-export function getDbPath(mode: 'global' | 'per-repo', repoPath?: string): string {
-  if (mode === 'global') {
-    return join(homedir(), '.caw', 'workflows.db');
-  }
-
-  if (!repoPath) {
-    throw new Error('repoPath is required for per-repo mode');
-  }
-
-  return join(repoPath, '.caw', 'workflows.db');
+export function getDbPath(): string {
+  return join(homedir(), '.caw', 'workflows.db');
 }

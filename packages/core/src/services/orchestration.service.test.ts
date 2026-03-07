@@ -10,7 +10,7 @@ import * as workflowService from './workflow.service';
 function createWorkflow(db: DatabaseType, name = 'Test Workflow', maxParallel = 2) {
   return workflowService.create(db, {
     name,
-    source_type: 'issue',
+    source_type: 'custom',
     max_parallel_tasks: maxParallel,
   });
 }

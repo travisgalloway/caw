@@ -93,7 +93,7 @@ export const register: ToolRegistrar = (server, db) => {
       inputSchema: {
         name: z.string().describe('Workflow name'),
         source_type: z
-          .enum(['prompt', 'github_issue', 'linear', 'jira', 'custom'])
+          .enum(['prompt', 'github_issue', 'spec_file', 'custom'])
           .describe('Source type'),
         source_ref: z.string().optional().describe('URL or identifier'),
         source_content: z.string().describe('The actual prompt/issue content'),

@@ -1,15 +1,17 @@
 export type {
   AgentConfig,
+  AgentRuntime,
   CawConfig,
   CycleMode,
-  DbMode,
   LoadConfigResult,
   MergeMethod,
   PrConfig,
   TransportType as ConfigTransportType,
   ValidationResult,
+  WorkflowSourceType,
 } from './config/index';
 export {
+  AGENT_DEFAULTS,
   cawConfigSchema,
   ensureGitignore,
   getConfigPaths,

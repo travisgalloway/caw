@@ -32,7 +32,6 @@ export function mergeConfigs(...configs: CawConfig[]): CawConfig {
   for (const config of configs) {
     if (config.transport !== undefined) result.transport = config.transport;
     if (config.port !== undefined) result.port = config.port;
-    if (config.dbMode !== undefined) result.dbMode = config.dbMode;
     if (config.agent !== undefined) {
       result.agent = { ...result.agent, ...config.agent };
     }

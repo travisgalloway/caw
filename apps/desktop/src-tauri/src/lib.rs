@@ -7,23 +7,8 @@ use window_vibrancy::{apply_vibrancy, NSVisualEffectMaterial};
 
 struct SidecarState(std::sync::Mutex<Option<tauri_plugin_shell::process::CommandChild>>);
 
-/// Resolve the database path for the sidecar.
-/// 1. Try `git rev-parse --show-toplevel` → `<repo_root>/.caw/workflows.db`
-/// 2. Fall back to `~/.caw/workflows.db` (global mode)
+/// Resolve the database path for the sidecar — always global ~/.caw/workflows.db.
 fn resolve_db_path() -> String {
-    if let Ok(output) = std::process::Command::new("git")
-        .args(["rev-parse", "--show-toplevel"])
-        .output()
-    {
-        if output.status.success() {
-            let repo_root = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !repo_root.is_empty() {
-                return format!("{repo_root}/.caw/workflows.db");
-            }
-        }
-    }
-
-    // Fall back to global ~/.caw/workflows.db
     let home = std::env::var("HOME").unwrap_or_else(|_| "/tmp".to_string());
     format!("{home}/.caw/workflows.db")
 }
@@ -139,6 +124,23 @@ async fn restart_server(app: tauri::AppHandle) -> Result<serde_json::Value, Stri
 }
 
 #[tauri::command]
+async fn run_init(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
+    let sidecar = app.shell().sidecar("caw").map_err(|e| e.to_string())?;
+    let output = sidecar
+        .args(["init", "--yes"])
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run caw init: {e}"))?;
+
+    if output.status.success() {
+        Ok(serde_json::json!({ "success": true }))
+    } else {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        Err(format!("caw init failed: {stderr}"))
+    }
+}
+
+#[tauri::command]
 async fn stop_server(app: tauri::AppHandle) -> Result<serde_json::Value, String> {
     let state = app.state::<SidecarState>();
     let mut guard = state.0.lock().map_err(|e| e.to_string())?;
@@ -153,7 +155,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_window_state::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![server_status, restart_server, stop_server])
+        .invoke_handler(tauri::generate_handler![server_status, restart_server, stop_server, run_init])
         .setup(|app| {
             // Build native macOS menu bar
             build_menu(app)?;

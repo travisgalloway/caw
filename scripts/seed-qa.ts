@@ -19,7 +19,7 @@ import {
   workflowService,
 } from '../packages/core/src/index';
 
-const dbPath = getDbPath('per-repo', process.cwd());
+const dbPath = getDbPath();
 console.log(`Seeding Q&A scenario into: ${dbPath}`);
 
 const db = createConnection(dbPath);

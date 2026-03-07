@@ -7,7 +7,7 @@ import * as agentService from './agent.service';
 import * as workflowService from './workflow.service';
 
 function createTask(db: DatabaseType): string {
-  const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+  const wf = workflowService.create(db, { name: 'WF', source_type: 'custom' });
   workflowService.setPlan(db, wf.id, {
     summary: 'Plan',
     tasks: [{ name: 'Task' }],
@@ -383,7 +383,7 @@ describe('agentService', () => {
       });
 
       // Create a workflow with tasks
-      const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+      const wf = workflowService.create(db, { name: 'WF', source_type: 'custom' });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
         tasks: [{ name: 'Task A' }, { name: 'Task B' }],
@@ -432,7 +432,7 @@ describe('agentService', () => {
         runtime: 'claude_code',
       });
 
-      const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+      const wf = workflowService.create(db, { name: 'WF', source_type: 'custom' });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
         tasks: [{ name: 'Done Task' }, { name: 'Active Task' }],
@@ -547,7 +547,7 @@ describe('agentService', () => {
 
   describe('list with workflow_id', () => {
     it('filters by workflow_id', () => {
-      const wf = workflowService.create(db, { name: 'WF', source_type: 'issue' });
+      const wf = workflowService.create(db, { name: 'WF', source_type: 'custom' });
       agentService.register(db, { name: 'a', runtime: 'claude_code', workflow_id: wf.id });
       agentService.register(db, { name: 'b', runtime: 'claude_code' });
 

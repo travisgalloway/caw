@@ -1,6 +1,11 @@
 import type { DatabaseType, SQLParam } from '../db/connection';
 import type { Task } from '../types/task';
-import type { Workflow, WorkflowStatus, WorkflowSummary } from '../types/workflow';
+import type {
+  Workflow,
+  WorkflowSourceType,
+  WorkflowStatus,
+  WorkflowSummary,
+} from '../types/workflow';
 import { taskId, workflowId } from '../utils/id';
 import { estimateTokens } from '../utils/tokens';
 import * as repositoryService from './repository.service';
@@ -57,7 +62,7 @@ export function create(db: DatabaseType, params: CreateParams): Workflow {
   const workflow: Workflow = {
     id: workflowId(),
     name: params.name,
-    source_type: params.source_type,
+    source_type: params.source_type as WorkflowSourceType,
     source_ref: params.source_ref ?? null,
     source_content: params.source_content ?? null,
     status: 'planning',

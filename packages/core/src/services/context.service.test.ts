@@ -17,7 +17,7 @@ interface TestData {
 function setupTestWorkflow(db: DatabaseType): TestData {
   const wf = workflowService.create(db, {
     name: 'Test Workflow',
-    source_type: 'issue',
+    source_type: 'custom',
     source_content: 'Implement feature X with acceptance criteria A, B, C',
   });
 
@@ -232,7 +232,7 @@ describe('contextService', () => {
     it('truncates large source_content to fit budget', () => {
       const wf = workflowService.create(db, {
         name: 'Large Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
         source_content: 'a'.repeat(10000), // Very large content
       });
 
@@ -254,7 +254,7 @@ describe('contextService', () => {
     it('respects custom max_tokens for more aggressive compression', () => {
       const wf = workflowService.create(db, {
         name: 'Budget Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
         source_content: 'a'.repeat(5000),
       });
 

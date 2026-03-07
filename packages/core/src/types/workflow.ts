@@ -1,3 +1,5 @@
+export type WorkflowSourceType = 'prompt' | 'github_issue' | 'spec_file' | 'template' | 'custom';
+
 export type WorkflowStatus =
   | 'planning'
   | 'ready'
@@ -11,7 +13,7 @@ export type WorkflowStatus =
 export interface Workflow {
   id: string;
   name: string;
-  source_type: string;
+  source_type: WorkflowSourceType;
   source_ref: string | null;
   source_content: string | null;
   status: WorkflowStatus;
@@ -37,7 +39,7 @@ export interface WorkflowSummary {
   id: string;
   name: string;
   status: WorkflowStatus;
-  source_type: string;
+  source_type: WorkflowSourceType;
   created_at: number;
   updated_at: number;
 }

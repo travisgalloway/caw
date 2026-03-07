@@ -25,6 +25,10 @@ import type {
 
 const POLL_INTERVAL_MS = 5_000;
 
+export interface WorkflowSpawnerOptions {
+  globalMaxAgents?: number;
+}
+
 export class WorkflowSpawner {
   private pool: AgentPool | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -33,11 +37,14 @@ export class WorkflowSpawner {
   private listeners = new Map<SpawnerEvent, Set<EventListener<SpawnerEvent>>>();
   private humanAgentId: string | null = null;
   private emittedQueryTasks = new Set<string>();
+  private readonly globalMaxAgents: number;
 
   constructor(
     private readonly db: DatabaseType,
     private readonly config: SpawnerConfig,
+    options?: WorkflowSpawnerOptions,
   ) {
+    this.globalMaxAgents = options?.globalMaxAgents ?? 50;
     this.spawnerMetadata = {
       spawner_id: generateId('sp'),
       max_agents: config.maxAgents,
@@ -131,6 +138,7 @@ export class WorkflowSpawner {
         source_content: workflowData.source_content,
       },
       this.humanAgentId,
+      this.globalMaxAgents,
     );
 
     // Forward pool events
@@ -246,6 +254,7 @@ export class WorkflowSpawner {
         source_content: workflowData.source_content,
       },
       this.humanAgentId,
+      this.globalMaxAgents,
     );
     this.forwardPoolEvents();
 

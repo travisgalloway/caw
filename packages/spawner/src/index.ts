@@ -27,7 +27,10 @@ export type { QualityHooksConfig } from './quality-hooks';
 export { installQualityHooks, removeQualityHooks } from './quality-hooks';
 export {
   clearRegistry,
+  decrementGlobalAgentCount,
+  getGlobalAgentCount,
   getSpawner,
+  incrementGlobalAgentCount,
   listSpawners,
   registerSpawner,
   unregisterSpawner,
@@ -35,6 +38,7 @@ export {
 export type { AutoResumeResult, ResumeOptions } from './resume';
 export { resumeWorkflows } from './resume';
 export { WorkflowRunner } from './runner';
+export type { WorkflowSpawnerOptions } from './spawner.service';
 export { WorkflowSpawner } from './spawner.service';
 export type {
   StagnationConfig,

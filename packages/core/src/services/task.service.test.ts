@@ -16,7 +16,7 @@ interface SetupResult {
 function setupChainedTasks(db: DatabaseType): SetupResult {
   const wf = workflowService.create(db, {
     name: 'Test Workflow',
-    source_type: 'issue',
+    source_type: 'custom',
   });
   workflowService.setPlan(db, wf.id, {
     summary: 'Test plan',
@@ -122,7 +122,7 @@ describe('taskService', () => {
     it('ignores informs-only dependencies', () => {
       const wf = workflowService.create(db, {
         name: 'Inform Test',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
@@ -161,7 +161,7 @@ describe('taskService', () => {
     it('returns empty arrays when no dependencies', () => {
       const wf = workflowService.create(db, {
         name: 'No Deps',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
@@ -652,7 +652,7 @@ describe('taskService', () => {
 
       const wf2 = workflowService.create(db, {
         name: 'Other Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf2.id, {
         summary: 'Plan',
@@ -669,7 +669,7 @@ describe('taskService', () => {
 
       const wf2 = workflowService.create(db, {
         name: 'Other Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf2.id, {
         summary: 'Plan',
@@ -687,7 +687,7 @@ describe('taskService', () => {
     it('respects limit', () => {
       const wf = workflowService.create(db, {
         name: 'Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',
@@ -701,7 +701,7 @@ describe('taskService', () => {
     it('orders by sequence', () => {
       const wf = workflowService.create(db, {
         name: 'Workflow',
-        source_type: 'issue',
+        source_type: 'custom',
       });
       workflowService.setPlan(db, wf.id, {
         summary: 'Plan',

@@ -127,17 +127,17 @@ describe('repositoryService', () => {
       const repo = repositoryService.register(db, { path: '/project' });
       workflowService.create(db, {
         name: 'WF1',
-        source_type: 'issue',
+        source_type: 'custom',
         repository_paths: ['/project'],
       });
       workflowService.create(db, {
         name: 'WF2',
-        source_type: 'issue',
+        source_type: 'custom',
         repository_paths: ['/project'],
       });
       workflowService.create(db, {
         name: 'WF3',
-        source_type: 'issue',
+        source_type: 'custom',
       });
 
       const workflows = repositoryService.getWorkflows(db, repo.id);

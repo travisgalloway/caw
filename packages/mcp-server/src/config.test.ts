@@ -46,12 +46,4 @@ describe('resolveConfig', () => {
       );
     });
   });
-
-  describe('parseDbMode', () => {
-    it('rejects invalid db mode', () => {
-      expect(() => resolveConfig({ mode: 'repository' })).toThrow(
-        "Invalid db mode: 'repository'. Must be 'global' or 'per-repo'.",
-      );
-    });
-  });
 });

@@ -6,6 +6,11 @@ import { runIntentJudge } from './intent-judge';
 import { routeTask } from './model-router';
 import { buildAgentSystemPrompt } from './prompt';
 import { installQualityHooks } from './quality-hooks';
+import {
+  decrementGlobalAgentCount,
+  getGlobalAgentCount,
+  incrementGlobalAgentCount,
+} from './registry';
 import type { AgentHandle, SpawnerConfig, SpawnerEvent, SpawnerEventData } from './types';
 
 const MAX_RETRIES = 3;
@@ -32,6 +37,7 @@ export class AgentPool {
     private readonly config: SpawnerConfig,
     private readonly workflow: Pick<Workflow, 'id' | 'name' | 'plan_summary' | 'source_content'>,
     private readonly humanAgentId: string | null = null,
+    private readonly globalMaxAgents: number = 50,
   ) {}
 
   on<E extends SpawnerEvent>(event: E, listener: EventListener<E>): void {
@@ -201,6 +207,7 @@ export class AgentPool {
     }, HEARTBEAT_INTERVAL_MS);
     this.heartbeatTimers.set(agent.id, heartbeatTimer);
 
+    incrementGlobalAgentCount();
     this.emit('agent_started', { agentId: agent.id, taskId: task.id });
 
     // Run in background (don't await here)
@@ -252,7 +259,9 @@ export class AgentPool {
   }
 
   hasCapacity(): boolean {
-    return this.getActiveCount() < this.getMaxAgents();
+    return (
+      this.getActiveCount() < this.getMaxAgents() && getGlobalAgentCount() < this.globalMaxAgents
+    );
   }
 
   setMaxAgents(n: number): void {
@@ -344,6 +353,8 @@ export class AgentPool {
   }
 
   private cleanupAgent(agentId: string): void {
+    decrementGlobalAgentCount();
+
     // Stop heartbeat
     const timer = this.heartbeatTimers.get(agentId);
     if (timer) {
