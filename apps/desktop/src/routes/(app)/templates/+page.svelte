@@ -17,7 +17,6 @@ import { wsStore } from '$lib/stores/ws';
 let templates = $state<WorkflowTemplate[]>([]);
 let loading = $state(true);
 let error = $state<string | null>(null);
-let searchQuery = $state('');
 let sourceFilter = $state<'all' | 'file' | 'db'>('all');
 let expandedCards = $state<Set<string>>(new Set());
 let pollInterval: ReturnType<typeof setInterval>;
@@ -48,12 +47,6 @@ const filteredTemplates = $derived.by(() => {
     result = result.filter((t) => t.source?.startsWith('file:'));
   } else if (sourceFilter === 'db') {
     result = result.filter((t) => !t.source || t.source === 'db');
-  }
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    result = result.filter(
-      (t) => t.name.toLowerCase().includes(q) || (t.description ?? '').toLowerCase().includes(q),
-    );
   }
   return result;
 });
@@ -129,12 +122,6 @@ $effect(() => {
 
 <div class="px-5 py-4 space-y-4">
   <div class="flex items-center gap-2">
-    <input
-      type="text"
-      placeholder="Search templates..."
-      bind:value={searchQuery}
-      class="h-9 w-48 rounded-md border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
-    />
     <div class="flex rounded-md border border-input">
       {#each [['all', 'All'], ['file', 'File'], ['db', 'DB']] as [value, label]}
         <button
@@ -172,8 +159,8 @@ $effect(() => {
     <EmptyState
       icon={FileTextIcon}
       title="No templates found"
-      description={searchQuery || sourceFilter !== 'all'
-        ? 'Try adjusting your search or filter.'
+      description={sourceFilter !== 'all'
+        ? 'Try adjusting your filter.'
         : 'Create templates via MCP tools or add .yaml files to .caw/templates/.'}
     />
   {:else}

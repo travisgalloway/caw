@@ -5,22 +5,26 @@ import SettingsIcon from '@lucide/svelte/icons/settings';
 import { page } from '$app/stores';
 import SidebarWorkflowItem from '$lib/components/SidebarWorkflowItem.svelte';
 import * as Sidebar from '$lib/components/ui/sidebar/index.js';
+import { useSidebar } from '$lib/components/ui/sidebar/index.js';
 import type { SidebarData } from '$lib/stores/sidebar-data.svelte';
 
 interface Props {
   data: SidebarData;
-  isTauri: boolean;
+  isTauri?: boolean;
 }
 
-const { data, isTauri }: Props = $props();
+const { data }: Props = $props();
 
+const sidebar = useSidebar();
+const isCollapsed = $derived(sidebar.state === 'collapsed');
 const pathname = $derived($page.url.pathname);
 </script>
 
 <Sidebar.Root collapsible="icon" variant="sidebar">
+  <Sidebar.Header class="pt-1 pb-0" />
   <Sidebar.Content>
     <!-- Top-level navigation -->
-    <Sidebar.Group class={isTauri ? 'pt-[38px]' : 'pt-2'}>
+    <Sidebar.Group>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
           <Sidebar.MenuItem>
@@ -54,9 +58,23 @@ const pathname = $derived($page.url.pathname);
       </Sidebar.GroupContent>
     </Sidebar.Group>
 
+    <Sidebar.Separator class="mx-2" />
+
     <!-- Active Workflows -->
     <Sidebar.Group>
-      <Sidebar.GroupLabel>Active</Sidebar.GroupLabel>
+      <Sidebar.GroupLabel
+        class={isCollapsed
+          ? 'group-data-[collapsible=icon]:mt-0 group-data-[collapsible=icon]:opacity-100 justify-center'
+          : ''}
+      >
+        {#if isCollapsed}
+          <span class="flex size-5 items-center justify-center rounded-md bg-sidebar-accent text-[10px] font-semibold">
+            {data.activeWorkflows.length}
+          </span>
+        {:else}
+          Active
+        {/if}
+      </Sidebar.GroupLabel>
       <Sidebar.GroupContent>
         <Sidebar.Menu>
           {#each data.activeWorkflows as wf (wf.id)}
@@ -69,16 +87,18 @@ const pathname = $derived($page.url.pathname);
               {pathname}
             />
           {:else}
-            <Sidebar.MenuItem>
-              <span class="px-2 py-1 text-xs text-muted-foreground">No active workflows</span>
-            </Sidebar.MenuItem>
+            {#if !isCollapsed}
+              <Sidebar.MenuItem>
+                <span class="px-2 py-1 text-xs text-muted-foreground">No active workflows</span>
+              </Sidebar.MenuItem>
+            {/if}
           {/each}
         </Sidebar.Menu>
       </Sidebar.GroupContent>
     </Sidebar.Group>
   </Sidebar.Content>
 
-  <Sidebar.Footer>
+  <Sidebar.Footer class="border-t border-sidebar-border">
     <Sidebar.Menu>
       <Sidebar.MenuItem>
         <Sidebar.MenuButton
